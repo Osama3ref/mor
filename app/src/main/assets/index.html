@@ -267,7 +267,7 @@ const Mor = (() => {
     const hands = [0, 1, 2, 3].map(() => d.splice(0, 14));
     const discard = d.splice(0, 1);
     return { stock: d, discard, mor, morBy: [null, null], hands, melds: [], pending: {}, turn: starter, step: 'draw', mid: 1, summary: null, finalTurn: false,
-      declared: null, melded: false, noDiscard: null, got: null, pen: [0, 0], penNotes: [] };
+      declared: null, melded: false, noDiscard: null, got: null, pen: [0, 0], penNotes: [], taken: [] };
   }
   const clone = st => JSON.parse(JSON.stringify(st));
   function err(msg) { const e = new Error(msg); e.game = true; throw e; }
@@ -327,6 +327,7 @@ const Mor = (() => {
     const got = st.discard.splice(index);
     st.hands[seat].push(...got); st.step = 'play'; st.got = { seat, ids: got };
     st.noDiscard = got.length === 1 ? { seat, id: got[0] } : null;
+    (st.taken = st.taken || []).push({ seat, ids: got.slice(0, 6) }); if (st.taken.length > 24) st.taken.shift();
     log(st, nm(st, seat) + ' أخد ' + got.length + ' من الأرض');
     return st;
   }
@@ -484,6 +485,7 @@ const Mor = (() => {
           if (!gapUsed && w.length && byRank[k + 1] && run.length) { gapUsed = w[0]; run.push(gapUsed); k++; continue; }
           break;
         }
+        if (run.length === 2 && !gapUsed && w.length) { gapUsed = w[0]; run.push(gapUsed); }
         const nat = run.filter(x => x !== gapUsed);
         if (run.length >= 3 && nat.length >= 2 && analyze(run)) {
           out.push(run); run.forEach(x => used.add(x)); if (gapUsed) w = w.filter(x => x !== gapUsed);
@@ -501,8 +503,13 @@ const Mor = (() => {
     const byRank = {};
     for (const c of nat) { const r = rankOf(c); if (r === 2) continue; (byRank[r] = byRank[r] || []).push(c); }
     for (const r in byRank) if (byRank[r].length >= 3) { acts.push({ t: 'new', ids: byRank[r] }); rest = rest.filter(c => !byRank[r].includes(c)); }
+    const jk = rest.filter(isJ);
     const { runs } = findRuns(rest.filter(c => !isJ(c)), wilds.filter(c => rest.includes(c)));
     for (const run of runs) { if (run.every(c => rest.includes(c))) { acts.push({ t: 'new', ids: run }); rest = rest.filter(c => !run.includes(c)); } }
+    if (jk.length) for (const r in byRank) {
+      const pair = byRank[r].filter(c => rest.includes(c));
+      if (pair.length === 2 && rest.includes(jk[0])) { acts.push({ t: 'new', ids: [...pair, jk[0]] }); rest = rest.filter(c => !pair.includes(c) && c !== jk[0]); break; }
+    }
     const sim = melds.filter(m => m.team === team).map(m => ({ id: m.id, cards: m.cards.slice() }));
     let changed = true;
     while (changed) {
@@ -513,7 +520,8 @@ const Mor = (() => {
       }
     }
     const g = sim.reduce((a, m) => a + meldValue(m), 0) + acts.filter(a => a.t === 'new').reduce((a, x) => a + meldValue({ cards: x.ids }), 0);
-    return { acts, rest, ground: g };
+    const lens = [...sim.map(m => m.cards.length), ...acts.filter(a => a.t === 'new').map(a => a.ids.length)];
+    return { acts, rest, ground: g, lens };
   }
   function cardKeep(c, hand) {
     if (isJ(c) || rankOf(c) === 2) return 100;
@@ -568,7 +576,104 @@ const Mor = (() => {
     return st;
   }
 
-  return { botTurn, declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+  // ---------- strong bot ----------
+  function potential(hand, melds, team) {
+    const plan = planMelds(hand, melds, team);
+    const left = plan.rest;
+    let conn = 0;
+    for (const c of left) conn += Math.min(cardKeep(c, left), 7);
+    const wilds = left.filter(c => isJ(c) || rankOf(c) === 2).length;
+    const P = Mor.P || {};
+    let prog = 0; for (const L of plan.lens) if (L < 7) prog += (L - 2) * (L - 2);
+    return plan.ground * 3 + (hand.length - left.length) * 2.2 + conn * 0.55 + wilds * 3 + prog * (P.prog ?? 0.8) - left.length * 1.6;
+  }
+  function danger(st, seat, c) {
+    if (isJ(c) || rankOf(c) === 2) return 50;
+    const T = teamOf(seat); let d = 0;
+    for (const m of st.melds) if (m.team !== T && analyze([...m.cards, c])) d += 9;
+    const nextOpp = (seat + 1) % 4;
+    for (const t of (st.taken || []).slice(-10)) {
+      if (teamOf(t.seat) === T) continue;
+      for (const x of t.ids) {
+        if (isJ(x)) continue;
+        if (rankOf(x) === rankOf(c)) d += t.seat === nextOpp ? 3 : 1.5;
+        else if (x[0] === c[0] && Math.abs(rankOf(x) - rankOf(c)) <= 2) d += t.seat === nextOpp ? 3 : 1.5;
+      }
+    }
+    return d;
+  }
+  function chooseDiscard(st, seat) {
+    const h = st.hands[seat], T = teamOf(seat);
+    let best = null, bv = -Infinity;
+    for (const c of new Set(h)) {
+      if (st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === c && !h.some(x => x !== c && twinKey(x) === twinKey(c))) continue;
+      const rest = h.slice(); rest.splice(rest.indexOf(c), 1);
+      const v = potential(rest, st.melds, T) - danger(st, seat, c) * 0.9;
+      if (v > bv) { bv = v; best = c; }
+    }
+    return best;
+  }
+  function chooseDraw(st, seat) {
+    const h = st.hands[seat], T = teamOf(seat), base = potential(h, st.melds, T);
+    const late = st.stock.length < 10;
+    const P = Mor.P || {};
+    const hungry = h.length <= (P.hungryN ?? 5) && ground(st, T) < MOR_MIN;
+    let best = -1, bv = st.stock.length ? (hungry ? (P.hbase ?? 1) : (P.base ?? 5)) : -Infinity;
+    for (let i = st.discard.length - 1; i >= 0 && i >= st.discard.length - 30; i--) {
+      const got = st.discard.slice(i);
+      if (hungry && got.length < (P.hmin ?? 4) && st.stock.length) continue;
+      const v = potential([...h, ...got], st.melds, T) - base - got.length * (hungry ? (P.hcost ?? -0.6) : late ? (P.late ?? 1.5) : (P.early ?? 0.8));
+      if (v > bv) { bv = v; best = i; }
+    }
+    return best;
+  }
+  function botTurnStrong(s, seat) {
+    let st = s; const T = teamOf(seat), O = 1 - T;
+    const tryDo = (fn, ...a) => { try { st = fn(st, seat, ...a); return true; } catch (e) { if (!e.game) throw e; return false; } };
+    if (st.phase !== 'play' || st.turn !== seat) return st;
+    const wantClose = g => {
+      const ourMor = st.morBy.filter(x => x === T).length;
+      if (g < CLOSE_MIN) return false;
+      if (ourMor > 0 || morLeft(st) < 0) return true;
+      return g > ground(st, O) + 40;
+    };
+    if (st.step === 'choice') { if (!(decl(st, seat, 'close') && tryDo(close))) if (!tryDo(chooseMor)) tryDo(close); return st; }
+    if (st.step === 'draw') {
+      const i = chooseDraw(st, seat);
+      if (!(i >= 0 && tryDo(takeDiscard, i))) if (!tryDo(draw)) if (!tryDo(takeDiscard, st.discard.length - 1)) return st;
+    }
+    for (let loop = 0; loop < 4 && st.phase === 'play' && st.turn === seat && st.step === 'play'; loop++) {
+      const plan = planMelds(st.hands[seat], st.melds, T);
+      const left = plan.rest.length;
+      if (!st.melded && !(st.declared && st.declared.seat === seat) && left <= 1 && plan.acts.length) {
+        if (wantClose(plan.ground)) tryDo(declare, 'close');
+        else if (morLeft(st) >= 0 && plan.ground >= MOR_MIN) tryDo(declare, 'mor');
+        else if (plan.ground >= CLOSE_MIN) tryDo(declare, 'close');
+      }
+      const declared = st.declared && st.declared.seat === seat;
+      const hold = (Mor.P || {}).hold ?? true;
+      const opened = ground(st, T) >= MOR_MIN || plan.ground >= MOR_MIN;
+      for (const a of plan.acts) {
+        if (!declared && st.hands[seat].length - a.ids.length < 2) continue;
+        if (hold && !opened && !declared && a.t === 'new' && a.ids.length < 7 && st.stock.length > 4) continue;
+        if (a.t === 'new') tryDo(meldNew, a.ids); else tryDo(addToMeld, a.id, a.ids);
+      }
+      // free a joker from our melds when we hold its natural card
+      for (const m of st.melds.filter(x => x.team === T)) for (const c of st.hands[seat].slice()) if (swapOptions(m, c).length) { tryDo(swapWild, m.id, c); break; }
+      if (!st.hands[seat].length) {
+        if (decl(st, seat, 'mor') && tryDo(takeMorNow)) continue;
+        if (decl(st, seat, 'close')) { tryDo(close); return st; }
+      }
+      break;
+    }
+    if (st.phase !== 'play' || st.turn !== seat || st.step !== 'play') return st;
+    const c = chooseDiscard(st, seat);
+    if (!(c && tryDo(discard, c))) for (const x of st.hands[seat].slice()) if (tryDo(discard, x)) break;
+    if (st.turn === seat && st.step === 'choice') { if (!(decl(st, seat, 'close') && tryDo(close))) if (!tryDo(chooseMor)) tryDo(close); }
+    return st;
+  }
+
+  return { botTurnStrong, botTurnEasy: botTurn, botTurn: botTurnStrong, declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
 })();
 
 
