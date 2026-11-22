@@ -21,6 +21,9 @@ public class LanServer {
     private String host = "", phase = "lobby", s = "";
     private long sv = 0;
     private final LinkedHashMap<String, Object[]> players = new LinkedHashMap<>(); // id -> {name, seat}
+    private final ArrayList<String> chat = new ArrayList<>();            // JSON objects, newest last
+    private final LinkedHashMap<Long, String[]> voices = new LinkedHashMap<>(); // mid -> {mime, base64}
+    private long nextMid = 1;
 
     public LanServer(PageSource source) { this.source = source; }
 
@@ -52,7 +55,7 @@ public class LanServer {
                 int i = h.indexOf(':');
                 if (i > 0 && h.substring(0, i).trim().equalsIgnoreCase("content-length")) len = Integer.parseInt(h.substring(i + 1).trim());
             }
-            if (len > 1_000_000) { send(sock, 413, "application/json", "{}".getBytes(StandardCharsets.UTF_8)); return; }
+            if (len > 3_000_000) { send(sock, 413, "application/json", "{}".getBytes(StandardCharsets.UTF_8)); return; }
             byte[] body = new byte[len];
             for (int r = 0; r < len; ) { int n = in.read(body, r, len - r); if (n < 0) break; r += n; }
             String path = target, query = "";
@@ -80,6 +83,14 @@ public class LanServer {
             }
             json(sock, 200, out); return;
         }
+        if (method.equals("GET") && path.equals("/api/voice")) {
+            long mid = -1;
+            for (String kv : query.split("&")) if (kv.startsWith("mid=")) try { mid = Long.parseLong(kv.substring(4)); } catch (NumberFormatException ignored) {}
+            String[] v;
+            synchronized (lock) { v = voices.get(mid); }
+            if (v == null) { json(sock, 404, "{\"error\":\"gone\"}"); return; }
+            json(sock, 200, "{\"mime\":" + Json.quote(v[0]) + ",\"data\":" + Json.quote(v[1]) + "}"); return;
+        }
         if (!method.equals("POST")) { json(sock, 404, "{\"error\":\"not found\"}"); return; }
         Map<String, Object> b;
         try { Object o = Json.parse(body); if (!(o instanceof Map)) throw new IllegalArgumentException(); b = cast(o); }
@@ -87,7 +98,7 @@ public class LanServer {
         synchronized (lock) {
             switch (path) {
                 case "/api/create":
-                    host = str(b.get("host")); phase = "lobby"; s = ""; sv = 0; players.clear();
+                    host = str(b.get("host")); phase = "lobby"; s = ""; sv = 0; players.clear(); chat.clear(); voices.clear();
                     break;
                 case "/api/player": {
                     String id = str(b.get("id"));
@@ -104,6 +115,26 @@ public class LanServer {
                     long expect = (long) num(b.get("expect"), -1);
                     if (expect != sv) { json(sock, 409, "{\"error\":\"conflict\",\"room\":" + roomJson() + "}"); return; }
                     s = str(b.get("s")); phase = str(b.get("phase")); sv = (long) num(b.get("sv"), sv + 1);
+                    break;
+                }
+                case "/api/chat":
+                case "/api/voice": {
+                    boolean audio = path.equals("/api/voice");
+                    String text = str(b.get("text"));
+                    if (text.length() > 300) text = text.substring(0, 300);
+                    String data = str(b.get("data"));
+                    if (audio && (data.isEmpty() || data.length() > 2_500_000)) { json(sock, 400, "{\"error\":\"audio\"}"); return; }
+                    if (!audio && text.trim().isEmpty()) { json(sock, 400, "{\"error\":\"empty\"}"); return; }
+                    long mid = nextMid++;
+                    if (audio) {
+                        voices.put(mid, new String[]{str(b.get("mime")), data});
+                        while (voices.size() > 20) voices.remove(voices.keySet().iterator().next());
+                    }
+                    String name = str(b.get("name"));
+                    if (name.length() > 20) name = name.substring(0, 20);
+                    chat.add("{\"mid\":" + mid + ",\"id\":" + Json.quote(str(b.get("id"))) + ",\"name\":" + Json.quote(name)
+                            + ",\"text\":" + Json.quote(text) + ",\"audio\":" + audio + ",\"t\":" + System.currentTimeMillis() + "}");
+                    while (chat.size() > 40) chat.remove(0);
                     break;
                 }
                 default: json(sock, 404, "{\"error\":\"not found\"}"); return;
@@ -123,7 +154,7 @@ public class LanServer {
             if (p.length() > 1) p.append(',');
             p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append('}');
         }
-        return "{\"rev\":" + rev + ",\"room\":" + roomJson() + ",\"players\":" + p.append(']') + "}";
+        return "{\"rev\":" + rev + ",\"room\":" + roomJson() + ",\"players\":" + p.append(']') + ",\"chat\":[" + String.join(",", chat) + "]}";
     }
 
     @SuppressWarnings("unchecked") private static Map<String, Object> cast(Object o) { return (Map<String, Object>) o; }

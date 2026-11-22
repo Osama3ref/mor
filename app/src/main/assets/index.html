@@ -2,74 +2,156 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>مور</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&family=Oswald:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
-/* VOICE: a friendly majlis card night, warm and lively
-   IDEA: the felt card table itself, cards laid in front of you
-   PICTURE: the live table: melds, discard row and your fanned hand
-   COLOUR and TYPE: deep felt green, ivory cards, card red; Cairo + Oswald for ranks
-   LAYOUT: scores on top, table in the middle, hand + actions pinned to the bottom */
-:root{color-scheme:light dark;--felt:light-dark(#0f5a3c,#0a3d29);--felt2:light-dark(#0c4a31,#072e1f);--ink:#f3efe4;--dim:#b9cfc2;--card:#fbf8f0;--cink:#1b1b1b;--red:#d32f3a;--gold:#f2c14e;--line:rgba(255,255,255,.14)}
-:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
-*{box-sizing:border-box;min-width:0}
-body{margin:0;background:radial-gradient(120% 80% at 50% 30%,var(--felt),var(--felt2));color:var(--ink);font:16px/1.5 Cairo,system-ui,sans-serif;min-height:100vh;overflow-x:clip}
-button{font:inherit;color:inherit;cursor:pointer}
-.btn{min-height:44px;padding:8px 16px;border-radius:12px;border:0;background:var(--gold);color:#2a1f00;font-weight:800}
-.btn.alt{background:rgba(255,255,255,.12);color:var(--ink);border:1px solid var(--line)}
-.btn.red{background:var(--red);color:#fff}
-.btn:disabled{opacity:.4;cursor:default}
-.btn:focus-visible,.c:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-input{font:inherit;font-size:16px;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--ink);width:100%}
-.wrap{max-width:760px;margin:0 auto;padding:12px max(3vw,10px) 0}
-h1{font-size:44px;line-height:1.05;margin:8px 0 4px;font-weight:800}
-.muted{color:var(--dim);font-size:14px}
-.panel{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+/* VOICE: a lively majlis card night, polished like a real card app
+   IDEA: an oval felt table seen from your chair, friends around it
+   PICTURE: the table itself: seats, melds, discard row and your fanned hand
+   COLOUR and TYPE: deep felt green, ivory cards, card red, team gold and team sky; Cairo + Oswald ranks
+   LAYOUT: thin top bar, seats around an oval board, actions then hand pinned at the bottom; landscape spreads sideways */
+:root{color-scheme:dark;--felt:#11613f;--felt2:#0a3f29;--felt3:#062a1b;--rim:#2f8a5f;--ink:#f4f1e6;--dim:#a9c7b6;--card:#fffdf6;--card2:#f1ead6;--cink:#16181b;--red:#d22e3b;--a:#f2c14e;--b:#56c2ec;--line:rgba(255,255,255,.13);--glass:rgba(4,24,15,.55)}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(130% 90% at 50% 40%,var(--felt) 0%,var(--felt2) 55%,var(--felt3) 100%);color:var(--ink);font:15px/1.45 Cairo,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.07;background-image:radial-gradient(#fff 1px,transparent 1.2px);background-size:5px 5px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input{font:inherit;font-size:16px;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.28);color:var(--ink);width:100%;user-select:text}
+.btn{min-height:44px;padding:8px 16px;border-radius:12px;background:linear-gradient(#ffd56e,#e9ad2b);color:#2a1d00;font-weight:800;box-shadow:0 3px 0 #a8770f,0 6px 14px rgba(0,0,0,.25)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #a8770f}
+.btn.alt{background:rgba(255,255,255,.1);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.red{background:linear-gradient(#ef4a55,#c21f2c);color:#fff;box-shadow:0 3px 0 #82121c}
+.btn.sky{background:linear-gradient(#7fd6f5,#3aa9d6);color:#03212d;box-shadow:0 3px 0 #1d6f90}
+.btn.sm{min-height:36px;padding:4px 12px;font-size:14px}
+.btn:disabled{opacity:.35;pointer-events:none}
+:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.muted{color:var(--dim);font-size:13px}
+/* ---------- menu ---------- */
+.menu{height:100%;overflow-y:auto;padding:max(16px,env(safe-area-inset-top)) max(4vw,14px) 40px}
+.menu .in{max-width:720px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:14px;margin:6px 0 4px}
+.logo h1{font-size:52px;line-height:1;margin:0;font-weight:800;letter-spacing:-1px}
+.fanlogo{position:relative;width:86px;height:70px;flex:none}
+.fanlogo .c{position:absolute;bottom:0;transform-origin:50% 120%}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;backdrop-filter:blur(4px)}
+.panel h2{margin:0 0 4px;font-size:19px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .grow{flex:1 1 160px}
-/* cards */
-.c{position:relative;width:46px;height:66px;border-radius:7px;background:var(--card);color:var(--cink);border:1px solid #d9d2c0;box-shadow:0 2px 0 rgba(0,0,0,.25);padding:3px 0 0 5px;text-align:left;flex:none;transition:transform .12s}
-.c b{display:block;font:600 19px/1 Oswald,sans-serif}.c i{font-style:normal;font-size:18px;line-height:1}
-.c.r{color:var(--red)}.c.jk{background:linear-gradient(160deg,#fff,#ffe9a8)}.c.jk b{font-size:20px}
-.c.sel{transform:translateY(-12px);box-shadow:0 0 0 3px var(--gold),0 6px 10px rgba(0,0,0,.35)}
-.c.w{outline:2px dashed var(--red);outline-offset:-4px}
-.fan{display:flex;flex-wrap:wrap;direction:ltr;gap:6px 0;padding-top:12px}.fan .c{margin-right:-10px}
-.mini .c{width:32px;height:46px;padding:2px 0 0 3px;margin-right:-12px}.mini .c b{font-size:14px}.mini .c i{font-size:13px}
-/* table */
-.score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;text-align:center}
-.score .t{background:rgba(0,0,0,.25);border-radius:14px;padding:6px}.score .n{font:600 30px/1 Oswald,sans-serif}.score .t.us{box-shadow:inset 0 0 0 2px var(--gold)}
-.players{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0}
-.pl{background:rgba(0,0,0,.2);border-radius:12px;padding:6px;text-align:center;font-size:13px;border:2px solid transparent}
-.pl.on{border-color:var(--gold)}.pl .nm{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tb{display:flex;gap:6px;font-size:12px;justify-content:center}
-.zone h3{margin:6px 0;font-size:16px;display:flex;justify-content:space-between}
-.melds{display:flex;flex-wrap:wrap;gap:8px}
-.meld{background:rgba(0,0,0,.22);border-radius:12px;padding:8px 18px 6px 8px;border:2px solid transparent;position:relative}
-.meld.tap{border-color:rgba(242,193,78,.6)}.meld .val{position:absolute;top:-8px;left:-6px;background:var(--gold);color:#2a1f00;border-radius:10px;padding:0 7px;font-size:12px;font-weight:800}
-.meld .val.z{background:#ddd}
-.disc{display:flex;direction:ltr;overflow-x:auto;gap:0;padding:6px 2px 10px}.disc .c{margin-right:-14px}
-.pile{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.mor{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:10px;background:rgba(0,0,0,.25);font-size:13px}
-.mor.gone{opacity:.45;text-decoration:line-through}
-.dock{position:sticky;bottom:0;background:linear-gradient(transparent,var(--felt2) 18px);padding:18px max(3vw,10px) max(12px,env(safe-area-inset-bottom));margin-top:10px}
-.dock .in{max-width:760px;margin:0 auto}
-.status{font-weight:800;margin-bottom:4px}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.log{font-size:13px;color:var(--dim);max-height:3.2em;overflow:hidden}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.modes .panel{margin:0}
+.seats4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.seatin{display:flex;gap:6px;align-items:center}
+.chip{min-height:36px;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
+.chip.on{background:var(--b);color:#03212d}
+.seat{min-height:68px;border-radius:16px;border:2px dashed var(--line);background:rgba(0,0,0,.2);padding:8px;text-align:center}
+.seat.me{border-style:solid;border-color:var(--a)}
+.code{font:600 42px/1.1 Oswald,sans-serif;letter-spacing:4px;direction:ltr}
+details summary{cursor:pointer;font-weight:800}
+/* ---------- cards ---------- */
+.c{--w:52px;width:var(--w);height:calc(var(--w)*1.42);border-radius:calc(var(--w)*.12);background:linear-gradient(160deg,var(--card),var(--card2));color:var(--cink);position:relative;flex:none;box-shadow:0 1px 0 rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3);border:1px solid rgba(0,0,0,.18);overflow:hidden;text-align:left;direction:ltr}
+.c .rk{position:absolute;left:calc(var(--w)*.08);top:calc(var(--w)*.04);font:600 calc(var(--w)*.4)/1 Oswald,'Arial Narrow',sans-serif;letter-spacing:-.5px}
+.c .su{position:absolute;left:calc(var(--w)*.09);top:calc(var(--w)*.46);font-size:calc(var(--w)*.3);line-height:1}
+.c .big{position:absolute;right:calc(var(--w)*.06);bottom:calc(var(--w)*.02);font-size:calc(var(--w)*.62);line-height:1;opacity:.92}
+.c.r{color:var(--red)}
+.c.jk{background:linear-gradient(160deg,#fff7d6,#f7d774)}
+.c.jk .rk{font-size:calc(var(--w)*.3);top:calc(var(--w)*.08)}
+.c.jk .big{color:#b0262f}
+.c.back{background:repeating-linear-gradient(45deg,#8e1b24 0 6px,#a8232d 6px 12px);border:2px solid #fff4}
+.c.back:after{content:"";position:absolute;inset:4px;border:1.5px solid rgba(255,255,255,.55);border-radius:5px}
+.c.w{box-shadow:0 0 0 2px var(--red) inset}
+.mini .c{--w:30px}.mini .c .su{display:none}.mini .c .big{font-size:15px;right:2px;bottom:1px}
+.mini .c .rk{font-size:13px}
+/* ---------- table ---------- */
+.game{position:fixed;inset:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+.top{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.ic{width:38px;height:38px;border-radius:12px;background:rgba(0,0,0,.28);display:grid;place-items:center;font-weight:800;position:relative;flex:none}
+.ic svg{width:20px;height:20px}
+.badge{position:absolute;top:-4px;left:-4px;background:var(--red);color:#fff;border-radius:9px;font-size:11px;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px}
+.score{flex:1;display:flex;justify-content:center;gap:6px;font-size:13px}
+.sp{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.3)}
+.sp b{font:600 17px/1 Oswald,sans-serif}
+.sp .dot{width:9px;height:9px;border-radius:50%}
+.mid{display:grid;grid-template-columns:62px minmax(0,1fr) 62px;min-height:0;padding:0 2px}
+.board{min-height:0;overflow-y:auto;border-radius:36px;background:radial-gradient(100% 100% at 50% 50%,rgba(255,255,255,.05),rgba(0,0,0,.18));box-shadow:inset 0 0 0 2px rgba(255,255,255,.07),inset 0 10px 40px rgba(0,0,0,.35);padding:8px;display:flex;flex-direction:column;gap:6px}
+.zone{display:flex;flex-direction:column;gap:4px}
+.zl{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);padding:0 6px}
+.zl b{color:var(--ink)}
+.melds{display:flex;flex-wrap:wrap;gap:8px 6px;justify-content:center;min-height:50px;align-items:flex-start}
+.meld{position:relative;padding:5px 6px 4px 16px;border-radius:10px;background:rgba(0,0,0,.18);display:flex;direction:ltr}
+.meld .c{margin-right:-15px}.meld .c:last-child{margin-right:0}
+.meld.tap{box-shadow:0 0 0 2px var(--a);animation:pulse 1.4s infinite}
+.meld .val{position:absolute;top:-7px;right:-5px;background:var(--a);color:#2a1d00;border-radius:8px;padding:0 6px;font:600 12px/16px Oswald,sans-serif}
+.meld .val.z{background:#d9d4c6}
+.meld.them .val{background:var(--b);color:#03212d}
+.empty{font-size:12px;color:var(--dim);align-self:center}
+.strip{display:flex;align-items:center;gap:8px;padding:4px 2px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
+.piles{display:flex;gap:6px;align-items:flex-end;flex:none}
+.pile{position:relative;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--dim);gap:2px}
+.pile .c{--w:30px}
+.pile.gone{opacity:.25}
+.pile .n{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;font:600 13px Oswald,sans-serif;text-shadow:0 1px 2px #000}
+.pile.can .c{box-shadow:0 0 0 2px var(--a),0 0 14px var(--a)}
+.disc{display:flex;direction:ltr;overflow-x:auto;padding:6px 4px 4px;flex:1;scrollbar-width:none}
+.disc .c{--w:34px;margin-right:-18px}.disc .c:last-child{margin-right:0;box-shadow:0 0 0 2px #fff8}
+.disc.can .c{cursor:pointer}.disc.can .c:last-child{box-shadow:0 0 0 2px var(--a),0 0 12px var(--a)}
+.seatv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;font-size:12px;text-align:center}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:19px;background:linear-gradient(#1e3a2d,#0e2219);box-shadow:0 0 0 3px var(--tc),0 4px 10px rgba(0,0,0,.4);position:relative}
+.seatv.on .av{animation:turn 1.2s infinite}
+.seatv .nm{max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.cnt{position:absolute;bottom:-6px;right:-8px;background:#fff;color:#111;border-radius:9px;font:600 11px/17px Oswald,sans-serif;padding:0 5px;box-shadow:0 1px 3px #0006}
+.tag{font-size:10px;padding:0 6px;border-radius:8px;background:rgba(0,0,0,.4)}
+.bubble{position:absolute;top:-6px;z-index:5;background:#fff;color:#111;padding:4px 9px;border-radius:12px;font-size:12px;max-width:150px;white-space:normal;box-shadow:0 4px 12px #0007;animation:pop .2s}
+.partner{display:flex;justify-content:center;padding:2px 0 6px}
+.partner .seatv{flex-direction:row;gap:8px}
+.bar{padding:4px 10px 0;display:flex;flex-direction:column;gap:6px}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:14px;min-height:22px;text-align:center}
+.status .last{font-weight:400;color:var(--dim);font-size:12px}
+.acts2{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.handwrap{position:relative;padding:0 8px max(10px,env(safe-area-inset-bottom))}
+.hand{position:relative;margin:0 auto;touch-action:none}
+.hand .c{position:absolute;transition:left .18s,top .18s,transform .12s;touch-action:none;cursor:grab}
+.hand .c.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--a),0 8px 16px rgba(0,0,0,.45)}
+.hand .c.fresh:before{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px var(--b);z-index:1}
+.hand .c.drag{transition:none;z-index:50;transform:translateY(-22px) scale(1.08);box-shadow:0 12px 24px rgba(0,0,0,.5)}
+.hand .c.lock{filter:brightness(.8)}
+.sortb{position:absolute;top:-30px;left:10px}
+.banner{margin:0 8px;padding:4px 10px;border-radius:10px;background:rgba(242,193,78,.15);box-shadow:inset 0 0 0 1px var(--a);font-size:12px;text-align:center}
 /* overlays */
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}
-.box{background:#13281d;border:1px solid var(--line);border-radius:18px;padding:18px;max-width:420px;width:100%}
-.box h2{margin:0 0 8px;font-size:24px}
-table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:center}
-.toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 16px;border-radius:12px;z-index:10;font-weight:600;max-width:92vw}
-.seats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.seat{min-height:64px;border-radius:14px;border:2px dashed var(--line);background:rgba(0,0,0,.2);padding:8px}
-.seat.me{border-style:solid;border-color:var(--gold)}
-.code{font:600 44px/1 Oswald,sans-serif;letter-spacing:6px}
-@media(prefers-reduced-motion:reduce){.c{transition:none}}
-@media(max-width:420px){.c{width:40px;height:58px}.c b{font-size:16px}.c i{font-size:15px}h1{font-size:36px}}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:60;animation:fade .15s}
+.box{background:linear-gradient(#173a29,#0f2a1d);border:1px solid var(--line);border-radius:20px;padding:18px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.5);max-height:92vh;overflow:auto}
+.box h2{margin:0 0 8px;font-size:22px}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:center}th:first-child,td:first-child{text-align:start}
+.toast{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:9px 16px;border-radius:12px;z-index:90;font-weight:700;max-width:92vw;box-shadow:0 6px 18px #0007;text-align:center}
+.chat{position:fixed;inset:auto 0 0 0;z-index:70;max-height:70vh;display:flex;flex-direction:column;background:linear-gradient(#183c2b,#0d2419);border-top:1px solid var(--line);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px #0008;padding:10px 12px max(10px,env(safe-area-inset-bottom));animation:up .2s}
+.chat .msgs{overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0;min-height:120px;user-select:text}
+.msg{max-width:80%;padding:6px 10px;border-radius:14px;background:rgba(255,255,255,.1);align-self:flex-start;font-size:14px}
+.msg.me{align-self:flex-end;background:var(--a);color:#2a1d00}
+.msg small{display:block;font-size:11px;opacity:.7}
+.mic{width:48px;height:48px;border-radius:50%;background:var(--b);color:#03212d;display:grid;place-items:center;flex:none;touch-action:none}
+.mic.rec{background:var(--red);color:#fff;animation:pulse 1s infinite}
+@keyframes turn{0%,100%{box-shadow:0 0 0 3px var(--tc),0 0 0 6px rgba(255,255,255,.0)}50%{box-shadow:0 0 0 3px var(--tc),0 0 18px 6px var(--tc)}}
+@keyframes pulse{50%{opacity:.75}}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+@keyframes fade{from{opacity:0}}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media(min-width:520px){.mid{grid-template-columns:90px minmax(0,1fr) 90px}.mini .c{--w:34px}.av{width:54px;height:54px}}
+/* landscape */
+@media(orientation:landscape) and (max-height:560px){
+  .game{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto}
+  .partner{position:absolute;top:3px;left:100px;padding:0;z-index:4}
+  .partner .av{width:34px;height:34px;font-size:14px}
+  .top{padding:4px 8px}
+  .mid{grid-template-columns:80px minmax(0,1fr) 80px}
+  .board{flex-direction:row;flex-wrap:wrap;align-content:flex-start;border-radius:28px}
+  .board .zone{flex:1 1 45%}.board .strip{order:-1;flex:1 1 100%}
+  .bar{flex-direction:row;align-items:center;justify-content:center;padding:2px 10px}
+  .mini .c{--w:28px}
+}
 </style>
 </head>
 <body>
@@ -175,15 +257,16 @@ const Mor = (() => {
   const ground = (st, team) => st.melds.filter(m => m.team === team).reduce((s, m) => s + meldValue(m), 0);
 
   // ---------- state ----------
-  function newGame(names) {
-    return { v: 0, phase: 'play', names, scores: [0, 0], round: 0, starter: 0, history: [], log: [], ...dealRound(0) };
+  function newGame(names, bots) {
+    return { v: 0, bots: bots || [false, false, false, false], phase: 'play', names, scores: [0, 0], round: 0, starter: 0, history: [], log: [], ...dealRound(0) };
   }
   function dealRound(starter) {
     const d = shuffle(buildDeck());
     const mor = [d.splice(0, 11), d.splice(0, 11)];
     const hands = [0, 1, 2, 3].map(() => d.splice(0, 14));
     const discard = d.splice(0, 1);
-    return { stock: d, discard, mor, morBy: [null, null], hands, melds: [], pending: {}, turn: starter, step: 'draw', mid: 1, summary: null, finalTurn: false };
+    return { stock: d, discard, mor, morBy: [null, null], hands, melds: [], pending: {}, turn: starter, step: 'draw', mid: 1, summary: null, finalTurn: false,
+      declared: null, melded: false, noDiscard: null, got: null, pen: [0, 0], penNotes: [] };
   }
   const clone = st => JSON.parse(JSON.stringify(st));
   function err(msg) { const e = new Error(msg); e.game = true; throw e; }
@@ -202,15 +285,38 @@ const Mor = (() => {
   function log(st, s) { st.log.push(s); if (st.log.length > 30) st.log.shift(); }
   const nm = (st, seat) => st.names[seat];
 
+  const decl = (st, seat, kind) => st.declared && st.declared.seat === seat && st.declared.kind === kind;
+  const okMor = (st, seat) => decl(st, seat, 'mor') && canMor(st, seat);
+  const okClose = (st, seat) => decl(st, seat, 'close') && canClose(st, seat);
+  function emptyErr(st, seat) {
+    if (!st.declared || st.declared.seat !== seat) return 'لازم تعلن قبل ما تنزّل: «بدي المور» أو «بدي ضمّن»';
+    return st.declared.kind === 'mor' ? 'لازم 40 على الأرض لتاخد المور' : 'لازم 100 على الأرض لتضمّن';
+  }
   function afterEmpty(st, seat) {
-    if (st.hands[seat].length) return;
-    if (!canMor(st, seat) && !canClose(st, seat)) err('ما فيك تخلّص ورقك: لازم 40 على الأرض لتاخد المور أو 100 لتضمّن');
+    const h = st.hands[seat];
+    if (h.length > 1) return;
+    if (!okMor(st, seat) && !okClose(st, seat)) err((h.length ? 'لازم يضل معك ورقتين لترمي وحدة: ' : 'ما فيك تخلّص ورقك: ') + emptyErr(st, seat));
+    if (h.length === 1 && st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === h[0]) err('آخر ورقة رح تضل هي اللي أخدتها من الأرض، وما فيك ترجّعها');
+  }
+  function declare(s, seat, kind) {
+    const st = clone(s); need(st, seat, 'play');
+    if (kind !== 'mor' && kind !== 'close') err('إعلان غلط');
+    if (st.melded) err('الإعلان لازم يكون قبل ما تنزّل ورق بهالدور');
+    if (kind === 'mor' && morLeft(st) < 0) err('ما ضل مور');
+    st.declared = { seat, kind };
+    log(st, nm(st, seat) + (kind === 'mor' ? ' أعلن إنه بدّه ياخد المور' : ' أعلن إنه بدّه يضمّن'));
+    return st;
+  }
+  function undeclare(s, seat) {
+    const st = clone(s); need(st, seat, 'play');
+    if (st.melded) err('ما فيك تلغي الإعلان بعد ما نزّلت');
+    st.declared = null; return st;
   }
 
   function draw(s, seat) {
     const st = clone(s); need(st, seat, 'draw');
     if (!st.stock.length) err('السحبة خلصت، خذ من الأرض');
-    st.hands[seat].push(st.stock.pop()); st.step = 'play';
+    const c = st.stock.pop(); st.hands[seat].push(c); st.step = 'play'; st.got = { seat, ids: [c] }; st.noDiscard = null;
     log(st, nm(st, seat) + ' سحب من السحبة');
     return st;
   }
@@ -218,7 +324,8 @@ const Mor = (() => {
     const st = clone(s); need(st, seat, 'draw');
     if (index < 0 || index >= st.discard.length) err('ورقة غلط');
     const got = st.discard.splice(index);
-    st.hands[seat].push(...got); st.step = 'play';
+    st.hands[seat].push(...got); st.step = 'play'; st.got = { seat, ids: got };
+    st.noDiscard = got.length === 1 ? { seat, id: got[0] } : null;
     log(st, nm(st, seat) + ' أخد ' + got.length + ' من الأرض');
     return st;
   }
@@ -227,7 +334,7 @@ const Mor = (() => {
     if (ids.length < 3) err('التنزيلة لازم 3 ورقات أو أكتر');
     const a = analyze(ids); if (!a) err('هالورق ما بيركب سيري ولا متل بعض');
     takeFromHand(st, seat, ids);
-    st.melds.push({ id: 'm' + (st.mid++), team: teamOf(seat), cards: a.order });
+    st.melds.push({ id: 'm' + (st.mid++), team: teamOf(seat), cards: a.order }); st.melded = true;
     afterEmpty(st, seat);
     log(st, nm(st, seat) + ' نزّل ' + ids.length + ' ورقات');
     return st;
@@ -237,7 +344,7 @@ const Mor = (() => {
     const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة مش موجودة');
     if (m.team !== teamOf(seat)) err('ما فيك تزيد على تنزيلات الخصم');
     const a = analyze([...m.cards, ...ids]); if (!a) err('ما بتركب على هالتنزيلة');
-    takeFromHand(st, seat, ids); m.cards = a.order;
+    takeFromHand(st, seat, ids); m.cards = a.order; st.melded = true;
     afterEmpty(st, seat);
     log(st, nm(st, seat) + ' زاد ' + ids.length + ' على تنزيلة');
     return st;
@@ -264,33 +371,43 @@ const Mor = (() => {
     const opts = swapOptions(m, id);
     if (!opts.length) err('هالورقة ما بتنفع مكان الجوكر أو الـ2 هون');
     const o = opts.find(x => isJ(x.w)) || opts[0];
-    takeFromHand(st, seat, [id]); st.hands[seat].push(o.w); m.cards = o.order;
+    takeFromHand(st, seat, [id]); st.hands[seat].push(o.w); m.cards = o.order; st.melded = true;
     log(st, nm(st, seat) + (isJ(o.w) ? ' فكّ جوكر' : ' بدّل 2'));
     return st;
   }
   function takeMorNow(s, seat) {
     const st = clone(s); need(st, seat, 'play');
     if (st.hands[seat].length) err('لازم تخلّص ورقك أول');
-    if (!canMor(st, seat)) err('ما فيك تاخد المور');
+    if (!okMor(st, seat)) err('ما فيك تاخد المور: ' + emptyErr(st, seat));
     const k = morLeft(st); st.hands[seat] = st.mor[k]; st.mor[k] = null; st.morBy[k] = teamOf(seat);
+    st.got = { seat, ids: st.hands[seat].slice() }; st.declared = null; st.melded = false;
     log(st, nm(st, seat) + ' أخد المور (مستمر)');
     return st;
   }
   function discard(s, seat, id) {
     const st = clone(s); need(st, seat, 'play');
+    if (st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === id) {
+      const twin = st.hands[seat].find(x => x !== id && x.slice(0, -1) === id.slice(0, -1));
+      if (!twin) err('ما فيك ترجّع الورقة اللي أخدتها من الأرض لحالها');
+      id = twin;
+    }
     takeFromHand(st, seat, [id]); st.discard.push(id);
     if (!st.hands[seat].length) {
-      if (!canMor(st, seat) && !canClose(st, seat)) err('ما فيك ترمي آخر ورقة: لازم 40 على الأرض لتاخد المور أو 100 لتضمّن');
+      if (!okMor(st, seat) && !okClose(st, seat)) err('ما فيك ترمي آخر ورقة: ' + emptyErr(st, seat));
       st.step = 'choice'; log(st, nm(st, seat) + ' رمى آخر ورقة');
       return st;
     }
     log(st, nm(st, seat) + ' رمى ورقة');
+    if (st.declared && st.declared.seat === seat) {
+      st.pen[teamOf(seat)] += 20; st.penNotes.push(nm(st, seat) + ' أعلن ' + (st.declared.kind === 'mor' ? 'المور' : 'الضمان') + ' وما قدر: −20');
+      log(st, nm(st, seat) + ' انكسر: −20');
+    }
     return nextTurn(st);
   }
   function chooseMor(s, seat) {
     const st = clone(s); need(st, seat, 'choice');
-    if (!canMor(st, seat)) err('ما فيك تاخد المور');
-    const k = morLeft(st); st.pending[seat] = st.mor[k]; st.mor[k] = null; st.morBy[k] = teamOf(seat);
+    if (!okMor(st, seat)) err('ما فيك تاخد المور');
+    const k = morLeft(st); st.hands[seat] = st.mor[k]; st.pending[seat] = true; st.mor[k] = null; st.morBy[k] = teamOf(seat);
     log(st, nm(st, seat) + ' أخد المور (منقطع)');
     return nextTurn(st);
   }
@@ -298,7 +415,7 @@ const Mor = (() => {
     const st = clone(s);
     if (st.phase !== 'play' || st.turn !== seat) err('مش دورك');
     if (st.hands[seat].length) err('لازم تخلّص ورقك لتضمّن');
-    if (!canClose(st, seat)) err('لازم 100 على الأرض لتضمّن');
+    if (!okClose(st, seat)) err('ما فيك تضمّن: ' + emptyErr(st, seat));
     log(st, nm(st, seat) + ' ضمّن');
     return endRound(st, 'close', seat);
   }
@@ -308,8 +425,8 @@ const Mor = (() => {
       st.finalTurn = true;
     }
     st.turn = (st.turn + 1) % 4; st.step = 'draw';
-    const p = st.pending[st.turn];
-    if (p) { st.hands[st.turn] = p; delete st.pending[st.turn]; }
+    st.declared = null; st.melded = false; st.noDiscard = null;
+    delete st.pending[st.turn];
     return st;
   }
   function endRound(st, how, closer) {
@@ -323,11 +440,13 @@ const Mor = (() => {
         const C = teamOf(closer), O = 1 - C;
         if (taken[C] === 2) { sum.bonus[C] += 40; sum.bonus[O] -= 40; sum.notes.push('ضمان مع المورين: +40 و −40 للخصم'); }
         else if (taken[C] === 1) { sum.bonus[C] += 20; sum.notes.push('ضمان مع مور واحد: +20'); }
-        for (const seat of Object.keys(st.pending)) { sum.bonus[teamOf(+seat)] -= 20; sum.notes.push(nm(st, +seat) + ' أخد مور منقطع وما لعب فيه: −20'); }
+        for (const seat of Object.keys(st.pending)) if (st.pending[seat]) { sum.bonus[teamOf(+seat)] -= 20; sum.notes.push(nm(st, +seat) + ' أخد مور منقطع وما لعب فيه: −20'); }
       } else {
         sum.notes.push('خلصت السحبة بدون ضمان');
         for (const t of [0, 1]) if (taken[t] === 2) { sum.bonus[t] += 20; sum.notes.push('أخدوا المورين بدون ضمان: +20'); }
       }
+      for (const t of [0, 1]) sum.bonus[t] -= st.pen[t];
+      sum.notes.push(...st.penNotes);
       sum.delta = [g[0] + sum.bonus[0], g[1] + sum.bonus[1]];
       st.scores = [st.scores[0] + sum.delta[0], st.scores[1] + sum.delta[1]];
     }
@@ -346,7 +465,109 @@ const Mor = (() => {
     return st;
   }
 
-  return { card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+
+  // ---------- bot ----------
+  const twinKey = id => id.slice(0, -1);
+  function findRuns(cards, wilds) {
+    const out = []; let used = new Set(); let w = wilds.slice();
+    for (const S of SUITS) {
+      const byRank = {};
+      for (const c of cards) if (c[0] === S && !used.has(c)) { const r = rankOf(c); if (!byRank[r]) byRank[r] = c; }
+      if (byRank[1]) byRank[14] = byRank[1];
+      let r = 1;
+      while (r <= 14) {
+        if (!byRank[r]) { r++; continue; }
+        const run = []; let k = r, gapUsed = null;
+        while (k <= 14 && run.length < 13) {
+          if (byRank[k] && !run.includes(byRank[k])) { run.push(byRank[k]); k++; continue; }
+          if (!gapUsed && w.length && byRank[k + 1] && run.length) { gapUsed = w[0]; run.push(gapUsed); k++; continue; }
+          break;
+        }
+        const nat = run.filter(x => x !== gapUsed);
+        if (run.length >= 3 && nat.length >= 2 && analyze(run)) {
+          out.push(run); run.forEach(x => used.add(x)); if (gapUsed) w = w.filter(x => x !== gapUsed);
+          for (const x of nat) { const rr = rankOf(x); delete byRank[rr]; if (rr === 1) { delete byRank[14]; } }
+        }
+        r = k > r ? k : r + 1;
+      }
+    }
+    return { runs: out, used, wildsLeft: w };
+  }
+  function planMelds(hand, melds, team) {
+    let rest = hand.slice(); const acts = [];
+    const wilds = rest.filter(c => isJ(c) || rankOf(c) === 2);
+    const nat = rest.filter(c => !isJ(c));
+    const byRank = {};
+    for (const c of nat) { const r = rankOf(c); if (r === 2) continue; (byRank[r] = byRank[r] || []).push(c); }
+    for (const r in byRank) if (byRank[r].length >= 3) { acts.push({ t: 'new', ids: byRank[r] }); rest = rest.filter(c => !byRank[r].includes(c)); }
+    const { runs } = findRuns(rest.filter(c => !isJ(c)), wilds.filter(c => rest.includes(c)));
+    for (const run of runs) { if (run.every(c => rest.includes(c))) { acts.push({ t: 'new', ids: run }); rest = rest.filter(c => !run.includes(c)); } }
+    const sim = melds.filter(m => m.team === team).map(m => ({ id: m.id, cards: m.cards.slice() }));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const c of rest.slice()) {
+        if (isJ(c) || rankOf(c) === 2) continue;
+        for (const m of sim) if (analyze([...m.cards, c])) { acts.push({ t: 'add', id: m.id, ids: [c] }); m.cards.push(c); rest = rest.filter(x => x !== c); changed = true; break; }
+      }
+    }
+    const g = sim.reduce((a, m) => a + meldValue(m), 0) + acts.filter(a => a.t === 'new').reduce((a, x) => a + meldValue({ cards: x.ids }), 0);
+    return { acts, rest, ground: g };
+  }
+  function cardKeep(c, hand) {
+    if (isJ(c) || rankOf(c) === 2) return 100;
+    const r = rankOf(c); let sc = 0;
+    for (const o of hand) {
+      if (o === c || isJ(o)) continue;
+      if (twinKey(o) === twinKey(c)) { sc += 1; continue; }
+      if (rankOf(o) === r) sc += 3;
+      else if (o[0] === c[0]) { const d = Math.abs(rankOf(o) - r); if (d === 1) sc += 4; else if (d === 2) sc += 2; }
+    }
+    return sc;
+  }
+  function botTurn(s, seat) {
+    let st = s; const T = teamOf(seat);
+    const tryDo = (fn, ...a) => { try { st = fn(st, seat, ...a); return true; } catch (e) { if (!e.game) throw e; return false; } };
+    if (st.phase !== 'play' || st.turn !== seat) return st;
+    if (st.step === 'choice') { if (!tryDo(chooseMor)) tryDo(close); return st; }
+    if (st.step === 'draw') {
+      const top = st.discard[st.discard.length - 1];
+      let take = !st.stock.length;
+      if (!take && top) {
+        const before = planMelds(st.hands[seat], st.melds, T), after = planMelds([...st.hands[seat], top], st.melds, T);
+        take = after.rest.length <= before.rest.length && !after.rest.includes(top);
+      }
+      if (!(take && tryDo(takeDiscard, st.discard.length - 1))) if (!tryDo(draw)) return st;
+    }
+    for (let loop = 0; loop < 3 && st.phase === 'play' && st.turn === seat && st.step === 'play'; loop++) {
+      const plan = planMelds(st.hands[seat], st.melds, T);
+      const left = plan.rest.length;
+      const ourMor = st.morBy.filter(x => x === T).length;
+      if (left <= 1 && plan.acts.length) {
+        const wantClose = plan.ground >= CLOSE_MIN && (ourMor > 0 || morLeft(st) < 0);
+        const wantMor = !wantClose && morLeft(st) >= 0 && plan.ground >= MOR_MIN;
+        if (wantClose) tryDo(declare, 'close'); else if (wantMor) tryDo(declare, 'mor');
+      }
+      const declared = st.declared && st.declared.seat === seat;
+      for (const a of plan.acts) {
+        if (!declared && st.hands[seat].length - a.ids.length < 2) continue;
+        if (a.t === 'new') tryDo(meldNew, a.ids); else tryDo(addToMeld, a.id, a.ids);
+      }
+      if (!st.hands[seat].length) {
+        if (decl(st, seat, 'mor')) { if (tryDo(takeMorNow)) continue; }
+        if (decl(st, seat, 'close')) { tryDo(close); return st; }
+      }
+      break;
+    }
+    if (st.phase !== 'play' || st.turn !== seat || st.step !== 'play') return st;
+    const h = st.hands[seat];
+    const order = h.slice().sort((a, b) => cardKeep(a, h) - cardKeep(b, h) || rankOf(b) - rankOf(a));
+    for (const c of order) if (tryDo(discard, c)) break;
+    if (st.turn === seat && st.step === 'choice') { if (!tryDo(chooseMor)) tryDo(close); }
+    return st;
+  }
+
+  return { botTurn, declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
 })();
 
 
@@ -357,61 +578,100 @@ const $app = document.getElementById('app');
 const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
 const RK = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
 const TEAM = ['فريق أ', 'فريق ب'];
+const TC = ['var(--a)', 'var(--b)'];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ICON = {
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  rot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 12a9 9 0 0 0 4 7M21 12a9 9 0 0 0-4-7"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z" transform="scale(-1,1) translate(-24,0)"/></svg>'
+};
 
 let db = null, uid = null, ready = false;
-const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sortRank: false, sheet: null, hidden: false, lastTurn: null, busy: false, toast: null };
+const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sheet: null, hidden: false, viewer: 0, busy: false, toast: null,
+  order: {}, chat: [], chatOpen: false, unread: 0, bubbles: {}, confirmExit: false, orient: ls.get('mor-orient') || 'portrait', localCfg: null };
 let unsub = [];
 window.__mor = { ui, mySeat: () => mySeat() };
 
-function cardHTML(id, extra = '') {
-  if (Mor.isJ(id)) return `<button class="c jk ${extra}" data-id="${id}" aria-label="جوكر"><b>★</b><i>J</i></button>`;
-  const c = Mor.card(id); const red = c.s === 'H' || c.s === 'D';
-  return `<button class="c ${red ? 'r' : ''} ${extra}" data-id="${id}" aria-label="${RK[c.r] || c.r}${SUIT[c.s]}"><b>${RK[c.r] || c.r}</b><i>${SUIT[c.s]}</i></button>`;
+function cardHTML(id, extra = '', attrs = '') {
+  if (id === 'back') return `<div class="c back ${extra}" ${attrs}></div>`;
+  if (Mor.isJ(id)) return `<div class="c jk ${extra}" data-id="${id}" ${attrs} aria-label="جوكر"><span class="rk">JKR</span><span class="big">★</span></div>`;
+  const c = Mor.card(id), red = c.s === 'H' || c.s === 'D', r = RK[c.r] || c.r;
+  return `<div class="c ${red ? 'r' : ''} ${extra}" data-id="${id}" ${attrs} aria-label="${r}${SUIT[c.s]}"><span class="rk">${r}</span><span class="su">${SUIT[c.s]}</span><span class="big">${SUIT[c.s]}</span></div>`;
 }
-function sortHand(h) {
-  const so = { S: 0, H: 1, C: 2, D: 3 };
+const SO = { S: 0, H: 1, C: 2, D: 3 };
+function sortIds(h, byRank) {
   return h.slice().sort((a, b) => {
     if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
     const A = Mor.card(a), B = Mor.card(b);
-    return ui.sortRank ? (A.r - B.r || so[A.s] - so[B.s]) : (so[A.s] - so[B.s] || A.r - B.r);
+    return byRank ? (A.r - B.r || SO[A.s] - SO[B.s]) : (SO[A.s] - SO[B.s] || A.r - B.r);
   });
 }
-function toast(m) { ui.toast = m; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 2600); }
+function handOrder(seat, hand) {
+  let o = (ui.order[seat] || []).filter(id => hand.includes(id));
+  const fresh = hand.filter(id => !o.includes(id));
+  if (!o.length) o = sortIds(hand); else o = o.concat(fresh);
+  ui.order[seat] = o; return o;
+}
+function toast(m) { ui.toast = m; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 2800); }
 
-// ---------- identity of the viewer ----------
+// ---------- viewer ----------
+function humans(st) { return [0, 1, 2, 3].filter(s => !(st.bots && st.bots[s])); }
 function mySeat() {
   const st = ui.st; if (!st) return -1;
-  if (ui.mode === 'local') return st.phase === 'play' ? st.turn : -1;
+  if (ui.mode === 'local') return ui.viewer;
   return st.seats ? st.seats.indexOf(uid) : -1;
 }
+function isHost() { return ui.mode === 'local' || (ui.room && ui.room.host === uid); }
 
 // ---------- actions ----------
 async function act(fn, ...args) {
   if (ui.busy) return;
-  const seat = mySeat();
   let next;
-  try { next = fn(ui.st, seat, ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
+  try { next = fn(ui.st, mySeat(), ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
   await commit(next);
 }
 async function commit(next) {
-  next.v = (ui.st.v || 0) + 1;
+  next.v = (ui.st && ui.st.v || 0) + 1;
   ui.sel.clear(); ui.sheet = null;
-  if (ui.mode === 'local') { ui.st = next; ls.set('mor-local', next); return render(); }
+  if (ui.mode === 'local') { ui.st = next; ls.set('mor-local', next); afterState(); return render(); }
   ui.busy = true; const prev = ui.st; ui.st = next; render();
-  try { await B().writeState(next, prev.v || 0); }
+  try { await B().writeState(next, prev && prev.v || 0); }
   catch (e) { if (e.live) { ui.st = e.live; toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
-  ui.busy = false; render();
+  ui.busy = false; afterState(); render();
+}
+function afterState() {
+  const st = ui.st; if (!st) return;
+  if (ui.mode === 'local' && st.phase === 'play') {
+    const hs = humans(st);
+    if (hs.length > 1 && !st.bots[st.turn] && st.turn !== ui.viewer) { ui.viewer = st.turn; ui.hidden = true; }
+    if (hs.length === 1) ui.viewer = hs[0];
+  }
+  runBots();
+}
+let botKey = null;
+function runBots() {
+  const st = ui.st;
+  if (!st || st.phase !== 'play' || !st.bots || !st.bots[st.turn] || !isHost()) return;
+  const key = st.v + ':' + st.turn; if (botKey === key) return; botKey = key;
+  setTimeout(async () => {
+    if (!ui.st || ui.st.v + ':' + ui.st.turn !== key || ui.busy) { botKey = null; return; }
+    let n; try { n = Mor.botTurn(ui.st, ui.st.turn); } catch (e) { console.error(e); return; }
+    if (n === ui.st) return;
+    await commit(n);
+  }, 1100);
 }
 
-// ---------- backends: Claude db (online) and local network (lan) ----------
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+// ---------- backends ----------
 function applyRoom(room) {
   ui.room = room;
   const st = room && room.s ? JSON.parse(room.s) : null;
   if (st && (!ui.st || st.v >= (ui.st.v || 0) || ui.st.deal !== st.deal)) ui.st = st;
-  render();
+  if ((ui.mode === 'online' || ui.mode === 'lan') && ui.view === 'room' && ui.st && room.phase === 'game') ui.view = 'game';
+  afterState(); render();
 }
 const dbB = {
   async create() { const code = genCode(); await db.doc('rooms/' + code).set({ host: uid, phase: 'lobby', s: '', t: Date.now() }); return code; },
@@ -431,11 +691,12 @@ const dbB = {
     const live = cur.exists && cur.data().s ? JSON.parse(cur.data().s) : null;
     if (live && live.v !== prevV) { const e = new Error('conflict'); e.live = live; throw e; }
     await ref.update({ s: JSON.stringify(next), phase: 'game' });
-  }
+  },
+  chat: null
 };
 const PORT = 8765;
 const lanB = {
-  base: '', rev: -1, alive: false,
+  base: '', rev: -1, alive: false, seen: new Set(),
   async req(path, body) {
     const r = await fetch(lanB.base + path, body ? { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) } : {});
     const j = await r.json().catch(() => ({}));
@@ -448,6 +709,7 @@ const lanB = {
     lanB.base = host === location.hostname ? location.origin : 'http://' + host + ':' + PORT;
     const j = await lanB.req('/api/poll?rev=-1').catch(() => null);
     if (!j || !j.room || !j.room.host) throw new Error('ما لقيت غرفة على هالعنوان. تأكد إنكم على نفس الواي فاي');
+    (j.chat || []).forEach(m => lanB.seen.add(m.mid));
     await lanB.req('/api/player', { id: uid, name, seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
     lanB.alive = true; lanB.rev = -1; lanB.loop();
     unsub.push(() => { lanB.alive = false; });
@@ -458,17 +720,62 @@ const lanB = {
       try {
         const j = await lanB.req('/api/poll?rev=' + lanB.rev);
         if (!lanB.alive) return;
-        fails = 0; lanB.rev = j.rev; ui.players = j.players; applyRoom(j.room);
+        fails = 0; lanB.rev = j.rev; ui.players = j.players; gotChat(j.chat || []); applyRoom(j.room);
       } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، عم جرّب أرجع'); await sleep(1500); }
     }
   },
   setSeat(seat) { const me = ui.players.find(p => p.id === uid); return lanB.req('/api/player', { id: uid, name: me ? me.name : myName(), seat }); },
-  async writeState(next, prevV) { await lanB.req('/api/room', { s: JSON.stringify(next), phase: 'game', sv: next.v, expect: prevV }); }
+  async writeState(next, prevV) { await lanB.req('/api/room', { s: JSON.stringify(next), phase: 'game', sv: next.v, expect: prevV }); },
+  chat: {
+    send(text) { return lanB.req('/api/chat', { id: uid, name: myName(), text }); },
+    voice(data, mime) { return lanB.req('/api/voice', { id: uid, name: myName(), data, mime }); },
+    get(mid) { return lanB.req('/api/voice?mid=' + mid); }
+  }
 };
 const B = () => (ui.mode === 'lan' ? lanB : dbB);
 const isServed = location.protocol === 'http:' && +location.port === PORT;
 const native = window.MorNative || null;
 function myIp() { try { return native ? native.getIp() : ''; } catch (e) { return ''; } }
+
+// ---------- chat ----------
+function gotChat(list) {
+  for (const m of list) {
+    if (lanB.seen.has(m.mid)) continue;
+    lanB.seen.add(m.mid); ui.chat.push(m); if (ui.chat.length > 80) ui.chat.shift();
+    if (m.id !== uid) {
+      if (!ui.chatOpen) ui.unread++;
+      const seat = ui.st && ui.st.seats ? ui.st.seats.indexOf(m.id) : -1;
+      if (seat >= 0) { ui.bubbles[seat] = { text: m.audio ? 'رسالة صوتية' : m.text, t: Date.now() }; setTimeout(render, 4200); }
+      if (m.audio) playVoice(m.mid);
+    }
+  }
+}
+async function playVoice(mid) {
+  try { const j = await lanB.chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
+}
+async function sendChat() {
+  const el = document.getElementById('chatin'); const t = (el && el.value || '').trim(); if (!t) return;
+  el.value = ''; try { await lanB.chat.send(t.slice(0, 200)); } catch (e) { toast('ما انبعتت الرسالة'); }
+}
+const rec = { mr: null, chunks: [], t0: 0, timer: null };
+async function recStart() {
+  if (rec.mr) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي بيشتغل بالتطبيق بس');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    rec.mr = new MediaRecorder(stream); rec.chunks = []; rec.t0 = Date.now();
+    rec.mr.ondataavailable = e => rec.chunks.push(e.data);
+    rec.mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
+      if (dur < 500) return toast('اضغط مطوّل لتسجّل');
+      const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
+      try { await lanB.chat.voice(b64, mime); } catch (e) { toast('ما انبعتت الرسالة الصوتية'); }
+    };
+    rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
+  } catch (e) { toast('اسمح للتطبيق يستعمل المايك'); }
+}
+function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
 
 // ---------- rooms ----------
 function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -485,9 +792,10 @@ async function joinRoom(mode, key) {
   if (mode === 'online') { key = key.toUpperCase(); if (key.length !== 4) return toast('الكود 4 حروف'); }
   else if (!/^[\d.]+$|^localhost$/.test(key)) return toast('اكتب عنوان المضيف متل 192.168.1.5');
   unsub.forEach(u => u()); unsub = [];
-  ui.mode = mode; ui.code = key; ui.st = null; ui.room = null; ui.players = [];
+  Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0 });
   try { await B().open(key, n); } catch (e) { ui.mode = null; return toast(e.message || 'ما قدرت أدخل'); }
-  ui.view = 'room'; ls.set('mor-room', { mode, key }); render();
+  if (ui.view !== 'game') ui.view = 'room';
+  ls.set('mor-room', { mode, key }); render();
 }
 async function sit(seat) {
   const taken = ui.players.find(p => p.seat === seat && p.id !== uid);
@@ -495,155 +803,269 @@ async function sit(seat) {
   const mine = ui.players.find(p => p.id === uid);
   await B().setSeat(mine && mine.seat === seat ? -1 : seat).catch(() => toast('ما قدرت أقعدك'));
 }
-async function startOnline() {
+async function startOnline(withBots) {
   const bySeat = [0, 1, 2, 3].map(s => ui.players.find(p => p.seat === s));
-  if (bySeat.some(p => !p)) return toast('لازم 4 لاعبين قاعدين');
-  const st = Mor.newGame(bySeat.map(p => p.name)); st.seats = bySeat.map(p => p.id); st.deal = Date.now();
+  if (!withBots && bySeat.some(p => !p)) return toast('لازم 4 لاعبين قاعدين');
+  const bots = bySeat.map(p => !p);
+  const st = Mor.newGame(bySeat.map((p, i) => p ? p.name : 'بوت ' + (i + 1)), bots);
+  st.seats = bySeat.map(p => p ? p.id : null); st.deal = Date.now();
   const prev = ui.st; ui.st = { v: prev ? prev.v : 0 };
   await commit(st);
 }
-function leave() { unsub.forEach(u => u()); unsub = []; Object.assign(ui, { view: 'home', mode: null, code: null, room: null, st: null, players: [] }); ls.set('mor-room', null); render(); }
-function startLocal(resume) {
+function leave() {
+  unsub.forEach(u => u()); unsub = [];
+  Object.assign(ui, { view: 'home', mode: null, code: null, room: null, st: null, players: [], confirmExit: false, chatOpen: false, chat: [] });
+  ls.set('mor-room', null); render();
+}
+function startLocal(kind, resume) {
   const saved = ls.get('mor-local');
   if (resume && saved) ui.st = saved;
   else {
-    const names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
-    ui.st = Mor.newGame(names); ui.st.deal = Date.now(); ls.set('mor-local', ui.st);
+    let names, bots;
+    if (kind === 'solo') { const n = myName() || 'أنا'; ls.set('mor-name', n); names = [n, 'بوت ١', 'بوت ٢', 'بوت ٣']; bots = [false, true, true, true]; }
+    else {
+      names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
+      bots = [0, 1, 2, 3].map(i => !!(ui.localCfg && ui.localCfg[i]));
+      if (bots.every(Boolean)) return toast('لازم لاعب واحد على الأقل مش بوت');
+    }
+    ui.st = Mor.newGame(names, bots); ui.st.deal = Date.now(); ls.set('mor-local', ui.st);
   }
-  ui.mode = 'local'; ui.view = 'game'; ui.hidden = true; ui.lastTurn = ui.st.turn; render();
+  ui.order = {};
+  const hs = humans(ui.st);
+  ui.mode = 'local'; ui.view = 'game'; ui.viewer = hs.includes(ui.st.turn) ? ui.st.turn : hs[0]; ui.hidden = hs.length > 1;
+  afterState(); render();
 }
 async function nextRound() {
   let n; try { n = Mor.nextRound(ui.st); } catch (e) { return toast(e.message); }
-  n.deal = Date.now(); await commit(n); if (ui.mode === 'local') { ui.hidden = true; render(); }
+  n.deal = Date.now(); ui.order = {}; await commit(n);
 }
 async function newMatch() {
-  const st = Mor.newGame(ui.st.names); st.seats = ui.st.seats; st.deal = Date.now(); await commit(st);
+  const st = Mor.newGame(ui.st.names, ui.st.bots); st.seats = ui.st.seats; st.deal = Date.now(); ui.order = {}; await commit(st);
 }
+async function toggleBot(seat) {
+  const st = JSON.parse(JSON.stringify(ui.st)); st.bots[seat] = !st.bots[seat];
+  st.log.push(st.names[seat] + (st.bots[seat] ? ': بوت عم يلعب مكانه' : ': رجع يلعب')); await commit(st);
+}
+function setOrient(o) { ui.orient = o; ls.set('mor-orient', o); try { native && native.setOrientation(o); } catch (e) {} render(); }
 
-// ---------- rendering ----------
+// ---------- rendering: menu ----------
 function home() {
   const n = esc(ls.get('mor-name') || ''), last = ls.get('mor-room'), local = ls.get('mor-local');
-  return `<div class="wrap"><h1>مور</h1><div class="muted">فريقين، كل فريق لاعبين. أول فريق بيوصل ${Mor.TARGET} بيربح.</div>
+  const cfg = ui.localCfg || (ui.localCfg = [false, false, false, false]);
+  return `<div class="menu"><div class="in">
+  <div class="logo"><div class="fanlogo">${['H1a', 'S13a', 'J0a'].map((id, i) => cardHTML(id, '', `style="--w:42px;left:${i * 20}px;transform:rotate(${(i - 1) * 14}deg)"`)).join('')}</div><div><h1>مور</h1><div class="muted">فريقين، كل فريق لاعبين · أول فريق بيوصل ${Mor.TARGET} بيربح</div></div></div>
   <div class="panel"><label class="muted" for="nm">اسمك</label><input id="nm" value="${n}" maxlength="14" autocomplete="nickname">
-    ${last && last.mode ? `<div class="acts"><button class="btn alt" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}</div>
-  ${isServed ? `<div class="panel"><b>على الشبكة المحلية</b><div class="muted">كلكم على نفس الواي فاي أو هوتسبوت جوال المضيف.</div>
+    ${last && last.mode ? `<div class="acts"><button class="btn alt sm" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}
+    ${local && local.phase !== 'over' ? `<div class="acts"><button class="btn alt sm" data-a="localResume">كمّل اللعبة المحفوظة</button></div>` : ''}</div>
+  <div class="modes">
+  ${isServed ? `<div class="panel"><h2>على الشبكة المحلية</h2><div class="muted">كلكم على نفس الواي فاي أو هوتسبوت جوال المضيف.</div>
     ${native ? `<div class="acts"><button class="btn" data-a="createLan">استضيف غرفة</button></div>
     <div class="row" style="margin-top:10px"><input id="ip" class="grow" inputmode="decimal" placeholder="عنوان المضيف متل 192.168.1.5" style="direction:ltr;text-align:center"><button class="btn alt" data-a="joinLan">ادخل</button></div>
-    <div class="muted" style="margin-top:6px">عنوانك: <b style="direction:ltr;display:inline-block">${esc(myIp() || 'مش متصل بشبكة')}</b></div>`
+    <div class="muted" style="margin-top:6px">عنوانك: <b dir="ltr">${esc(myIp() || 'مش متصل بشبكة')}</b></div>`
     : `<div class="acts"><button class="btn" data-a="joinHere">ادخل غرفة هالمضيف</button></div>`}</div>` : ''}
-  ${db ? `<div class="panel"><b>أونلاين</b>
+  <div class="panel"><h2>لحالك مع بوتات</h2><div class="muted">إنت وشريك بوت ضد فريق بوتات.</div><div class="acts"><button class="btn" data-a="solo">العب</button></div></div>
+  <div class="panel"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال. اختار مين بوت.</div>
+    <div class="seats4">${[0, 1, 2, 3].map(i => `<div class="seatin"><input id="ln${i}" placeholder="${TEAM[i % 2]}: لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}</div>
+    <div class="acts"><button class="btn alt" data-a="local">ابدأ</button></div></div>
+  ${db ? `<div class="panel"><h2>أونلاين</h2>
     <div class="acts"><button class="btn" data-a="create">غرفة جديدة</button></div>
     <div class="row" style="margin-top:10px"><input id="code" class="grow" placeholder="كود الغرفة" maxlength="4" style="text-transform:uppercase;direction:ltr;text-align:center"><button class="btn alt" data-a="join">ادخل</button></div></div>` : ''}
-  <div class="panel"><b>على جوال واحد</b><div class="muted">بتمرّروا الجوال، وكل واحد بيشوف ورقه بدوره.</div>
-    <div class="seats" style="margin-top:8px">${[0, 1, 2, 3].map(i => `<input id="ln${i}" placeholder="${TEAM[i % 2]}: لاعب ${i + 1}" maxlength="14">`).join('')}</div>
-    <div class="acts"><button class="btn alt" data-a="local">ابدأ</button>${local && local.phase !== 'over' ? `<button class="btn alt" data-a="localResume">كمّل اللعبة المحفوظة</button>` : ''}</div></div>
-  <details class="panel"><summary><b>القوانين باختصار</b></summary><div class="muted">
-  14 ورقة لكل لاعب ومورين كل واحد 11. بدورك: اسحب من السحبة أو خذ من الأرض (ورقة أو من تحت مع كل اللي فوقها)، نزّل إذا بدك، وارمي ورقة.<br>
+  </div>
+  <details class="panel"><summary>القوانين باختصار</summary><div class="muted" style="margin-top:8px">
+  14 ورقة لكل لاعب ومورين كل واحد 11. بدورك: اسحب من السحبة أو خذ من الأرض (ورقة، أو من تحت مع كل اللي فوقها)، نزّل إذا بدك، وارمي ورقة. الورقة اللي بتاخدها لحالها من الأرض ما بترجّعها إلا إذا معك متلها.<br>
   سيري: 7–9 = 40 (مكسور 20)، 10–11 = 60 (40)، 12 = 80 (60)، 13 = 100 (80). الـ2 من شكل تاني أو الجوكر بيكسر.<br>
   متل بعض: 7 = 40 (20)، 8 = 80 (60)، بالجوكر بس.<br>
-  المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة وبتاخده بدورك الجاي.<br>
-  الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد.</div></details></div>`;
+  قبل ما تنزّل لازم تعلن «بدي المور» أو «بدي ضمّن». إذا أعلنت وما قدرت: −20.<br>
+  المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة، بيبين ورقه معك وبتلعب فيه بدورك الجاي.<br>
+  الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</div></details>
+  </div></div>`;
 }
 function lobby() {
-  const isHost = ui.room && ui.room.host === uid;
   const seat = s => { const p = ui.players.find(x => x.seat === s); return `<button class="seat ${p && p.id === uid ? 'me' : ''}" data-a="sit" data-s="${s}"><div class="muted">${TEAM[s % 2]} · مقعد ${s + 1}</div><b>${p ? esc(p.name) : 'فاضي، اضغط لتقعد'}</b></button>`; };
   const waiting = ui.players.filter(p => p.seat < 0);
-  return `<div class="wrap"><div class="row" style="justify-content:space-between"><h1>الغرفة</h1><button class="btn alt" data-a="leave">طلاع</button></div>
-  <div class="panel" style="text-align:center">${ui.mode === 'lan' ? `<div class="muted">رفقاتك بيكتبوا هالعنوان بالتطبيق</div><div class="code" style="font-size:30px;letter-spacing:1px;direction:ltr">${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}</div><div class="muted" style="margin-top:6px">واللي ما عنده التطبيق بيفتح بالمتصفح:</div><div dir="ltr" style="font-weight:800">http://${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}:${PORT}</div>` : `<div class="muted">ابعت هالكود لرفقاتك</div><div class="code">${esc(ui.code)}</div>`}</div>
-  <div class="panel"><div class="muted" style="margin-bottom:8px">المقاعد المتقابلة فريق واحد (1 و3 ضد 2 و4)</div><div class="seats">${seat(0)}${seat(1)}${seat(2)}${seat(3)}</div>
+  const shown = esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code);
+  const sat = ui.players.filter(p => p.seat >= 0).length;
+  return `<div class="menu"><div class="in"><div class="row" style="justify-content:space-between"><h1 style="margin:6px 0;font-size:34px">الغرفة</h1><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button></div>
+  <div class="panel" style="text-align:center">${ui.mode === 'lan' ? `<div class="muted">رفقاتك بيكتبوا هالعنوان بالتطبيق</div><div class="code" style="font-size:32px;letter-spacing:1px">${shown}</div><div class="muted" style="margin-top:6px">واللي ما عنده التطبيق بيفتح بالمتصفح:</div><div dir="ltr" style="font-weight:800">http://${shown}:${PORT}</div>` : `<div class="muted">ابعت هالكود لرفقاتك</div><div class="code">${esc(ui.code)}</div>`}</div>
+  <div class="panel"><div class="muted" style="margin-bottom:8px">المقاعد المتقابلة فريق واحد (1 و3 ضد 2 و4)</div><div class="seats4">${seat(0)}${seat(1)}${seat(2)}${seat(3)}</div>
   ${waiting.length ? `<div class="muted" style="margin-top:8px">ناطرين: ${waiting.map(p => esc(p.name)).join('، ')}</div>` : ''}</div>
-  ${isHost ? `<button class="btn" data-a="start" ${ui.players.filter(p => p.seat >= 0).length === 4 ? '' : 'disabled'}>بلّش اللعب</button>` : `<div class="muted">صاحب الغرفة بيبلّش لما يقعدوا الأربعة.</div>`}</div>`;
+  ${isHost() ? `<div class="acts"><button class="btn" data-a="start" ${sat === 4 ? '' : 'disabled'}>بلّش اللعب</button>${sat >= 1 && sat < 4 ? `<button class="btn alt" data-a="startBots">بلّش وكمّل بالبوتات</button>` : ''}</div>` : `<div class="muted">صاحب الغرفة بيبلّش لما يقعدوا الأربعة.</div>`}</div></div>`;
 }
-function meldHTML(m, mine, canTap) {
+
+// ---------- rendering: table ----------
+function seatHTML(st, s, me, cls = '') {
+  const b = ui.bubbles[s] && Date.now() - ui.bubbles[s].t < 4000 ? ui.bubbles[s] : null;
+  const name = st.names[s];
+  return `<div class="seatv ${st.turn === s && st.phase === 'play' ? 'on' : ''} ${cls}" data-seat="${s}" style="--tc:${TC[s % 2]}">
+    ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
+    <div class="av">${esc(st.bots && st.bots[s] && /\d|[١-٩]/.test(name) ? name.trim().slice(-1) : (name || '?').trim().charAt(0))}<span class="cnt">${st.hands[s].length}</span></div>
+    <div><div class="nm">${esc(name)}</div>${st.bots && st.bots[s] ? '<span class="tag">بوت</span>' : ''}${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'معلن مور' : 'معلن ضمان'}</span>` : ''}</div></div>`;
+}
+function meldHTML(m, canTap, them) {
   const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
-  return `<div class="meld ${canTap ? 'tap' : ''}" data-meld="${m.id}" role="${canTap ? 'button' : ''}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span><div class="mini fan" style="padding-top:0">${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div></div>`;
+  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
 }
 function game() {
-  const st = ui.st, me = mySeat(), myT = me >= 0 ? Mor.teamOf(me) : 0, myTurn = st.phase === 'play' && st.turn === me;
+  const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
+  const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
-  const hand = me >= 0 ? sortHand(st.hands[me]) : [];
+  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
-  const nSel = ui.sel.size;
-  const teamBox = t => `<div class="t ${t === myT ? 'us' : ''}"><div class="muted">${TEAM[t]}${t === myT ? ' (إنتو)' : ''}</div><div class="n">${st.scores[t]}</div><div class="muted">${esc(st.names[t])} و${esc(st.names[t + 2])}</div></div>`;
-  const pl = [0, 1, 2, 3].map(s => `<div class="pl ${st.turn === s && st.phase === 'play' ? 'on' : ''}"><div class="nm">${esc(st.names[s])}${s === me && ui.mode !== 'local' ? ' (أنت)' : ''}</div><div class="tb"><span>${st.hands[s].length} ورقة</span>${st.pending[s] ? '<span>· مور ناطر</span>' : ''}</div></div>`).join('');
-  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><h3><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><span>${g[t]} نقطة</span></h3><div class="melds">${ms.length ? ms.map(m => meldHTML(m, t === myT, myTurn && st.step === 'play' && t === myT && nSel > 0)).join('') : '<span class="muted">لسا ما في</span>'}</div></div>`; };
+  const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
+  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
+  const canDraw = myTurn && st.step === 'draw';
+  const piles = `<div class="piles"><div class="pile ${canDraw && st.stock.length ? 'can' : ''} ${st.stock.length ? '' : 'gone'}" data-a="${canDraw && st.stock.length ? 'draw' : ''}">${cardHTML('back')}<span class="n">${st.stock.length}</span><span>السحبة</span></div>
+    ${[0, 1].map(k => `<div class="pile ${st.mor[k] ? '' : 'gone'}">${cardHTML('back')}<span>${st.morBy[k] != null ? (st.morBy[k] === myT ? 'إلنا' : 'إلهم') : 'مور'}</span></div>`).join('')}</div>`;
+  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فاضية</span>'}</div>`;
   let status = '', acts = '';
+  const last = st.log[st.log.length - 1] || '';
   if (st.phase === 'play') {
-    if (!myTurn) status = `دور ${esc(st.names[st.turn])}`;
-    else if (st.step === 'draw') { if (st.stock.length) { status = 'دورك: اسحب من السحبة أو خذ من الأرض'; acts = `<button class="btn" data-a="draw">اسحب (${st.stock.length})</button>`; } else status = 'آخر دور! السحبة خلصت، خذ من الأرض'; }
+    if (!myTurn) status = `دور ${esc(st.names[st.turn])}${st.bots && st.bots[st.turn] ? ' (بوت)' : ''} <span class="last">${esc(last)}</span>`;
+    else if (st.step === 'draw') { status = st.stock.length ? 'دورك: اسحب من السحبة أو خذ من الأرض' : 'آخر دور! خذ من الأرض'; if (st.stock.length) acts = `<button class="btn sm" data-a="draw">اسحب</button>`; }
     else if (st.step === 'play') {
-      status = hand.length ? 'نزّل أو زيد على تنزيلاتكم، وبعدين ارمي ورقة' : 'خلّصت ورقك!';
-      acts = `<button class="btn" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل (${nSel})</button><button class="btn alt" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمي</button>`;
-      if (!hand.length && Mor.canMor(st, me)) acts += `<button class="btn" data-a="morNow">خذ المور</button>`;
-      if (!hand.length && Mor.canClose(st, me)) acts += `<button class="btn red" data-a="close">ضمّن</button>`;
-      if (nSel) acts += `<button class="btn alt" data-a="clear">إلغاء</button>`;
+      const decl = st.declared && st.declared.seat === me ? st.declared.kind : null;
+      status = !hand.length ? 'خلّصت ورقك!' : decl ? (decl === 'mor' ? 'معلن: بدك المور' : 'معلن: بدك تضمّن') : 'نزّل أو ارمي ورقة';
+      acts = `<button class="btn sm" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل${nSel ? ' (' + nSel + ')' : ''}</button><button class="btn alt sm" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمي</button>`;
+      if (!st.melded && !decl && hand.length) acts += `<button class="btn sky sm" data-a="declMor">بدي المور</button><button class="btn sky sm" data-a="declClose">بدي ضمّن</button>`;
+      if (decl && !st.melded) acts += `<button class="btn alt sm" data-a="undecl">إلغاء الإعلان</button>`;
+      if (!hand.length && Mor.okMor(st, me)) acts += `<button class="btn sm" data-a="morNow">خذ المور</button>`;
+      if (!hand.length && Mor.okClose(st, me)) acts += `<button class="btn red sm" data-a="close">ضمّن</button>`;
     }
   }
-  const morTxt = [0, 1].map(k => `<span class="mor ${st.mor[k] ? '' : 'gone'}">مور ${k + 1}${st.morBy[k] != null ? ' · ' + TEAM[st.morBy[k]] : ''}</span>`).join('');
-  return `<div class="wrap">
-  <div class="score">${teamBox(0)}<div class="muted">جولة ${st.round + 1}<br>لـ ${Mor.TARGET}</div>${teamBox(1)}</div>
-  <div class="players">${pl}</div>
-  <div class="panel">${zone(myT)}<div style="height:10px"></div>${zone(1 - myT)}</div>
-  <div class="panel"><div class="pile"><b>الأرض</b><span class="muted">${myTurn && st.step === 'draw' ? 'اضغط ورقة لتاخدها مع اللي فوقها' : st.discard.length + ' ورقة'}</span>${morTxt}<span class="mor">السحبة ${st.stock.length}</span></div>
-  <div class="disc">${st.discard.map((id, i) => cardHTML(id).replace('class="c', `data-di="${i}" class="c`)).join('') || '<span class="muted">فاضية</span>'}</div></div>
-  ${st.finalTurn && st.phase === 'play' ? `<div class="panel" style="border-color:var(--gold)"><b>السحبة خلصت:</b> هاد آخر دور لـ ${esc(st.names[st.turn])}، بياخد من الأرض بس، وبعده بتخلص الجولة.</div>` : ''}
-  <div class="log">${st.log.slice(-2).map(esc).join(' · ')}</div>
-  <div class="row" style="margin:8px 0"><button class="btn alt" data-a="sort">${ui.sortRank ? 'رتّب بالشكل' : 'رتّب بالرقم'}</button><button class="btn alt" data-a="leave">طلاع</button>${ui.mode === 'online' || ui.mode === 'lan' ? `<span class="muted" style="direction:ltr">${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}</span>` : ''}</div>
-  </div>
-  ${me >= 0 && st.phase === 'play' ? `<div class="dock"><div class="in"><div class="status">${status}</div><div class="fan" id="hand">${hand.map(id => cardHTML(id, ui.sel.has(id) ? 'sel' : '')).join('')}</div><div class="acts">${acts}</div></div></div>` : ''}
-  ${overlays(me)}`;
+  const fresh = st.got && st.got.seat === me && st.turn === me ? st.got.ids : [];
+  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>` : '';
+  return `<div class="game">
+  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
+    <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
+    ${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
+  <div class="partner">${seatHTML(st, P, me)}</div>
+  <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
+  <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">السحبة خلصت: آخر دور من الأرض بس</div>` : ''}<div class="status">${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
+  </div>${overlays(me)}`;
 }
 function overlays(me) {
   const st = ui.st; let h = '';
-  if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  if (ui.confirmExit) h += `<div class="ov"><div class="box"><h2>بدك تطلع؟</h2><p class="muted">${ui.mode === 'local' ? 'اللعبة بتنحفظ وفيك تكمّلها بعدين.' : 'فيك ترجع للغرفة بعدين من الصفحة الرئيسية.'}</p><div class="acts"><button class="btn red" data-a="leave">إيه، اطلع</button><button class="btn alt" data-a="stay">لا، كمّل</button></div></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
   else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
-    h += `<div class="ov"><div class="box"><h2>رميت آخر ورقة</h2><p class="muted">شو بدك تعمل؟</p><div class="acts">${Mor.canMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.canClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
+    h += `<div class="ov"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
   } else if (ui.sheet) {
-    const sh = ui.sheet;
-    h += `<div class="ov" data-a="noSheet"><div class="box" data-stop="1"><h2>${sh.title}</h2><div class="acts">${sh.opts.map((o, i) => `<button class="btn ${i ? 'alt' : ''}" data-a="sheet" data-i="${i}">${o.label}</button>`).join('')}<button class="btn alt" data-a="noSheet">إلغاء</button></div></div></div>`;
+    h += `<div class="ov" data-a="noSheet"><div class="box" data-stop="1"><h2>${ui.sheet.title}</h2><div class="acts">${ui.sheet.opts.map((o, i) => `<button class="btn ${i ? 'alt' : ''}" data-a="sheet" data-i="${i}">${o.label}</button>`).join('')}<button class="btn alt" data-a="noSheet">إلغاء</button></div></div></div>`;
   } else if (st.phase === 'roundEnd' || st.phase === 'over') {
     const s = st.summary || { ground: [0, 0], bonus: [0, 0], notes: [] };
-    const host = ui.mode === 'local' || (ui.room && ui.room.host === uid) || me >= 0;
+    const can = ui.mode === 'local' || me >= 0;
     h += `<div class="ov"><div class="box"><h2>${st.phase === 'over' ? 'ربح ' + TEAM[st.winner] + '!' : s.void ? 'الجولة بتنعاد' : 'خلصت الجولة'}</h2>
-    <table><tr><th></th><th>${TEAM[0]}</th><th>${TEAM[1]}</th></tr>
+    <table><tr><th></th><th style="color:var(--a)">${TEAM[0]}</th><th style="color:var(--b)">${TEAM[1]}</th></tr>
     <tr><td>المشاريع</td><td>${s.ground[0]}</td><td>${s.ground[1]}</td></tr>
     <tr><td>زيادة/خصم</td><td>${s.bonus[0]}</td><td>${s.bonus[1]}</td></tr>
     <tr><td><b>المجموع</b></td><td><b>${st.scores[0]}</b></td><td><b>${st.scores[1]}</b></td></tr></table>
     <p class="muted">${s.notes.map(esc).join('<br>')}</p>
-    ${host ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="leave">طلاع</button></div>` : ''}</div></div>`;
+    ${can ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
+  }
+  if (ui.chatOpen && ui.mode === 'lan') {
+    h += `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b><button class="ic" data-a="chatClose" aria-label="سكّر">${ICON.x}</button></div>
+    <div class="msgs" id="msgs">${ui.chat.map(m => `<div class="msg ${m.id === uid ? 'me' : ''}"><small>${esc(m.name)}</small>${m.audio ? `<button class="chip" data-a="play" data-m="${m.mid}">▶ رسالة صوتية</button>` : esc(m.text)}</div>`).join('') || '<div class="muted">ما في رسائل لسا</div>'}</div>
+    <div class="row"><input id="chatin" class="grow" placeholder="اكتب رسالة" maxlength="200"><button class="ic" data-a="send" aria-label="ابعت">${ICON.send}</button><button class="mic ${rec.mr ? 'rec' : ''}" id="mic" aria-label="اضغط مطوّل وسجّل">${ICON.mic}</button></div>
+    <div class="muted">اضغط مطوّل على المايك وسجّل، وشيل إصبعك لتبعت.</div></div>`;
   }
   if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
   return h;
 }
-function render() {
-  if (ui.mode === 'local' && ui.st && ui.st.phase === 'play' && ui.st.turn !== ui.lastTurn) { ui.hidden = true; ui.lastTurn = ui.st.turn; }
-  if ((ui.mode === 'online' || ui.mode === 'lan') && ui.view === 'room' && ui.st && ui.room && ui.room.phase === 'game') ui.view = 'game';
-  const y = window.scrollY;
-  $app.innerHTML = !ready ? '<div class="wrap"><h1>مور</h1><p class="muted">عم يحمّل…</p></div>' : ui.view === 'home' ? home() : ui.view === 'room' ? lobby() : game();
-  window.scrollTo(0, y);
+
+// ---------- hand layout & drag ----------
+function layoutHand() {
+  const el = document.getElementById('hand'); if (!el) return;
+  const cards = [...el.children]; const n = cards.length; if (!n) { el.style.height = '0'; return; }
+  const land = matchMedia('(orientation:landscape) and (max-height:560px)').matches;
+  const W = el.parentElement.clientWidth - 16;
+  let w = land ? 46 : Math.min(64, Math.max(48, W / 7.2));
+  const rows = (!land && n > 16) ? 2 : 1;
+  const perRow = Math.ceil(n / rows);
+  let step = Math.min(w * 0.62, (W - w) / Math.max(1, perRow - 1));
+  const h = w * 1.42, rowGap = h * 0.55;
+  el.style.width = W + 'px'; el.style.height = (h + (rows - 1) * rowGap + 18) + 'px';
+  const pos = [];
+  cards.forEach((c, i) => {
+    const r = Math.floor(i / perRow), k = i % perRow, cnt = Math.min(perRow, n - r * perRow);
+    const total = w + step * (cnt - 1), x0 = (W - total) / 2;
+    const x = x0 + k * step, y = 16 + r * rowGap;
+    c.style.setProperty('--w', w + 'px'); c.style.left = x + 'px'; c.style.top = y + 'px'; c.style.zIndex = i + 1;
+    pos.push({ x, y, id: c.dataset.id });
+  });
+  el._pos = pos; el._w = w; el._step = step;
 }
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest('#hand .c'); if (!c) return;
+  const el = document.getElementById('hand');
+  drag = { id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
+  c.setPointerCapture && c.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 8) return;
+  drag.moved = true; drag.el.classList.add('drag');
+  drag.el.style.left = drag.ox + dx + 'px';
+  drag.el.style.top = drag.oy + dy + 'px';
+});
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) { const id = d.id; ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); return render(); }
+  const me = mySeat(); const order = ui.order[me]; if (!order) return render();
+  const x = parseFloat(d.el.style.left) + d.hand._w / 2, y = parseFloat(d.el.style.top);
+  let best = 0, bd = Infinity;
+  d.hand._pos.forEach((p, i) => { const dd = Math.abs(p.x + d.hand._w / 2 - x) + Math.abs(p.y - y) * 2; if (dd < bd) { bd = dd; best = i; } });
+  const from = order.indexOf(d.id); order.splice(from, 1); order.splice(best, 0, d.id);
+  render();
+});
+document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
+
+function render() {
+  const disc = document.getElementById('disc'); const dscroll = disc ? disc.scrollLeft : null;
+  const msgs = document.getElementById('msgs'); const chatVal = document.getElementById('chatin')?.value;
+  $app.innerHTML = !ready ? '<div class="menu"><div class="in"><h1>مور</h1><p class="muted">عم يحمّل…</p></div></div>' : ui.view === 'home' ? home() : ui.view === 'room' ? lobby() : game();
+  layoutHand();
+  const d2 = document.getElementById('disc'); if (d2) d2.scrollLeft = d2.scrollWidth;
+  const m2 = document.getElementById('msgs'); if (m2) m2.scrollTop = m2.scrollHeight;
+  const ci = document.getElementById('chatin'); if (ci && chatVal) ci.value = chatVal;
+  if (ui.chatOpen) ui.unread = 0;
+}
+window.addEventListener('resize', () => layoutHand());
 
 // ---------- events ----------
 $app.addEventListener('click', e => {
   let t = e.target.closest('[data-a]');
   if (t && t.classList.contains('ov') && e.target.closest('[data-stop]')) return;
-  if (!t) t = e.target.closest('[data-di]') || e.target.closest('[data-meld]') || e.target.closest('#hand [data-id]');
+  if (t && !t.dataset.a) t = null;
+  if (!t) t = e.target.closest('[data-di]') || e.target.closest('[data-meld]') || e.target.closest('[data-seat]');
   if (!t) return;
   const a = t.dataset.a, st = ui.st;
   if (a) {
     e.stopPropagation();
     ({
-      create: () => createRoom('online'), join: () => joinRoom('online', document.getElementById('code').value), createLan: () => createRoom('lan'), joinLan: () => joinRoom('lan', document.getElementById('ip').value), joinHere: () => joinRoom('lan', location.hostname), rejoin: () => { const r = ls.get('mor-room'); joinRoom(r.mode, r.key); },
-      local: () => startLocal(false), localResume: () => startLocal(true), leave, start: startOnline, sit: () => sit(+t.dataset.s),
+      create: () => createRoom('online'), join: () => joinRoom('online', document.getElementById('code').value), createLan: () => createRoom('lan'),
+      joinLan: () => joinRoom('lan', document.getElementById('ip').value), joinHere: () => joinRoom('lan', location.hostname),
+      rejoin: () => { const r = ls.get('mor-room'); joinRoom(r.mode, r.key); },
+      solo: () => startLocal('solo'), local: () => startLocal('pass'), localResume: () => startLocal(null, true),
+      cfgBot: () => { ui.localCfg[+t.dataset.s] = !ui.localCfg[+t.dataset.s]; const v = [0, 1, 2, 3].map(i => document.getElementById('ln' + i)?.value || ''); render(); v.forEach((x, i) => { const el = document.getElementById('ln' + i); if (el) el.value = x; }); },
+      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave,
+      start: () => startOnline(false), startBots: () => startOnline(true), sit: () => sit(+t.dataset.s),
       draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
+      declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
       morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
-      clear: () => { ui.sel.clear(); render(); }, sort: () => { ui.sortRank = !ui.sortRank; render(); },
+      sort: () => { const me = mySeat(); const h = ui.st.hands[me]; const cur = ui.order[me] || []; const s1 = sortIds(h, false); ui.order[me] = cur.join() === s1.join() ? sortIds(h, true) : s1; render(); },
       reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
-      noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); }
+      noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
+      chat: () => { ui.chatOpen = true; ui.unread = 0; render(); setTimeout(() => document.getElementById('chatin')?.focus(), 50); },
+      chatClose: () => { ui.chatOpen = false; render(); }, send: sendChat, play: () => playVoice(t.dataset.m),
+      rotate: () => setOrient(ui.orient === 'portrait' ? 'landscape' : 'portrait')
     }[a] || (() => {}))();
     return;
   }
-  if (t.dataset.di != null && st && st.turn === mySeat() && st.step === 'draw') {
+  if (t.dataset.di != null && st && st.turn === mySeat() && st.step === 'draw' && !ui.hidden) {
     const i = +t.dataset.di, n = st.discard.length - i;
     if (n === 1) return act(Mor.takeDiscard, i);
     ui.sheet = { title: `تاخد ${n} ورقات من الأرض؟`, opts: [{ label: 'إيه خدهم', run: () => act(Mor.takeDiscard, i) }] }; return render();
@@ -653,21 +1075,32 @@ $app.addEventListener('click', e => {
     if (!m || !ui.sel.size || st.turn !== me || st.step !== 'play' || m.team !== Mor.teamOf(me)) return;
     const ids = [...ui.sel], opts = [];
     if (Mor.analyze([...m.cards, ...ids])) opts.push({ label: 'زيد على التنزيلة', run: () => act(Mor.addToMeld, m.id, ids) });
-    if (ids.length === 1 && Mor.swapOptions(m, ids[0]).length) opts.push({ label: Mor.swapOptions(m, ids[0]).some(o => Mor.isJ(o.w)) ? 'فكّ الجوكر بهالورقة' : 'بدّل الـ2', run: () => act(Mor.swapWild, m.id, ids[0]) });
+    const sw = ids.length === 1 ? Mor.swapOptions(m, ids[0]) : [];
+    if (sw.length) opts.push({ label: sw.some(o => Mor.isJ(o.w)) ? 'فكّ الجوكر بهالورقة' : 'بدّل الـ2', run: () => act(Mor.swapWild, m.id, ids[0]) });
     if (!opts.length) return toast('الورق المختار ما بيركب على هالتنزيلة');
     if (opts.length === 1) return opts[0].run();
     ui.sheet = { title: 'شو بدك تعمل؟', opts }; return render();
   }
-  if (t.dataset.id && !t.dataset.di && t.closest('#hand')) {
-    const id = t.dataset.id; ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); render();
+  if (t.dataset.seat != null && st && ui.mode !== 'local' && isHost() && +t.dataset.seat !== mySeat()) {
+    const s = +t.dataset.seat;
+    ui.sheet = { title: esc(st.names[s]), opts: [{ label: st.bots[s] ? 'رجّعه يلعب بنفسه' : 'خلّي بوت يلعب مكانه', run: () => toggleBot(s) }] }; render();
   }
 });
-$app.addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'code') joinRoom('online', e.target.value); if (e.target.id === 'ip') joinRoom('lan', e.target.value); });
+$app.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'code') joinRoom('online', e.target.value);
+  if (e.target.id === 'ip') joinRoom('lan', e.target.value);
+  if (e.target.id === 'chatin') sendChat();
+});
+$app.addEventListener('pointerdown', e => { if (e.target.closest('#mic')) { e.preventDefault(); recStart(); } });
+document.addEventListener('pointerup', () => { if (rec.mr) recStop(); });
+setInterval(() => { if (Object.values(ui.bubbles).some(b => Date.now() - b.t < 4600 && Date.now() - b.t > 4000)) render(); }, 600);
 
 // ---------- boot ----------
 (async () => {
   let id = ls.get('mor-uid'); if (!id) { id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ls.set('mor-uid', id); }
   uid = id;
+  try { native && native.setOrientation(ui.orient); } catch (e) {}
   if (isServed) { ready = true; return render(); }
   const tm = setTimeout(() => { ready = true; render(); }, 10000);
   try {
