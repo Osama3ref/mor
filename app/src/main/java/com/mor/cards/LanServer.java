@@ -24,6 +24,10 @@ public class LanServer {
     private final ArrayList<String> chat = new ArrayList<>();            // JSON objects, newest last
     private final LinkedHashMap<Long, String[]> voices = new LinkedHashMap<>(); // mid -> {mime, base64}
     private long nextMid = 1;
+    private final HashSet<String> inVoice = new HashSet<>();
+    private final ArrayList<Object[]> signals = new ArrayList<>(); // {seq, to, json}
+    private final HashMap<String, Long> sigSeq = new HashMap<>();
+    private long nextSig = 1;
 
     public LanServer(PageSource source) { this.source = source; }
 
@@ -91,6 +95,21 @@ public class LanServer {
             if (v == null) { json(sock, 404, "{\"error\":\"gone\"}"); return; }
             json(sock, 200, "{\"mime\":" + Json.quote(v[0]) + ",\"data\":" + Json.quote(v[1]) + "}"); return;
         }
+        if (method.equals("GET") && path.equals("/api/signals")) {
+            String to = ""; long after = 0;
+            for (String kv : query.split("&")) {
+                if (kv.startsWith("to=")) to = URLDecoder.decode(kv.substring(3), "UTF-8");
+                if (kv.startsWith("after=")) try { after = Long.parseLong(kv.substring(6)); } catch (NumberFormatException ignored) {}
+            }
+            StringBuilder o = new StringBuilder("[");
+            synchronized (lock) {
+                for (Object[] sg : signals) if (to.equals(sg[1]) && (Long) sg[0] > after) {
+                    if (o.length() > 1) o.append(',');
+                    o.append("{\"seq\":").append(sg[0]).append(",\"msg\":").append((String) sg[2]).append('}');
+                }
+            }
+            json(sock, 200, o.append(']').toString()); return;
+        }
         if (!method.equals("POST")) { json(sock, 404, "{\"error\":\"not found\"}"); return; }
         Map<String, Object> b;
         try { Object o = Json.parse(body); if (!(o instanceof Map)) throw new IllegalArgumentException(); b = cast(o); }
@@ -99,6 +118,7 @@ public class LanServer {
             switch (path) {
                 case "/api/create":
                     host = str(b.get("host")); phase = "lobby"; s = ""; sv = 0; players.clear(); chat.clear(); voices.clear();
+                    inVoice.clear(); signals.clear(); sigSeq.clear();
                     break;
                 case "/api/player": {
                     String id = str(b.get("id"));
@@ -115,6 +135,21 @@ public class LanServer {
                     long expect = (long) num(b.get("expect"), -1);
                     if (expect != sv) { json(sock, 409, "{\"error\":\"conflict\",\"room\":" + roomJson() + "}"); return; }
                     s = str(b.get("s")); phase = str(b.get("phase")); sv = (long) num(b.get("sv"), sv + 1);
+                    break;
+                }
+                case "/api/voicestate": {
+                    String id = str(b.get("id"));
+                    if (Boolean.TRUE.equals(b.get("on"))) inVoice.add(id); else inVoice.remove(id);
+                    break;
+                }
+                case "/api/signal": {
+                    String to = str(b.get("to"));
+                    String msg = Json.write(b);
+                    if (msg.length() > 60000) { json(sock, 413, "{}"); return; }
+                    long seq = nextSig++;
+                    signals.add(new Object[]{seq, to, msg});
+                    while (signals.size() > 200) signals.remove(0);
+                    sigSeq.put(to, seq);
                     break;
                 }
                 case "/api/chat":
@@ -154,7 +189,11 @@ public class LanServer {
             if (p.length() > 1) p.append(',');
             p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append('}');
         }
-        return "{\"rev\":" + rev + ",\"room\":" + roomJson() + ",\"players\":" + p.append(']') + ",\"chat\":[" + String.join(",", chat) + "]}";
+        StringBuilder v = new StringBuilder("[");
+        for (String id : inVoice) { if (v.length() > 1) v.append(','); v.append(Json.quote(id)); }
+        StringBuilder sq = new StringBuilder("{");
+        for (Map.Entry<String, Long> e : sigSeq.entrySet()) { if (sq.length() > 1) sq.append(','); sq.append(Json.quote(e.getKey())).append(':').append(e.getValue()); }
+        return "{\"rev\":" + rev + ",\"room\":" + roomJson() + ",\"players\":" + p.append(']') + ",\"chat\":[" + String.join(",", chat) + "],\"voice\":" + v.append(']') + ",\"sig\":" + sq.append('}') + "}";
     }
 
     @SuppressWarnings("unchecked") private static Map<String, Object> cast(Object o) { return (Map<String, Object>) o; }
@@ -222,6 +261,24 @@ public class LanServer {
                     default: b.append(e);
                 }
             }
+        }
+        @SuppressWarnings("unchecked")
+        static String write(Object o) {
+            if (o == null) return "null";
+            if (o instanceof String) return quote((String) o);
+            if (o instanceof Boolean) return o.toString();
+            if (o instanceof Double) { double d = (Double) o; return d == Math.rint(d) && Math.abs(d) < 1e15 ? Long.toString((long) d) : Double.toString(d); }
+            if (o instanceof Map) {
+                StringBuilder b = new StringBuilder("{");
+                for (Map.Entry<String, Object> e : ((Map<String, Object>) o).entrySet()) { if (b.length() > 1) b.append(','); b.append(quote(e.getKey())).append(':').append(write(e.getValue())); }
+                return b.append('}').toString();
+            }
+            if (o instanceof List) {
+                StringBuilder b = new StringBuilder("[");
+                for (Object x : (List<Object>) o) { if (b.length() > 1) b.append(','); b.append(write(x)); }
+                return b.append(']').toString();
+            }
+            return quote(o.toString());
         }
         static String quote(String s) {
             StringBuilder b = new StringBuilder("\"");

@@ -132,6 +132,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px 6px;b
 .msg.me{align-self:flex-end;background:var(--a);color:#2a1d00}
 .msg small{display:block;font-size:11px;opacity:.7}
 .mic{width:48px;height:48px;border-radius:50%;background:var(--b);color:#03212d;display:grid;place-items:center;flex:none;touch-action:none}
+.ic.von{background:var(--b);color:#03212d}.ic.vmute{background:var(--red);color:#fff}
 .mic.rec{background:var(--red);color:#fff;animation:pulse 1s infinite}
 @keyframes turn{0%,100%{box-shadow:0 0 0 3px var(--tc),0 0 0 6px rgba(255,255,255,.0)}50%{box-shadow:0 0 0 3px var(--tc),0 0 18px 6px var(--tc)}}
 @keyframes pulse{50%{opacity:.75}}
@@ -587,6 +588,8 @@ const ICON = {
   chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
   rot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 12a9 9 0 0 0 4 7M21 12a9 9 0 0 0-4-7"/></svg>',
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  micoff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z" transform="scale(-1,1) translate(-24,0)"/></svg>'
 };
 
@@ -594,7 +597,7 @@ let db = null, uid = null, ready = false;
 const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sheet: null, hidden: false, viewer: 0, busy: false, toast: null,
   order: {}, chat: [], chatOpen: false, unread: 0, bubbles: {}, confirmExit: false, orient: ls.get('mor-orient') || 'portrait', localCfg: null };
 let unsub = [];
-window.__mor = { ui, mySeat: () => mySeat() };
+window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc };
 
 function cardHTML(id, extra = '', attrs = '') {
   if (id === 'back') return `<div class="c back ${extra}" ${attrs}></div>`;
@@ -720,7 +723,7 @@ const lanB = {
       try {
         const j = await lanB.req('/api/poll?rev=' + lanB.rev);
         if (!lanB.alive) return;
-        fails = 0; lanB.rev = j.rev; ui.players = j.players; gotChat(j.chat || []); applyRoom(j.room);
+        fails = 0; lanB.rev = j.rev; ui.players = j.players; gotChat(j.chat || []); voiceSync(j); applyRoom(j.room);
       } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، عم جرّب أرجع'); await sleep(1500); }
     }
   },
@@ -777,6 +780,88 @@ async function recStart() {
 }
 function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
 
+
+// ---------- live voice (WebRTC over the local network, signalled through the host) ----------
+const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, last: null, members: [], fetching: false };
+async function voiceJoin() {
+  if (!window.RTCPeerConnection) return toast('الصوت المباشر مش مدعوم على هالجهاز');
+  try {
+    vc.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) { vc.stream = null; toast('المايك مش متاح: رح تسمع بس'); }
+  vc.on = true; vc.muted = false; vc.seq = 0;
+  try { await lanB.req('/api/voicestate', { id: uid, on: true }); } catch (e) { toast('ما قدرت أدخل المكالمة'); }
+  render(); if (vc.last) voiceSync(vc.last);
+}
+function voiceLeave(silent) {
+  for (const k of Object.keys(vc.pcs)) dropPeer(k);
+  if (vc.stream) vc.stream.getTracks().forEach(t => t.stop());
+  vc.stream = null; vc.on = false;
+  if (!silent) lanB.req('/api/voicestate', { id: uid, on: false }).catch(() => {});
+  render();
+}
+function voiceMute() {
+  vc.muted = !vc.muted;
+  if (vc.stream) vc.stream.getAudioTracks().forEach(t => { t.enabled = !vc.muted; });
+  render();
+}
+function dropPeer(k) {
+  try { vc.pcs[k] && vc.pcs[k].close(); } catch (e) {}
+  delete vc.pcs[k];
+  if (vc.els[k]) { vc.els[k].srcObject = null; vc.els[k].remove(); delete vc.els[k]; }
+}
+function newPeer(peer) {
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pc.ontrack = e => {
+    let a = vc.els[peer];
+    if (!a) { a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; document.body.appendChild(a); vc.els[peer] = a; }
+    a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed'].includes(pc.connectionState) && vc.pcs[peer] === pc) { dropPeer(peer); setTimeout(() => vc.last && voiceSync(vc.last), 2500); }
+  };
+  vc.pcs[peer] = pc; return pc;
+}
+const iceDone = pc => new Promise(r => {
+  if (pc.iceGatheringState === 'complete') return r();
+  const t = setTimeout(r, 2500);
+  pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } });
+});
+const signal = (to, kind, sdp) => lanB.req('/api/signal', { from: uid, to, kind, sdp });
+async function callPeer(peer) {
+  const pc = newPeer(peer);
+  if (vc.stream) vc.stream.getTracks().forEach(t => pc.addTrack(t, vc.stream));
+  else pc.addTransceiver('audio', { direction: 'recvonly' });
+  await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
+  await signal(peer, 'offer', pc.localDescription.sdp);
+}
+async function onSignal(m) {
+  if (!vc.on) return;
+  if (m.kind === 'offer') {
+    dropPeer(m.from); const pc = newPeer(m.from);
+    await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+    if (vc.stream) vc.stream.getTracks().forEach(t => pc.addTrack(t, vc.stream));
+    await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+    await signal(m.from, 'answer', pc.localDescription.sdp);
+  } else if (m.kind === 'answer' && vc.pcs[m.from] && vc.pcs[m.from].signalingState === 'have-local-offer') {
+    await vc.pcs[m.from].setRemoteDescription({ type: 'answer', sdp: m.sdp });
+  }
+}
+async function voiceSync(j) {
+  vc.last = j; vc.members = j.voice || [];
+  if (!vc.on) return;
+  const others = vc.members.filter(id => id !== uid);
+  for (const k of Object.keys(vc.pcs)) if (!others.includes(k)) dropPeer(k);
+  if (j.sig && j.sig[uid] > vc.seq && !vc.fetching) {
+    vc.fetching = true;
+    try {
+      const list = await lanB.req('/api/signals?to=' + encodeURIComponent(uid) + '&after=' + vc.seq);
+      for (const x of list) { vc.seq = Math.max(vc.seq, x.seq); try { await onSignal(x.msg); } catch (e) { console.error(e); } }
+    } catch (e) {}
+    vc.fetching = false;
+  }
+  for (const p of others) if (!vc.pcs[p] && uid < p) callPeer(p).catch(e => { console.error(e); dropPeer(p); });
+}
+
 // ---------- rooms ----------
 function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
 function myName() { return (document.getElementById('nm')?.value || ls.get('mor-name') || '').trim(); }
@@ -813,6 +898,7 @@ async function startOnline(withBots) {
   await commit(st);
 }
 function leave() {
+  if (vc.on) voiceLeave();
   unsub.forEach(u => u()); unsub = [];
   Object.assign(ui, { view: 'home', mode: null, code: null, room: null, st: null, players: [], confirmExit: false, chatOpen: false, chat: [] });
   ls.set('mor-room', null); render();
@@ -899,7 +985,7 @@ function seatHTML(st, s, me, cls = '') {
   return `<div class="seatv ${st.turn === s && st.phase === 'play' ? 'on' : ''} ${cls}" data-seat="${s}" style="--tc:${TC[s % 2]}">
     ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
     <div class="av">${esc(st.bots && st.bots[s] && /\d|[١-٩]/.test(name) ? name.trim().slice(-1) : (name || '?').trim().charAt(0))}<span class="cnt">${st.hands[s].length}</span></div>
-    <div><div class="nm">${esc(name)}</div>${st.bots && st.bots[s] ? '<span class="tag">بوت</span>' : ''}${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'معلن مور' : 'معلن ضمان'}</span>` : ''}</div></div>`;
+    <div><div class="nm">${esc(name)}</div>${st.bots && st.bots[s] ? '<span class="tag">بوت</span>' : ''}${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.seats && vc.members.includes(st.seats[s]) ? '<span class="tag" style="color:var(--b)">بالمكالمة</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'معلن مور' : 'معلن ضمان'}</span>` : ''}</div></div>`;
 }
 function meldHTML(m, canTap, them) {
   const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
@@ -933,7 +1019,8 @@ function game() {
     }
   }
   const fresh = st.got && st.got.seat === me && st.turn === me ? st.got.ids : [];
-  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>` : '';
+  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
+    <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="${vc.on ? (vc.muted ? 'شغّل المايك' : 'سكّر المايك') : 'ادخل المكالمة'}">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}${!vc.on && vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>` : '';
   return `<div class="game">
   <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
     <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
@@ -964,7 +1051,7 @@ function overlays(me) {
     ${can ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
   }
   if (ui.chatOpen && ui.mode === 'lan') {
-    h += `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b><button class="ic" data-a="chatClose" aria-label="سكّر">${ICON.x}</button></div>
+    h += `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b>${vc.on ? `<button class="chip" data-a="voiceLeave">اطلع من المكالمة</button>` : `<button class="chip on" data-a="voice">ادخل المكالمة</button>`}<button class="ic" data-a="chatClose" aria-label="سكّر">${ICON.x}</button></div>
     <div class="msgs" id="msgs">${ui.chat.map(m => `<div class="msg ${m.id === uid ? 'me' : ''}"><small>${esc(m.name)}</small>${m.audio ? `<button class="chip" data-a="play" data-m="${m.mid}">▶ رسالة صوتية</button>` : esc(m.text)}</div>`).join('') || '<div class="muted">ما في رسائل لسا</div>'}</div>
     <div class="row"><input id="chatin" class="grow" placeholder="اكتب رسالة" maxlength="200"><button class="ic" data-a="send" aria-label="ابعت">${ICON.send}</button><button class="mic ${rec.mr ? 'rec' : ''}" id="mic" aria-label="اضغط مطوّل وسجّل">${ICON.mic}</button></div>
     <div class="muted">اضغط مطوّل على المايك وسجّل، وشيل إصبعك لتبعت.</div></div>`;
@@ -1061,6 +1148,7 @@ $app.addEventListener('click', e => {
       noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
       chat: () => { ui.chatOpen = true; ui.unread = 0; render(); setTimeout(() => document.getElementById('chatin')?.focus(), 50); },
       chatClose: () => { ui.chatOpen = false; render(); }, send: sendChat, play: () => playVoice(t.dataset.m),
+      voice: () => (vc.on ? voiceMute() : voiceJoin()), voiceLeave: () => voiceLeave(),
       rotate: () => setOrient(ui.orient === 'portrait' ? 'landscape' : 'portrait')
     }[a] || (() => {}))();
     return;
