@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مور</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&family=Oswald:wght@600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a friendly majlis card night, warm and lively
+   IDEA: the felt card table itself, cards laid in front of you
+   PICTURE: the live table: melds, discard row and your fanned hand
+   COLOUR and TYPE: deep felt green, ivory cards, card red; Cairo + Oswald for ranks
+   LAYOUT: scores on top, table in the middle, hand + actions pinned to the bottom */
+:root{color-scheme:light dark;--felt:light-dark(#0f5a3c,#0a3d29);--felt2:light-dark(#0c4a31,#072e1f);--ink:#f3efe4;--dim:#b9cfc2;--card:#fbf8f0;--cink:#1b1b1b;--red:#d32f3a;--gold:#f2c14e;--line:rgba(255,255,255,.14)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:radial-gradient(120% 80% at 50% 30%,var(--felt),var(--felt2));color:var(--ink);font:16px/1.5 Cairo,system-ui,sans-serif;min-height:100vh;overflow-x:clip}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{min-height:44px;padding:8px 16px;border-radius:12px;border:0;background:var(--gold);color:#2a1f00;font-weight:800}
+.btn.alt{background:rgba(255,255,255,.12);color:var(--ink);border:1px solid var(--line)}
+.btn.red{background:var(--red);color:#fff}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:focus-visible,.c:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input{font:inherit;font-size:16px;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.25);color:var(--ink);width:100%}
+.wrap{max-width:760px;margin:0 auto;padding:12px max(3vw,10px) 0}
+h1{font-size:44px;line-height:1.05;margin:8px 0 4px;font-weight:800}
+.muted{color:var(--dim);font-size:14px}
+.panel{background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1 1 160px}
+/* cards */
+.c{position:relative;width:46px;height:66px;border-radius:7px;background:var(--card);color:var(--cink);border:1px solid #d9d2c0;box-shadow:0 2px 0 rgba(0,0,0,.25);padding:3px 0 0 5px;text-align:left;flex:none;transition:transform .12s}
+.c b{display:block;font:600 19px/1 Oswald,sans-serif}.c i{font-style:normal;font-size:18px;line-height:1}
+.c.r{color:var(--red)}.c.jk{background:linear-gradient(160deg,#fff,#ffe9a8)}.c.jk b{font-size:20px}
+.c.sel{transform:translateY(-12px);box-shadow:0 0 0 3px var(--gold),0 6px 10px rgba(0,0,0,.35)}
+.c.w{outline:2px dashed var(--red);outline-offset:-4px}
+.fan{display:flex;flex-wrap:wrap;direction:ltr;gap:6px 0;padding-top:12px}.fan .c{margin-right:-10px}
+.mini .c{width:32px;height:46px;padding:2px 0 0 3px;margin-right:-12px}.mini .c b{font-size:14px}.mini .c i{font-size:13px}
+/* table */
+.score{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:center;text-align:center}
+.score .t{background:rgba(0,0,0,.25);border-radius:14px;padding:6px}.score .n{font:600 30px/1 Oswald,sans-serif}.score .t.us{box-shadow:inset 0 0 0 2px var(--gold)}
+.players{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:10px 0}
+.pl{background:rgba(0,0,0,.2);border-radius:12px;padding:6px;text-align:center;font-size:13px;border:2px solid transparent}
+.pl.on{border-color:var(--gold)}.pl .nm{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb{display:flex;gap:6px;font-size:12px;justify-content:center}
+.zone h3{margin:6px 0;font-size:16px;display:flex;justify-content:space-between}
+.melds{display:flex;flex-wrap:wrap;gap:8px}
+.meld{background:rgba(0,0,0,.22);border-radius:12px;padding:8px 18px 6px 8px;border:2px solid transparent;position:relative}
+.meld.tap{border-color:rgba(242,193,78,.6)}.meld .val{position:absolute;top:-8px;left:-6px;background:var(--gold);color:#2a1f00;border-radius:10px;padding:0 7px;font-size:12px;font-weight:800}
+.meld .val.z{background:#ddd}
+.disc{display:flex;direction:ltr;overflow-x:auto;gap:0;padding:6px 2px 10px}.disc .c{margin-right:-14px}
+.pile{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.mor{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:10px;background:rgba(0,0,0,.25);font-size:13px}
+.mor.gone{opacity:.45;text-decoration:line-through}
+.dock{position:sticky;bottom:0;background:linear-gradient(transparent,var(--felt2) 18px);padding:18px max(3vw,10px) max(12px,env(safe-area-inset-bottom));margin-top:10px}
+.dock .in{max-width:760px;margin:0 auto}
+.status{font-weight:800;margin-bottom:4px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.log{font-size:13px;color:var(--dim);max-height:3.2em;overflow:hidden}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:9}
+.box{background:#13281d;border:1px solid var(--line);border-radius:18px;padding:18px;max-width:420px;width:100%}
+.box h2{margin:0 0 8px;font-size:24px}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:6px;border-bottom:1px solid var(--line);text-align:center}
+.toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:10px 16px;border-radius:12px;z-index:10;font-weight:600;max-width:92vw}
+.seats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.seat{min-height:64px;border-radius:14px;border:2px dashed var(--line);background:rgba(0,0,0,.2);padding:8px}
+.seat.me{border-style:solid;border-color:var(--gold)}
+.code{font:600 44px/1 Oswald,sans-serif;letter-spacing:6px}
+@media(prefers-reduced-motion:reduce){.c{transition:none}}
+@media(max-width:420px){.c{width:40px;height:58px}.c b{font-size:16px}.c i{font-size:15px}h1{font-size:36px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const Mor = (() => {
+  const SUITS = ['S', 'H', 'D', 'C'];
+  const TARGET = 620;
+  const MOR_MIN = 40, CLOSE_MIN = 100;
+
+  const card = id => ({ id, s: id[0], r: id[0] === 'J' ? 0 : parseInt(id.slice(1), 10) });
+  const isJ = id => id[0] === 'J';
+  const rankOf = id => card(id).r;
+  const teamOf = seat => seat % 2;
+
+  function rnd(n) {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  function buildDeck() {
+    const d = [];
+    for (const k of ['a', 'b']) {
+      for (const s of SUITS) for (let r = 1; r <= 13; r++) d.push(s + r + k);
+      d.push('J0' + k);
+    }
+    return d;
+  }
+
+  // ---------- meld validation ----------
+  function analyzeSeq(ids) {
+    const N = ids.length;
+    if (N < 3 || N > 13) return null;
+    const jok = ids.filter(isJ);
+    const twos = ids.filter(i => !isJ(i) && rankOf(i) === 2);
+    const others = ids.filter(i => !isJ(i) && rankOf(i) !== 2);
+    if (jok.length > 1) return null;
+    let suits = [...new Set(others.map(i => i[0]))];
+    if (suits.length > 1) return null;
+    if (!suits.length) suits = [...new Set(twos.map(i => i[0]))];
+    let best = null;
+    for (const S of suits) {
+      const natTwoOptions = [null, ...twos.filter(t => t[0] === S)];
+      for (const nt of natTwoOptions) {
+        const wildTwos = twos.filter(t => t !== nt);
+        if (wildTwos.length > 1) continue;
+        const nat = nt ? [...others, nt] : others.slice();
+        const nonAce = nat.filter(i => rankOf(i) !== 1).map(rankOf);
+        if (new Set(nonAce).size !== nonAce.length) continue;
+        const aces = nat.filter(i => rankOf(i) === 1);
+        if (aces.length > 1) continue;
+        for (let s = 1; s + N - 1 <= 14; s++) {
+          const e = s + N - 1;
+          if (!nonAce.every(r => r >= s && r <= e)) continue;
+          let acePos = null;
+          if (aces.length) {
+            if (s === 1) acePos = 1; else if (e === 14) acePos = 14; else continue;
+          }
+          const slots = new Array(N).fill(null);
+          for (const i of nat) { const r = rankOf(i); const p = r === 1 ? acePos : r; slots[p - s] = i; }
+          const wild = [...jok, ...wildTwos];
+          let w = 0;
+          for (let k = 0; k < N; k++) if (!slots[k]) slots[k] = wild[w++];
+          const clean = wild.length === 0;
+          const res = { type: 'seq', ok: true, clean, suit: S, start: s, order: slots, wild };
+          if (!best || (clean && !best.clean)) best = res;
+          if (best.clean) return best;
+        }
+      }
+    }
+    return best;
+  }
+
+  function analyzeSet(ids) {
+    const N = ids.length;
+    if (N < 3) return null;
+    const jok = ids.filter(isJ);
+    const nat = ids.filter(i => !isJ(i));
+    if (jok.length > 1 || !nat.length) return null;
+    const r = rankOf(nat[0]);
+    if (r === 2) return null;
+    if (!nat.every(i => rankOf(i) === r)) return null;
+    const order = [...nat.sort((a, b) => SUITS.indexOf(a[0]) - SUITS.indexOf(b[0])), ...jok];
+    return { type: 'set', ok: true, clean: jok.length === 0, rank: r, order, wild: jok };
+  }
+
+  function analyze(ids) { return analyzeSeq(ids) || analyzeSet(ids); }
+
+  function meldValue(m) {
+    const a = analyze(m.cards); if (!a) return 0;
+    const L = m.cards.length;
+    let t = null;
+    if (a.type === 'seq') {
+      if (L >= 13) t = [100, 80]; else if (L >= 12) t = [80, 60]; else if (L >= 10) t = [60, 40]; else if (L >= 7) t = [40, 20];
+    } else {
+      if (L >= 8) t = [80, 60]; else if (L >= 7) t = [40, 20];
+    }
+    return t ? (a.clean ? t[0] : t[1]) : 0;
+  }
+  const ground = (st, team) => st.melds.filter(m => m.team === team).reduce((s, m) => s + meldValue(m), 0);
+
+  // ---------- state ----------
+  function newGame(names) {
+    return { v: 0, phase: 'play', names, scores: [0, 0], round: 0, starter: 0, history: [], log: [], ...dealRound(0) };
+  }
+  function dealRound(starter) {
+    const d = shuffle(buildDeck());
+    const mor = [d.splice(0, 11), d.splice(0, 11)];
+    const hands = [0, 1, 2, 3].map(() => d.splice(0, 14));
+    const discard = d.splice(0, 1);
+    return { stock: d, discard, mor, morBy: [null, null], hands, melds: [], pending: {}, turn: starter, step: 'draw', mid: 1, summary: null, finalTurn: false };
+  }
+  const clone = st => JSON.parse(JSON.stringify(st));
+  function err(msg) { const e = new Error(msg); e.game = true; throw e; }
+  function need(st, seat, step) {
+    if (st.phase !== 'play') err('الجولة خلصت');
+    if (st.turn !== seat) err('مش دورك');
+    if (step && st.step !== step) err(step === 'draw' ? 'لازم تسحب أول' : 'سحبت خلص، نزّل أو ارمي');
+  }
+  function takeFromHand(st, seat, ids) {
+    const h = st.hands[seat];
+    for (const id of ids) { const i = h.indexOf(id); if (i < 0) err('الورقة مش معك'); h.splice(i, 1); }
+  }
+  const morLeft = st => st.mor.findIndex(p => p);
+  const canMor = (st, seat) => morLeft(st) >= 0 && ground(st, teamOf(seat)) >= MOR_MIN;
+  const canClose = (st, seat) => ground(st, teamOf(seat)) >= CLOSE_MIN;
+  function log(st, s) { st.log.push(s); if (st.log.length > 30) st.log.shift(); }
+  const nm = (st, seat) => st.names[seat];
+
+  function afterEmpty(st, seat) {
+    if (st.hands[seat].length) return;
+    if (!canMor(st, seat) && !canClose(st, seat)) err('ما فيك تخلّص ورقك: لازم 40 على الأرض لتاخد المور أو 100 لتضمّن');
+  }
+
+  function draw(s, seat) {
+    const st = clone(s); need(st, seat, 'draw');
+    if (!st.stock.length) err('السحبة خلصت، خذ من الأرض');
+    st.hands[seat].push(st.stock.pop()); st.step = 'play';
+    log(st, nm(st, seat) + ' سحب من السحبة');
+    return st;
+  }
+  function takeDiscard(s, seat, index) {
+    const st = clone(s); need(st, seat, 'draw');
+    if (index < 0 || index >= st.discard.length) err('ورقة غلط');
+    const got = st.discard.splice(index);
+    st.hands[seat].push(...got); st.step = 'play';
+    log(st, nm(st, seat) + ' أخد ' + got.length + ' من الأرض');
+    return st;
+  }
+  function meldNew(s, seat, ids) {
+    const st = clone(s); need(st, seat, 'play');
+    if (ids.length < 3) err('التنزيلة لازم 3 ورقات أو أكتر');
+    const a = analyze(ids); if (!a) err('هالورق ما بيركب سيري ولا متل بعض');
+    takeFromHand(st, seat, ids);
+    st.melds.push({ id: 'm' + (st.mid++), team: teamOf(seat), cards: a.order });
+    afterEmpty(st, seat);
+    log(st, nm(st, seat) + ' نزّل ' + ids.length + ' ورقات');
+    return st;
+  }
+  function addToMeld(s, seat, meldId, ids) {
+    const st = clone(s); need(st, seat, 'play');
+    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة مش موجودة');
+    if (m.team !== teamOf(seat)) err('ما فيك تزيد على تنزيلات الخصم');
+    const a = analyze([...m.cards, ...ids]); if (!a) err('ما بتركب على هالتنزيلة');
+    takeFromHand(st, seat, ids); m.cards = a.order;
+    afterEmpty(st, seat);
+    log(st, nm(st, seat) + ' زاد ' + ids.length + ' على تنزيلة');
+    return st;
+  }
+  function swapOptions(m, id) {
+    const out = [];
+    for (const w of m.cards) {
+      if (out.some(o => o.w === w)) continue;
+      const wIsJ = isJ(w), wIsTwo = !wIsJ && rankOf(w) === 2;
+      if (!wIsJ && !wIsTwo) continue;
+      const cur = analyze(m.cards); if (!cur || !cur.wild.includes(w)) continue;
+      if (wIsTwo && (cur.type !== 'seq' || m.cards.length !== 13)) continue;
+      if (isJ(id)) continue;
+      const rest = m.cards.slice(); rest.splice(rest.indexOf(w), 1);
+      const a = analyze([...rest, id]);
+      if (a && !a.wild.includes(id) && a.type === cur.type) out.push({ w, order: a.order });
+    }
+    return out;
+  }
+  function swapWild(s, seat, meldId, id) {
+    const st = clone(s); need(st, seat, 'play');
+    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة مش موجودة');
+    if (m.team !== teamOf(seat)) err('ما فيك تبدّل بتنزيلات الخصم');
+    const opts = swapOptions(m, id);
+    if (!opts.length) err('هالورقة ما بتنفع مكان الجوكر أو الـ2 هون');
+    const o = opts.find(x => isJ(x.w)) || opts[0];
+    takeFromHand(st, seat, [id]); st.hands[seat].push(o.w); m.cards = o.order;
+    log(st, nm(st, seat) + (isJ(o.w) ? ' فكّ جوكر' : ' بدّل 2'));
+    return st;
+  }
+  function takeMorNow(s, seat) {
+    const st = clone(s); need(st, seat, 'play');
+    if (st.hands[seat].length) err('لازم تخلّص ورقك أول');
+    if (!canMor(st, seat)) err('ما فيك تاخد المور');
+    const k = morLeft(st); st.hands[seat] = st.mor[k]; st.mor[k] = null; st.morBy[k] = teamOf(seat);
+    log(st, nm(st, seat) + ' أخد المور (مستمر)');
+    return st;
+  }
+  function discard(s, seat, id) {
+    const st = clone(s); need(st, seat, 'play');
+    takeFromHand(st, seat, [id]); st.discard.push(id);
+    if (!st.hands[seat].length) {
+      if (!canMor(st, seat) && !canClose(st, seat)) err('ما فيك ترمي آخر ورقة: لازم 40 على الأرض لتاخد المور أو 100 لتضمّن');
+      st.step = 'choice'; log(st, nm(st, seat) + ' رمى آخر ورقة');
+      return st;
+    }
+    log(st, nm(st, seat) + ' رمى ورقة');
+    return nextTurn(st);
+  }
+  function chooseMor(s, seat) {
+    const st = clone(s); need(st, seat, 'choice');
+    if (!canMor(st, seat)) err('ما فيك تاخد المور');
+    const k = morLeft(st); st.pending[seat] = st.mor[k]; st.mor[k] = null; st.morBy[k] = teamOf(seat);
+    log(st, nm(st, seat) + ' أخد المور (منقطع)');
+    return nextTurn(st);
+  }
+  function close(s, seat) {
+    const st = clone(s);
+    if (st.phase !== 'play' || st.turn !== seat) err('مش دورك');
+    if (st.hands[seat].length) err('لازم تخلّص ورقك لتضمّن');
+    if (!canClose(st, seat)) err('لازم 100 على الأرض لتضمّن');
+    log(st, nm(st, seat) + ' ضمّن');
+    return endRound(st, 'close', seat);
+  }
+  function nextTurn(st) {
+    if (!st.stock.length) {
+      if (st.finalTurn) return endRound(st, 'stock', null);
+      st.finalTurn = true;
+    }
+    st.turn = (st.turn + 1) % 4; st.step = 'draw';
+    const p = st.pending[st.turn];
+    if (p) { st.hands[st.turn] = p; delete st.pending[st.turn]; }
+    return st;
+  }
+  function endRound(st, how, closer) {
+    const g = [ground(st, 0), ground(st, 1)];
+    const taken = [0, 1].map(t => st.morBy.filter(x => x === t).length);
+    const sum = { how, closer, ground: g, taken, bonus: [0, 0], notes: [], void: false };
+    if (taken[0] + taken[1] === 0) {
+      sum.void = true; sum.notes.push('ما حدا أخد المور، الجولة بتنعاد');
+    } else {
+      if (how === 'close') {
+        const C = teamOf(closer), O = 1 - C;
+        if (taken[C] === 2) { sum.bonus[C] += 40; sum.bonus[O] -= 40; sum.notes.push('ضمان مع المورين: +40 و −40 للخصم'); }
+        else if (taken[C] === 1) { sum.bonus[C] += 20; sum.notes.push('ضمان مع مور واحد: +20'); }
+        for (const seat of Object.keys(st.pending)) { sum.bonus[teamOf(+seat)] -= 20; sum.notes.push(nm(st, +seat) + ' أخد مور منقطع وما لعب فيه: −20'); }
+      } else {
+        sum.notes.push('خلصت السحبة بدون ضمان');
+        for (const t of [0, 1]) if (taken[t] === 2) { sum.bonus[t] += 20; sum.notes.push('أخدوا المورين بدون ضمان: +20'); }
+      }
+      sum.delta = [g[0] + sum.bonus[0], g[1] + sum.bonus[1]];
+      st.scores = [st.scores[0] + sum.delta[0], st.scores[1] + sum.delta[1]];
+    }
+    st.history.push({ round: st.round + 1, delta: sum.delta || [0, 0], void: sum.void });
+    if (!sum.void) st.round++;
+    st.summary = sum; st.phase = 'roundEnd';
+    const [a, b] = st.scores;
+    if ((a >= TARGET || b >= TARGET) && a !== b) { st.phase = 'over'; st.winner = a > b ? 0 : 1; }
+    return st;
+  }
+  function nextRound(s) {
+    const st = clone(s);
+    if (st.phase !== 'roundEnd') err('الجولة لسا ما خلصت');
+    const starter = st.summary && st.summary.void ? st.starter : (st.starter + 1) % 4;
+    Object.assign(st, dealRound(starter)); st.starter = starter; st.phase = 'play'; st.log = [];
+    return st;
+  }
+
+  return { card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+})();
+
+
+</script>
+<script>
+{
+const $app = document.getElementById('app');
+const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const RK = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K' };
+const TEAM = ['فريق أ', 'فريق ب'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+let db = null, uid = null, ready = false;
+const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sortRank: false, sheet: null, hidden: false, lastTurn: null, busy: false, toast: null };
+let unsub = [];
+window.__mor = { ui, mySeat: () => mySeat() };
+
+function cardHTML(id, extra = '') {
+  if (Mor.isJ(id)) return `<button class="c jk ${extra}" data-id="${id}" aria-label="جوكر"><b>★</b><i>J</i></button>`;
+  const c = Mor.card(id); const red = c.s === 'H' || c.s === 'D';
+  return `<button class="c ${red ? 'r' : ''} ${extra}" data-id="${id}" aria-label="${RK[c.r] || c.r}${SUIT[c.s]}"><b>${RK[c.r] || c.r}</b><i>${SUIT[c.s]}</i></button>`;
+}
+function sortHand(h) {
+  const so = { S: 0, H: 1, C: 2, D: 3 };
+  return h.slice().sort((a, b) => {
+    if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
+    const A = Mor.card(a), B = Mor.card(b);
+    return ui.sortRank ? (A.r - B.r || so[A.s] - so[B.s]) : (so[A.s] - so[B.s] || A.r - B.r);
+  });
+}
+function toast(m) { ui.toast = m; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 2600); }
+
+// ---------- identity of the viewer ----------
+function mySeat() {
+  const st = ui.st; if (!st) return -1;
+  if (ui.mode === 'local') return st.phase === 'play' ? st.turn : -1;
+  return st.seats ? st.seats.indexOf(uid) : -1;
+}
+
+// ---------- actions ----------
+async function act(fn, ...args) {
+  if (ui.busy) return;
+  const seat = mySeat();
+  let next;
+  try { next = fn(ui.st, seat, ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
+  await commit(next);
+}
+async function commit(next) {
+  next.v = (ui.st.v || 0) + 1;
+  ui.sel.clear(); ui.sheet = null;
+  if (ui.mode === 'local') { ui.st = next; ls.set('mor-local', next); return render(); }
+  ui.busy = true; const prev = ui.st; ui.st = next; render();
+  try { await B().writeState(next, prev.v || 0); }
+  catch (e) { if (e.live) { ui.st = e.live; toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
+  ui.busy = false; render();
+}
+
+// ---------- backends: Claude db (online) and local network (lan) ----------
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function applyRoom(room) {
+  ui.room = room;
+  const st = room && room.s ? JSON.parse(room.s) : null;
+  if (st && (!ui.st || st.v >= (ui.st.v || 0) || ui.st.deal !== st.deal)) ui.st = st;
+  render();
+}
+const dbB = {
+  async create() { const code = genCode(); await db.doc('rooms/' + code).set({ host: uid, phase: 'lobby', s: '', t: Date.now() }); return code; },
+  async open(code, name) {
+    const snap = await db.doc('rooms/' + code).get().catch(() => null);
+    if (!snap || !snap.exists) throw new Error('ما لقيت هالغرفة');
+    const pref = db.doc('rooms/' + code + '/players/' + uid);
+    const me = await pref.get().catch(() => null);
+    if (!me || !me.exists) await pref.set({ name, seat: -1, t: Date.now() });
+    else if (me.data().name !== name) await pref.update({ name }).catch(() => {});
+    unsub.push(db.doc('rooms/' + code).onSnapshot(s => { if (s.exists) applyRoom(s.data()); }, () => toast('انقطع الاتصال بالغرفة')));
+    unsub.push(db.collection('rooms/' + code + '/players').onSnapshot(s => { ui.players = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }));
+  },
+  setSeat(seat) { return db.doc('rooms/' + ui.code + '/players/' + uid).update({ seat }); },
+  async writeState(next, prevV) {
+    const ref = db.doc('rooms/' + ui.code); const cur = await ref.get();
+    const live = cur.exists && cur.data().s ? JSON.parse(cur.data().s) : null;
+    if (live && live.v !== prevV) { const e = new Error('conflict'); e.live = live; throw e; }
+    await ref.update({ s: JSON.stringify(next), phase: 'game' });
+  }
+};
+const PORT = 8765;
+const lanB = {
+  base: '', rev: -1, alive: false,
+  async req(path, body) {
+    const r = await fetch(lanB.base + path, body ? { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) } : {});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 409) { const e = new Error(j.error || 'conflict'); e.code = 409; if (j.room && j.room.s) e.live = JSON.parse(j.room.s); throw e; }
+    if (!r.ok) throw new Error('http ' + r.status);
+    return j;
+  },
+  async create() { lanB.base = location.origin; await lanB.req('/api/create', { host: uid }); return location.hostname; },
+  async open(host, name) {
+    lanB.base = host === location.hostname ? location.origin : 'http://' + host + ':' + PORT;
+    const j = await lanB.req('/api/poll?rev=-1').catch(() => null);
+    if (!j || !j.room || !j.room.host) throw new Error('ما لقيت غرفة على هالعنوان. تأكد إنكم على نفس الواي فاي');
+    await lanB.req('/api/player', { id: uid, name, seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
+    lanB.alive = true; lanB.rev = -1; lanB.loop();
+    unsub.push(() => { lanB.alive = false; });
+  },
+  async loop() {
+    let fails = 0;
+    while (lanB.alive) {
+      try {
+        const j = await lanB.req('/api/poll?rev=' + lanB.rev);
+        if (!lanB.alive) return;
+        fails = 0; lanB.rev = j.rev; ui.players = j.players; applyRoom(j.room);
+      } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، عم جرّب أرجع'); await sleep(1500); }
+    }
+  },
+  setSeat(seat) { const me = ui.players.find(p => p.id === uid); return lanB.req('/api/player', { id: uid, name: me ? me.name : myName(), seat }); },
+  async writeState(next, prevV) { await lanB.req('/api/room', { s: JSON.stringify(next), phase: 'game', sv: next.v, expect: prevV }); }
+};
+const B = () => (ui.mode === 'lan' ? lanB : dbB);
+const isServed = location.protocol === 'http:' && +location.port === PORT;
+const native = window.MorNative || null;
+function myIp() { try { return native ? native.getIp() : ''; } catch (e) { return ''; } }
+
+// ---------- rooms ----------
+function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+function myName() { return (document.getElementById('nm')?.value || ls.get('mor-name') || '').trim(); }
+async function createRoom(mode) {
+  const n = myName(); if (!n) return toast('اكتب اسمك أول'); ls.set('mor-name', n);
+  ui.mode = mode; let key;
+  try { key = await B().create(); } catch (e) { ui.mode = null; return toast(mode === 'lan' ? 'ما قدرت أفتح الغرفة على الشبكة' : 'ما قدرت أعمل غرفة: لازم يكون عندك صلاحية تعديل على هالصفحة'); }
+  joinRoom(mode, key);
+}
+async function joinRoom(mode, key) {
+  const n = myName(); if (!n) return toast('اكتب اسمك أول'); ls.set('mor-name', n);
+  key = (key || '').trim();
+  if (mode === 'online') { key = key.toUpperCase(); if (key.length !== 4) return toast('الكود 4 حروف'); }
+  else if (!/^[\d.]+$|^localhost$/.test(key)) return toast('اكتب عنوان المضيف متل 192.168.1.5');
+  unsub.forEach(u => u()); unsub = [];
+  ui.mode = mode; ui.code = key; ui.st = null; ui.room = null; ui.players = [];
+  try { await B().open(key, n); } catch (e) { ui.mode = null; return toast(e.message || 'ما قدرت أدخل'); }
+  ui.view = 'room'; ls.set('mor-room', { mode, key }); render();
+}
+async function sit(seat) {
+  const taken = ui.players.find(p => p.seat === seat && p.id !== uid);
+  if (taken) return toast('المقعد محجوز');
+  const mine = ui.players.find(p => p.id === uid);
+  await B().setSeat(mine && mine.seat === seat ? -1 : seat).catch(() => toast('ما قدرت أقعدك'));
+}
+async function startOnline() {
+  const bySeat = [0, 1, 2, 3].map(s => ui.players.find(p => p.seat === s));
+  if (bySeat.some(p => !p)) return toast('لازم 4 لاعبين قاعدين');
+  const st = Mor.newGame(bySeat.map(p => p.name)); st.seats = bySeat.map(p => p.id); st.deal = Date.now();
+  const prev = ui.st; ui.st = { v: prev ? prev.v : 0 };
+  await commit(st);
+}
+function leave() { unsub.forEach(u => u()); unsub = []; Object.assign(ui, { view: 'home', mode: null, code: null, room: null, st: null, players: [] }); ls.set('mor-room', null); render(); }
+function startLocal(resume) {
+  const saved = ls.get('mor-local');
+  if (resume && saved) ui.st = saved;
+  else {
+    const names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
+    ui.st = Mor.newGame(names); ui.st.deal = Date.now(); ls.set('mor-local', ui.st);
+  }
+  ui.mode = 'local'; ui.view = 'game'; ui.hidden = true; ui.lastTurn = ui.st.turn; render();
+}
+async function nextRound() {
+  let n; try { n = Mor.nextRound(ui.st); } catch (e) { return toast(e.message); }
+  n.deal = Date.now(); await commit(n); if (ui.mode === 'local') { ui.hidden = true; render(); }
+}
+async function newMatch() {
+  const st = Mor.newGame(ui.st.names); st.seats = ui.st.seats; st.deal = Date.now(); await commit(st);
+}
+
+// ---------- rendering ----------
+function home() {
+  const n = esc(ls.get('mor-name') || ''), last = ls.get('mor-room'), local = ls.get('mor-local');
+  return `<div class="wrap"><h1>مور</h1><div class="muted">فريقين، كل فريق لاعبين. أول فريق بيوصل ${Mor.TARGET} بيربح.</div>
+  <div class="panel"><label class="muted" for="nm">اسمك</label><input id="nm" value="${n}" maxlength="14" autocomplete="nickname">
+    ${last && last.mode ? `<div class="acts"><button class="btn alt" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}</div>
+  ${isServed ? `<div class="panel"><b>على الشبكة المحلية</b><div class="muted">كلكم على نفس الواي فاي أو هوتسبوت جوال المضيف.</div>
+    ${native ? `<div class="acts"><button class="btn" data-a="createLan">استضيف غرفة</button></div>
+    <div class="row" style="margin-top:10px"><input id="ip" class="grow" inputmode="decimal" placeholder="عنوان المضيف متل 192.168.1.5" style="direction:ltr;text-align:center"><button class="btn alt" data-a="joinLan">ادخل</button></div>
+    <div class="muted" style="margin-top:6px">عنوانك: <b style="direction:ltr;display:inline-block">${esc(myIp() || 'مش متصل بشبكة')}</b></div>`
+    : `<div class="acts"><button class="btn" data-a="joinHere">ادخل غرفة هالمضيف</button></div>`}</div>` : ''}
+  ${db ? `<div class="panel"><b>أونلاين</b>
+    <div class="acts"><button class="btn" data-a="create">غرفة جديدة</button></div>
+    <div class="row" style="margin-top:10px"><input id="code" class="grow" placeholder="كود الغرفة" maxlength="4" style="text-transform:uppercase;direction:ltr;text-align:center"><button class="btn alt" data-a="join">ادخل</button></div></div>` : ''}
+  <div class="panel"><b>على جوال واحد</b><div class="muted">بتمرّروا الجوال، وكل واحد بيشوف ورقه بدوره.</div>
+    <div class="seats" style="margin-top:8px">${[0, 1, 2, 3].map(i => `<input id="ln${i}" placeholder="${TEAM[i % 2]}: لاعب ${i + 1}" maxlength="14">`).join('')}</div>
+    <div class="acts"><button class="btn alt" data-a="local">ابدأ</button>${local && local.phase !== 'over' ? `<button class="btn alt" data-a="localResume">كمّل اللعبة المحفوظة</button>` : ''}</div></div>
+  <details class="panel"><summary><b>القوانين باختصار</b></summary><div class="muted">
+  14 ورقة لكل لاعب ومورين كل واحد 11. بدورك: اسحب من السحبة أو خذ من الأرض (ورقة أو من تحت مع كل اللي فوقها)، نزّل إذا بدك، وارمي ورقة.<br>
+  سيري: 7–9 = 40 (مكسور 20)، 10–11 = 60 (40)، 12 = 80 (60)، 13 = 100 (80). الـ2 من شكل تاني أو الجوكر بيكسر.<br>
+  متل بعض: 7 = 40 (20)، 8 = 80 (60)، بالجوكر بس.<br>
+  المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة وبتاخده بدورك الجاي.<br>
+  الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد.</div></details></div>`;
+}
+function lobby() {
+  const isHost = ui.room && ui.room.host === uid;
+  const seat = s => { const p = ui.players.find(x => x.seat === s); return `<button class="seat ${p && p.id === uid ? 'me' : ''}" data-a="sit" data-s="${s}"><div class="muted">${TEAM[s % 2]} · مقعد ${s + 1}</div><b>${p ? esc(p.name) : 'فاضي، اضغط لتقعد'}</b></button>`; };
+  const waiting = ui.players.filter(p => p.seat < 0);
+  return `<div class="wrap"><div class="row" style="justify-content:space-between"><h1>الغرفة</h1><button class="btn alt" data-a="leave">طلاع</button></div>
+  <div class="panel" style="text-align:center">${ui.mode === 'lan' ? `<div class="muted">رفقاتك بيكتبوا هالعنوان بالتطبيق</div><div class="code" style="font-size:30px;letter-spacing:1px;direction:ltr">${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}</div><div class="muted" style="margin-top:6px">واللي ما عنده التطبيق بيفتح بالمتصفح:</div><div dir="ltr" style="font-weight:800">http://${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}:${PORT}</div>` : `<div class="muted">ابعت هالكود لرفقاتك</div><div class="code">${esc(ui.code)}</div>`}</div>
+  <div class="panel"><div class="muted" style="margin-bottom:8px">المقاعد المتقابلة فريق واحد (1 و3 ضد 2 و4)</div><div class="seats">${seat(0)}${seat(1)}${seat(2)}${seat(3)}</div>
+  ${waiting.length ? `<div class="muted" style="margin-top:8px">ناطرين: ${waiting.map(p => esc(p.name)).join('، ')}</div>` : ''}</div>
+  ${isHost ? `<button class="btn" data-a="start" ${ui.players.filter(p => p.seat >= 0).length === 4 ? '' : 'disabled'}>بلّش اللعب</button>` : `<div class="muted">صاحب الغرفة بيبلّش لما يقعدوا الأربعة.</div>`}</div>`;
+}
+function meldHTML(m, mine, canTap) {
+  const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
+  return `<div class="meld ${canTap ? 'tap' : ''}" data-meld="${m.id}" role="${canTap ? 'button' : ''}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span><div class="mini fan" style="padding-top:0">${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div></div>`;
+}
+function game() {
+  const st = ui.st, me = mySeat(), myT = me >= 0 ? Mor.teamOf(me) : 0, myTurn = st.phase === 'play' && st.turn === me;
+  const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
+  const hand = me >= 0 ? sortHand(st.hands[me]) : [];
+  for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
+  const nSel = ui.sel.size;
+  const teamBox = t => `<div class="t ${t === myT ? 'us' : ''}"><div class="muted">${TEAM[t]}${t === myT ? ' (إنتو)' : ''}</div><div class="n">${st.scores[t]}</div><div class="muted">${esc(st.names[t])} و${esc(st.names[t + 2])}</div></div>`;
+  const pl = [0, 1, 2, 3].map(s => `<div class="pl ${st.turn === s && st.phase === 'play' ? 'on' : ''}"><div class="nm">${esc(st.names[s])}${s === me && ui.mode !== 'local' ? ' (أنت)' : ''}</div><div class="tb"><span>${st.hands[s].length} ورقة</span>${st.pending[s] ? '<span>· مور ناطر</span>' : ''}</div></div>`).join('');
+  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><h3><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><span>${g[t]} نقطة</span></h3><div class="melds">${ms.length ? ms.map(m => meldHTML(m, t === myT, myTurn && st.step === 'play' && t === myT && nSel > 0)).join('') : '<span class="muted">لسا ما في</span>'}</div></div>`; };
+  let status = '', acts = '';
+  if (st.phase === 'play') {
+    if (!myTurn) status = `دور ${esc(st.names[st.turn])}`;
+    else if (st.step === 'draw') { if (st.stock.length) { status = 'دورك: اسحب من السحبة أو خذ من الأرض'; acts = `<button class="btn" data-a="draw">اسحب (${st.stock.length})</button>`; } else status = 'آخر دور! السحبة خلصت، خذ من الأرض'; }
+    else if (st.step === 'play') {
+      status = hand.length ? 'نزّل أو زيد على تنزيلاتكم، وبعدين ارمي ورقة' : 'خلّصت ورقك!';
+      acts = `<button class="btn" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل (${nSel})</button><button class="btn alt" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمي</button>`;
+      if (!hand.length && Mor.canMor(st, me)) acts += `<button class="btn" data-a="morNow">خذ المور</button>`;
+      if (!hand.length && Mor.canClose(st, me)) acts += `<button class="btn red" data-a="close">ضمّن</button>`;
+      if (nSel) acts += `<button class="btn alt" data-a="clear">إلغاء</button>`;
+    }
+  }
+  const morTxt = [0, 1].map(k => `<span class="mor ${st.mor[k] ? '' : 'gone'}">مور ${k + 1}${st.morBy[k] != null ? ' · ' + TEAM[st.morBy[k]] : ''}</span>`).join('');
+  return `<div class="wrap">
+  <div class="score">${teamBox(0)}<div class="muted">جولة ${st.round + 1}<br>لـ ${Mor.TARGET}</div>${teamBox(1)}</div>
+  <div class="players">${pl}</div>
+  <div class="panel">${zone(myT)}<div style="height:10px"></div>${zone(1 - myT)}</div>
+  <div class="panel"><div class="pile"><b>الأرض</b><span class="muted">${myTurn && st.step === 'draw' ? 'اضغط ورقة لتاخدها مع اللي فوقها' : st.discard.length + ' ورقة'}</span>${morTxt}<span class="mor">السحبة ${st.stock.length}</span></div>
+  <div class="disc">${st.discard.map((id, i) => cardHTML(id).replace('class="c', `data-di="${i}" class="c`)).join('') || '<span class="muted">فاضية</span>'}</div></div>
+  ${st.finalTurn && st.phase === 'play' ? `<div class="panel" style="border-color:var(--gold)"><b>السحبة خلصت:</b> هاد آخر دور لـ ${esc(st.names[st.turn])}، بياخد من الأرض بس، وبعده بتخلص الجولة.</div>` : ''}
+  <div class="log">${st.log.slice(-2).map(esc).join(' · ')}</div>
+  <div class="row" style="margin:8px 0"><button class="btn alt" data-a="sort">${ui.sortRank ? 'رتّب بالشكل' : 'رتّب بالرقم'}</button><button class="btn alt" data-a="leave">طلاع</button>${ui.mode === 'online' || ui.mode === 'lan' ? `<span class="muted" style="direction:ltr">${esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code)}</span>` : ''}</div>
+  </div>
+  ${me >= 0 && st.phase === 'play' ? `<div class="dock"><div class="in"><div class="status">${status}</div><div class="fan" id="hand">${hand.map(id => cardHTML(id, ui.sel.has(id) ? 'sel' : '')).join('')}</div><div class="acts">${acts}</div></div></div>` : ''}
+  ${overlays(me)}`;
+}
+function overlays(me) {
+  const st = ui.st; let h = '';
+  if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
+    h += `<div class="ov"><div class="box"><h2>رميت آخر ورقة</h2><p class="muted">شو بدك تعمل؟</p><div class="acts">${Mor.canMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.canClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
+  } else if (ui.sheet) {
+    const sh = ui.sheet;
+    h += `<div class="ov" data-a="noSheet"><div class="box" data-stop="1"><h2>${sh.title}</h2><div class="acts">${sh.opts.map((o, i) => `<button class="btn ${i ? 'alt' : ''}" data-a="sheet" data-i="${i}">${o.label}</button>`).join('')}<button class="btn alt" data-a="noSheet">إلغاء</button></div></div></div>`;
+  } else if (st.phase === 'roundEnd' || st.phase === 'over') {
+    const s = st.summary || { ground: [0, 0], bonus: [0, 0], notes: [] };
+    const host = ui.mode === 'local' || (ui.room && ui.room.host === uid) || me >= 0;
+    h += `<div class="ov"><div class="box"><h2>${st.phase === 'over' ? 'ربح ' + TEAM[st.winner] + '!' : s.void ? 'الجولة بتنعاد' : 'خلصت الجولة'}</h2>
+    <table><tr><th></th><th>${TEAM[0]}</th><th>${TEAM[1]}</th></tr>
+    <tr><td>المشاريع</td><td>${s.ground[0]}</td><td>${s.ground[1]}</td></tr>
+    <tr><td>زيادة/خصم</td><td>${s.bonus[0]}</td><td>${s.bonus[1]}</td></tr>
+    <tr><td><b>المجموع</b></td><td><b>${st.scores[0]}</b></td><td><b>${st.scores[1]}</b></td></tr></table>
+    <p class="muted">${s.notes.map(esc).join('<br>')}</p>
+    ${host ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="leave">طلاع</button></div>` : ''}</div></div>`;
+  }
+  if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
+  return h;
+}
+function render() {
+  if (ui.mode === 'local' && ui.st && ui.st.phase === 'play' && ui.st.turn !== ui.lastTurn) { ui.hidden = true; ui.lastTurn = ui.st.turn; }
+  if ((ui.mode === 'online' || ui.mode === 'lan') && ui.view === 'room' && ui.st && ui.room && ui.room.phase === 'game') ui.view = 'game';
+  const y = window.scrollY;
+  $app.innerHTML = !ready ? '<div class="wrap"><h1>مور</h1><p class="muted">عم يحمّل…</p></div>' : ui.view === 'home' ? home() : ui.view === 'room' ? lobby() : game();
+  window.scrollTo(0, y);
+}
+
+// ---------- events ----------
+$app.addEventListener('click', e => {
+  let t = e.target.closest('[data-a]');
+  if (t && t.classList.contains('ov') && e.target.closest('[data-stop]')) return;
+  if (!t) t = e.target.closest('[data-di]') || e.target.closest('[data-meld]') || e.target.closest('#hand [data-id]');
+  if (!t) return;
+  const a = t.dataset.a, st = ui.st;
+  if (a) {
+    e.stopPropagation();
+    ({
+      create: () => createRoom('online'), join: () => joinRoom('online', document.getElementById('code').value), createLan: () => createRoom('lan'), joinLan: () => joinRoom('lan', document.getElementById('ip').value), joinHere: () => joinRoom('lan', location.hostname), rejoin: () => { const r = ls.get('mor-room'); joinRoom(r.mode, r.key); },
+      local: () => startLocal(false), localResume: () => startLocal(true), leave, start: startOnline, sit: () => sit(+t.dataset.s),
+      draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
+      morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
+      clear: () => { ui.sel.clear(); render(); }, sort: () => { ui.sortRank = !ui.sortRank; render(); },
+      reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
+      noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); }
+    }[a] || (() => {}))();
+    return;
+  }
+  if (t.dataset.di != null && st && st.turn === mySeat() && st.step === 'draw') {
+    const i = +t.dataset.di, n = st.discard.length - i;
+    if (n === 1) return act(Mor.takeDiscard, i);
+    ui.sheet = { title: `تاخد ${n} ورقات من الأرض؟`, opts: [{ label: 'إيه خدهم', run: () => act(Mor.takeDiscard, i) }] }; return render();
+  }
+  if (t.dataset.meld) {
+    const m = st.melds.find(x => x.id === t.dataset.meld); const me = mySeat();
+    if (!m || !ui.sel.size || st.turn !== me || st.step !== 'play' || m.team !== Mor.teamOf(me)) return;
+    const ids = [...ui.sel], opts = [];
+    if (Mor.analyze([...m.cards, ...ids])) opts.push({ label: 'زيد على التنزيلة', run: () => act(Mor.addToMeld, m.id, ids) });
+    if (ids.length === 1 && Mor.swapOptions(m, ids[0]).length) opts.push({ label: Mor.swapOptions(m, ids[0]).some(o => Mor.isJ(o.w)) ? 'فكّ الجوكر بهالورقة' : 'بدّل الـ2', run: () => act(Mor.swapWild, m.id, ids[0]) });
+    if (!opts.length) return toast('الورق المختار ما بيركب على هالتنزيلة');
+    if (opts.length === 1) return opts[0].run();
+    ui.sheet = { title: 'شو بدك تعمل؟', opts }; return render();
+  }
+  if (t.dataset.id && !t.dataset.di && t.closest('#hand')) {
+    const id = t.dataset.id; ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); render();
+  }
+});
+$app.addEventListener('keydown', e => { if (e.key !== 'Enter') return; if (e.target.id === 'code') joinRoom('online', e.target.value); if (e.target.id === 'ip') joinRoom('lan', e.target.value); });
+
+// ---------- boot ----------
+(async () => {
+  let id = ls.get('mor-uid'); if (!id) { id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ls.set('mor-uid', id); }
+  uid = id;
+  if (isServed) { ready = true; return render(); }
+  const tm = setTimeout(() => { ready = true; render(); }, 10000);
+  try {
+    const [d, u] = await Promise.all([window.claude?.use?.('db') ?? null, window.claude?.use?.('user') ?? null]);
+    if (d && u) { const cid = await u.id(); if (cid) { db = d; uid = cid; } }
+  } catch (e) {}
+  clearTimeout(tm); ready = true; render();
+})();
+render();
+}
+</script>
+</body>
+</html>
