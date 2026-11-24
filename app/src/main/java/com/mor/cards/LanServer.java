@@ -18,7 +18,7 @@ public class LanServer {
 
     // room state
     private long rev = 0;
-    private String host = "", phase = "lobby", s = "";
+    private String host = "", phase = "lobby", s = "", game = "mor";
     private long sv = 0;
     private final LinkedHashMap<String, Object[]> players = new LinkedHashMap<>(); // id -> {name, seat}
     private final ArrayList<String> chat = new ArrayList<>();            // JSON objects, newest last
@@ -117,7 +117,7 @@ public class LanServer {
         synchronized (lock) {
             switch (path) {
                 case "/api/create":
-                    host = str(b.get("host")); phase = "lobby"; s = ""; sv = 0; players.clear(); chat.clear(); voices.clear();
+                    host = str(b.get("host")); game = str(b.get("game")); if (game.isEmpty()) game = "mor"; phase = "lobby"; s = ""; sv = 0; players.clear(); chat.clear(); voices.clear();
                     inVoice.clear(); signals.clear(); sigSeq.clear();
                     break;
                 case "/api/player": {
@@ -181,7 +181,7 @@ public class LanServer {
     }
 
     private String roomJson() {
-        return "{\"host\":" + Json.quote(host) + ",\"phase\":" + Json.quote(phase) + ",\"s\":" + Json.quote(s) + ",\"sv\":" + sv + "}";
+        return "{\"host\":" + Json.quote(host) + ",\"game\":" + Json.quote(game) + ",\"phase\":" + Json.quote(phase) + ",\"s\":" + Json.quote(s) + ",\"sv\":" + sv + "}";
     }
     private String snapshot() {
         StringBuilder p = new StringBuilder("[");

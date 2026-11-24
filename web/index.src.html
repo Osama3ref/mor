@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>سهرة ورق</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a lively majlis card night, polished like a real card app
+   IDEA: an oval felt table seen from your chair, friends around it
+   PICTURE: the table itself: seats, melds, discard row and your fanned hand
+   COLOUR and TYPE: deep felt green, ivory cards, card red, team gold and team sky; Cairo + Oswald ranks
+   LAYOUT: thin top bar, seats around an oval board, actions then hand pinned at the bottom; landscape spreads sideways */
+:root{color-scheme:dark;--felt:#11613f;--felt2:#0a3f29;--felt3:#062a1b;--rim:#2f8a5f;--ink:#f4f1e6;--dim:#a9c7b6;--card:#fffdf6;--card2:#f1ead6;--cink:#16181b;--red:#d22e3b;--a:#f2c14e;--b:#56c2ec;--line:rgba(255,255,255,.13);--glass:rgba(4,24,15,.55)}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:radial-gradient(130% 90% at 50% 40%,var(--felt) 0%,var(--felt2) 55%,var(--felt3) 100%);color:var(--ink);font:15px/1.45 Cairo,system-ui,sans-serif;overflow:hidden;overscroll-behavior:none;user-select:none;-webkit-user-select:none}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.07;background-image:radial-gradient(#fff 1px,transparent 1.2px);background-size:5px 5px}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+input{font:inherit;font-size:16px;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.28);color:var(--ink);width:100%;user-select:text}
+.btn{min-height:44px;padding:8px 16px;border-radius:12px;background:linear-gradient(#ffd56e,#e9ad2b);color:#2a1d00;font-weight:800;box-shadow:0 3px 0 #a8770f,0 6px 14px rgba(0,0,0,.25)}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 #a8770f}
+.btn.alt{background:rgba(255,255,255,.1);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.btn.red{background:linear-gradient(#ef4a55,#c21f2c);color:#fff;box-shadow:0 3px 0 #82121c}
+.btn.sky{background:linear-gradient(#7fd6f5,#3aa9d6);color:#03212d;box-shadow:0 3px 0 #1d6f90}
+.btn.sm{min-height:36px;padding:4px 12px;font-size:14px}
+.btn:disabled{opacity:.35;pointer-events:none}
+:focus-visible{outline:3px solid var(--a);outline-offset:2px}
+.muted{color:var(--dim);font-size:13px}
+/* ---------- menu ---------- */
+.menu{height:100%;overflow-y:auto;padding:max(16px,env(safe-area-inset-top)) max(4vw,14px) 40px}
+.menu .in{max-width:720px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:14px;margin:6px 0 4px}
+.logo h1{font-size:52px;line-height:1;margin:0;font-weight:800;letter-spacing:-1px}
+.fanlogo{position:relative;width:86px;height:70px;flex:none}
+.fanlogo .c{position:absolute;bottom:0;transform-origin:50% 120%}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:14px;margin:12px 0;backdrop-filter:blur(4px)}
+.panel h2{margin:0 0 4px;font-size:19px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1 1 160px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.modes .panel{margin:0}
+.seats4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.seatin{display:flex;gap:6px;align-items:center}
+.chip{min-height:36px;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px var(--line);white-space:nowrap}
+.chip.on{background:var(--b);color:#03212d}
+.seat{min-height:68px;border-radius:16px;border:2px dashed var(--line);background:rgba(0,0,0,.2);padding:8px;text-align:center}
+.seat.me{border-style:solid;border-color:var(--a)}
+.code{font:600 42px/1.1 Oswald,sans-serif;letter-spacing:4px;direction:ltr}
+details summary{cursor:pointer;font-weight:800}
+/* ---------- cards ---------- */
+.c{--w:52px;width:var(--w);height:calc(var(--w)*1.42);border-radius:calc(var(--w)*.12);background:linear-gradient(160deg,var(--card),var(--card2));color:var(--cink);position:relative;flex:none;box-shadow:0 1px 0 rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.3);border:1px solid rgba(0,0,0,.18);overflow:hidden;text-align:left;direction:ltr}
+.c .rk{position:absolute;left:calc(var(--w)*.08);top:calc(var(--w)*.04);font:600 calc(var(--w)*.4)/1 Oswald,'Arial Narrow',sans-serif;letter-spacing:-.5px}
+.c .su{position:absolute;left:calc(var(--w)*.09);top:calc(var(--w)*.46);font-size:calc(var(--w)*.3);line-height:1}
+.c .big{position:absolute;right:calc(var(--w)*.06);bottom:calc(var(--w)*.02);font-size:calc(var(--w)*.62);line-height:1;opacity:.92}
+.c.r{color:var(--red)}
+.c.jk{background:linear-gradient(160deg,#fff7d6,#f7d774)}
+.c.jk .rk{font-size:calc(var(--w)*.3);top:calc(var(--w)*.08)}
+.c.jk .big{color:#b0262f}
+.c.back{background:repeating-linear-gradient(45deg,#8e1b24 0 6px,#a8232d 6px 12px);border:2px solid #fff4}
+.c.back:after{content:"";position:absolute;inset:4px;border:1.5px solid rgba(255,255,255,.55);border-radius:5px}
+.c.w{box-shadow:0 0 0 2px var(--red) inset}
+.mini .c{--w:30px}.mini .c .su{display:none}.mini .c .big{font-size:15px;right:2px;bottom:1px}
+.mini .c .rk{font-size:13px}
+/* ---------- table ---------- */
+.game{position:fixed;inset:0;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto auto;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+.top{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.ic{width:38px;height:38px;border-radius:12px;background:rgba(0,0,0,.28);display:grid;place-items:center;font-weight:800;position:relative;flex:none}
+.ic svg{width:20px;height:20px}
+.badge{position:absolute;top:-4px;left:-4px;background:var(--red);color:#fff;border-radius:9px;font-size:11px;min-width:18px;height:18px;display:grid;place-items:center;padding:0 4px}
+.score{flex:1;display:flex;justify-content:center;gap:6px;font-size:13px}
+.sp{display:flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.3)}
+.sp b{font:600 17px/1 Oswald,sans-serif}
+.sp .dot{width:9px;height:9px;border-radius:50%}
+.mid{display:grid;grid-template-columns:62px minmax(0,1fr) 62px;min-height:0;padding:0 2px}
+.board{min-height:0;overflow-y:auto;border-radius:36px;background:radial-gradient(100% 100% at 50% 50%,rgba(255,255,255,.05),rgba(0,0,0,.18));box-shadow:inset 0 0 0 2px rgba(255,255,255,.07),inset 0 10px 40px rgba(0,0,0,.35);padding:8px;display:flex;flex-direction:column;gap:6px}
+.zone{display:flex;flex-direction:column;gap:4px}
+.zl{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);padding:0 6px}
+.zl b{color:var(--ink)}
+.melds{display:flex;flex-wrap:wrap;gap:8px 6px;justify-content:center;min-height:50px;align-items:flex-start}
+.meld{position:relative;padding:5px 6px 4px 16px;border-radius:10px;background:rgba(0,0,0,.18);display:flex;direction:ltr}
+.meld .c{margin-right:-15px}.meld .c:last-child{margin-right:0}
+.meld.tap{box-shadow:0 0 0 2px var(--a);animation:pulse 1.4s infinite}
+.meld .val{position:absolute;top:-7px;right:-5px;background:var(--a);color:#2a1d00;border-radius:8px;padding:0 6px;font:600 12px/16px Oswald,sans-serif}
+.meld .val.z{background:#d9d4c6}
+.meld.them .val{background:var(--b);color:#03212d}
+.empty{font-size:12px;color:var(--dim);align-self:center}
+.strip{display:flex;align-items:center;gap:8px;padding:4px 2px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)}
+.piles{display:flex;gap:6px;align-items:flex-end;flex:none}
+.pile{position:relative;display:flex;flex-direction:column;align-items:center;font-size:11px;color:var(--dim);gap:2px}
+.pile .c{--w:30px}
+.pile.gone{opacity:.25}
+.pile .n{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;font:600 13px Oswald,sans-serif;text-shadow:0 1px 2px #000}
+.pile.can .c{box-shadow:0 0 0 2px var(--a),0 0 14px var(--a)}
+.disc{display:flex;direction:ltr;overflow-x:auto;padding:6px 4px 4px;flex:1;scrollbar-width:none}
+.disc .c{--w:34px;margin-right:-18px}.disc .c:last-child{margin-right:0;box-shadow:0 0 0 2px #fff8}
+.disc.can .c{cursor:pointer}.disc.can .c:last-child{box-shadow:0 0 0 2px var(--a),0 0 12px var(--a)}
+.seatv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;position:relative;font-size:12px;text-align:center}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:19px;background:linear-gradient(#1e3a2d,#0e2219);box-shadow:0 0 0 3px var(--tc),0 4px 10px rgba(0,0,0,.4);position:relative}
+.seatv.on .av{animation:turn 1.2s infinite}
+.seatv .nm{max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.cnt{position:absolute;bottom:-6px;right:-8px;background:#fff;color:#111;border-radius:9px;font:600 11px/17px Oswald,sans-serif;padding:0 5px;box-shadow:0 1px 3px #0006}
+.tag{font-size:10px;padding:0 6px;border-radius:8px;background:rgba(0,0,0,.4)}
+.bubble{position:absolute;top:-6px;z-index:5;background:#fff;color:#111;padding:4px 9px;border-radius:12px;font-size:12px;max-width:150px;white-space:normal;box-shadow:0 4px 12px #0007;animation:pop .2s}
+.partner{display:flex;justify-content:center;padding:2px 0 6px}
+.partner .seatv{flex-direction:row;gap:8px}
+.bar{padding:4px 10px 0;display:flex;flex-direction:column;gap:6px}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;font-size:14px;min-height:22px;text-align:center}
+.status .last{font-weight:400;color:var(--dim);font-size:12px}
+.acts2{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.handwrap{position:relative;padding:0 8px max(10px,env(safe-area-inset-bottom))}
+.hand{position:relative;margin:0 auto;touch-action:none}
+.hand .c{position:absolute;transition:left .18s,top .18s,transform .12s;touch-action:none;cursor:grab}
+.hand .c.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--a),0 8px 16px rgba(0,0,0,.45)}
+.hand .c.fresh:before{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px var(--b);z-index:1}
+.hand .c.drag{transition:none;z-index:50;transform:translateY(-22px) scale(1.08);box-shadow:0 12px 24px rgba(0,0,0,.5)}
+.hand .c.lock{filter:brightness(.8)}
+.sortb{position:absolute;top:-30px;left:10px}
+.banner{margin:0 8px;padding:4px 10px;border-radius:10px;background:rgba(242,193,78,.15);box-shadow:inset 0 0 0 1px var(--a);font-size:12px;text-align:center}
+/* overlays */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:60;animation:fade .15s}
+.box{background:linear-gradient(#173a29,#0f2a1d);border:1px solid var(--line);border-radius:20px;padding:18px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.5);max-height:92vh;overflow:auto}
+.box h2{margin:0 0 8px;font-size:22px}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:center}th:first-child,td:first-child{text-align:start}
+.toast{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:9px 16px;border-radius:12px;z-index:90;font-weight:700;max-width:92vw;box-shadow:0 6px 18px #0007;text-align:center}
+.chat{position:fixed;inset:auto 0 0 0;z-index:70;max-height:70vh;display:flex;flex-direction:column;background:linear-gradient(#183c2b,#0d2419);border-top:1px solid var(--line);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px #0008;padding:10px 12px max(10px,env(safe-area-inset-bottom));animation:up .2s}
+.chat .msgs{overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:6px 0;min-height:120px;user-select:text}
+.msg{max-width:80%;padding:6px 10px;border-radius:14px;background:rgba(255,255,255,.1);align-self:flex-start;font-size:14px}
+.msg.me{align-self:flex-end;background:var(--a);color:#2a1d00}
+.msg small{display:block;font-size:11px;opacity:.7}
+.mic{width:48px;height:48px;border-radius:50%;background:var(--b);color:#03212d;display:grid;place-items:center;flex:none;touch-action:none}
+.ic.von{background:var(--b);color:#03212d}.ic.vmute{background:var(--red);color:#fff}
+.mic.rec{background:var(--red);color:#fff;animation:pulse 1s infinite}
+.glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:10px}
+.gcard{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--glass);box-shadow:inset 0 0 0 1px var(--line);text-align:start;min-height:84px}
+.gcard:active{transform:scale(.98)}
+.gcard .gt{display:flex;flex-direction:column;gap:2px}.gcard b{font-size:18px}
+.rules p{margin:6px 0 10px;line-height:1.7;color:#e6efe9;font-size:14.5px;user-select:text}
+.sinfo{font-size:11px;color:var(--dim)}
+.seatv .tag{display:inline-block;margin:1px}.seatv>div:last-child{max-width:84px}
+.tboard{align-items:center;justify-content:space-between}
+.chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.ichip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;background:rgba(0,0,0,.3);font-size:12.5px}
+.ichip b{font-size:14px}.red{color:#ff6b74}
+.mini.inl{display:inline-flex;direction:ltr}.mini.inl .c{--w:22px;margin-right:-8px}.mini.inl .c .big{display:none}.mini.inl .c .rk{font-size:11px}
+.trickbox{position:relative;width:min(100%,260px);height:min(46vh,250px);margin:6px auto}
+.slot{position:absolute;transition:transform .2s}.slot .c{--w:min(15vw,60px)}
+.slot.pt{top:0;left:50%;transform:translateX(-50%)}.slot.pb{bottom:0;left:50%;transform:translateX(-50%)}
+.slot.pr{right:0;top:50%;transform:translateY(-50%)}.slot.pl{left:0;top:50%;transform:translateY(-50%)}
+.slot.win .c{box-shadow:0 0 0 3px var(--a),0 0 18px var(--a)}
+.last{font-size:12px;color:var(--dim);text-align:center;min-height:16px}
+.ladders{display:flex;flex-direction:column;gap:6px;width:100%;padding:6px 2px}
+.lad{display:flex;align-items:center;gap:8px}.ls{font-size:22px;width:22px;text-align:center}
+.lrow{display:flex;direction:ltr;overflow:hidden}.lrow .c{--w:26px;margin-right:-12px}.lrow .c:last-child{margin-right:0}
+.hand .c.dim{filter:brightness(.55) saturate(.6)}
+.dbl{display:flex;direction:ltr;gap:6px}.dbl .c{--w:34px;margin:0}.dbl .dsel .c{box-shadow:0 0 0 3px var(--red);transform:translateY(-6px)}
+.bidb{min-width:44px}.suitb{font-size:15px}
+@media(orientation:landscape) and (max-height:560px){.trickbox{height:min(52vh,190px)}.slot .c{--w:44px}}
+@keyframes turn{0%,100%{box-shadow:0 0 0 3px var(--tc),0 0 0 6px rgba(255,255,255,.0)}50%{box-shadow:0 0 0 3px var(--tc),0 0 18px 6px var(--tc)}}
+@keyframes pulse{50%{opacity:.75}}
+@keyframes pop{from{transform:scale(.6);opacity:0}}
+@keyframes fade{from{opacity:0}}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media(min-width:520px){.mid{grid-template-columns:90px minmax(0,1fr) 90px}.mini .c{--w:34px}.av{width:54px;height:54px}}
+/* landscape */
+@media(orientation:landscape) and (max-height:560px){
+  .game{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto auto}
+  .partner{position:absolute;top:3px;left:100px;padding:0;z-index:4}
+  .partner .av{width:34px;height:34px;font-size:14px}
+  .top{padding:4px 8px}
+  .mid{grid-template-columns:80px minmax(0,1fr) 80px}
+  .board{flex-direction:row;flex-wrap:wrap;align-content:flex-start;border-radius:28px}
+  .board .zone{flex:1 1 45%}.board .strip{order:-1;flex:1 1 100%}
+  .bar{flex-direction:row;align-items:center;justify-content:center;padding:2px 10px}
+  .mini .c{--w:28px}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/*ENGINE*/
+</script>
+<script>
+{
+const $app = document.getElementById('app');
+const SUIT = { S: '♠', H: '♥', D: '♦', C: '♣' };
+const RK = { 1: 'A', 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+const TEAM = ['فريق أ', 'فريق ب'];
+const TC = ['var(--a)', 'var(--b)'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ls = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const ICON = {
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+  rot: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M3 12a9 9 0 0 0 4 7M21 12a9 9 0 0 0-4-7"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
+  micoff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z" transform="scale(-1,1) translate(-24,0)"/></svg>'
+};
+
+let db = null, uid = null, ready = false;
+const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sheet: null, hidden: false, viewer: 0, busy: false, toast: null,
+  order: {}, chat: [], chatOpen: false, unread: 0, bubbles: {}, confirmExit: false, orient: ls.get('mor-orient') || 'portrait', localCfg: null };
+let unsub = [];
+const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة ومورين', teams: true, rules: `<p>14 ورقة لكل لاعب ومورين كل واحد 11. بدورك: اسحب من السحبة أو خذ من الأرض (ورقة، أو من تحت مع كل اللي فوقها)، نزّل إذا بدك، وارمي ورقة. الورقة اللي بتاخدها لحالها من الأرض ما بترجّعها إلا إذا معك متلها.<br>
+  سيري: 7–9 = 40 (مكسور 20)، 10–11 = 60 (40)، 12 = 80 (60)، 13 = 100 (80). الـ2 من شكل تاني أو الجوكر بيكسر.<br>
+  متل بعض: 7 = 40 (20)، 8 = 80 (60)، بالجوكر بس.<br>
+  قبل ما تنزّل لازم تعلن «بدي المور» أو «بدي ضمّن». إذا أعلنت وما قدرت: −20.<br>
+  المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة، بيبين ورقه معك وبتلعب فيه بدورك الجاي.<br>
+  الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</p>`,
+  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s) => Mor.botTurn(st, s), next: st => Mor.nextRound(st) };
+const ALL = [MorG, ...Games.LIST];
+const GG = id => ALL.find(g => g.id === id) || MorG;
+const gameOf = st => GG(st && st.game || 'mor');
+const saveKey = id => (id === 'mor' ? 'mor-local' : 'mor-local-' + id);
+const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
+window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc };
+
+function cardHTML(id, extra = '', attrs = '') {
+  if (id === 'back') return `<div class="c back ${extra}" ${attrs}></div>`;
+  if (Mor.isJ(id)) return `<div class="c jk ${extra}" data-id="${id}" ${attrs} aria-label="جوكر"><span class="rk">JKR</span><span class="big">★</span></div>`;
+  const c = Mor.card(id), red = c.s === 'H' || c.s === 'D', r = RK[c.r] || c.r;
+  return `<div class="c ${red ? 'r' : ''} ${extra}" data-id="${id}" ${attrs} aria-label="${r}${SUIT[c.s]}"><span class="rk">${r}</span><span class="su">${SUIT[c.s]}</span><span class="big">${SUIT[c.s]}</span></div>`;
+}
+const SO = { S: 0, H: 1, C: 2, D: 3 };
+function sortIds(h, byRank) {
+  return h.slice().sort((a, b) => {
+    if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
+    const A = Mor.card(a), B = Mor.card(b);
+    return byRank ? (A.r - B.r || SO[A.s] - SO[B.s]) : (SO[A.s] - SO[B.s] || A.r - B.r);
+  });
+}
+function handOrder(seat, hand) {
+  let o = (ui.order[seat] || []).filter(id => hand.includes(id));
+  const fresh = hand.filter(id => !o.includes(id));
+  if (!o.length) o = sortIds(hand); else o = o.concat(fresh);
+  ui.order[seat] = o; return o;
+}
+function toast(m) { ui.toast = m; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 2800); }
+
+// ---------- viewer ----------
+function humans(st) { return [0, 1, 2, 3].filter(s => !(st.bots && st.bots[s])); }
+function mySeat() {
+  const st = ui.st; if (!st) return -1;
+  if (ui.mode === 'local') return ui.viewer;
+  return st.seats ? st.seats.indexOf(uid) : -1;
+}
+function isHost() { return ui.mode === 'local' || (ui.room && ui.room.host === uid); }
+
+// ---------- actions ----------
+async function act(fn, ...args) {
+  if (ui.busy) return;
+  let next;
+  try { next = fn(ui.st, mySeat(), ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
+  await commit(next);
+}
+async function commit(next) {
+  next.v = (ui.st && ui.st.v || 0) + 1;
+  ui.sel.clear(); ui.sheet = null;
+  if (ui.mode === 'local') { ui.st = next; ls.set(saveKey(next.game || 'mor'), next); afterState(); return render(); }
+  ui.busy = true; const prev = ui.st; ui.st = next; render();
+  try { await B().writeState(next, prev && prev.v || 0); }
+  catch (e) { if (e.live) { ui.st = e.live; toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
+  ui.busy = false; afterState(); render();
+}
+function afterState() {
+  const st = ui.st; if (!st) return;
+  const a = gameOf(st).actor(st);
+  if (ui.mode === 'local' && a >= 0) {
+    const hs = humans(st);
+    if (hs.length > 1 && !st.bots[a] && a !== ui.viewer) { ui.viewer = a; ui.hidden = true; }
+    if (hs.length === 1) ui.viewer = hs[0];
+  }
+  runBots();
+}
+let botKey = null;
+function runBots() {
+  const st = ui.st;
+  if (!st || !st.bots || !isHost()) return;
+  const G = gameOf(st), a = G.actor(st);
+  if (a < 0 || !st.bots[a]) return;
+  const key = st.v + ':' + a; if (botKey === key) return; botKey = key;
+  setTimeout(async () => {
+    if (!ui.st || ui.st.v + ':' + G.actor(ui.st) !== key || ui.busy) { botKey = null; return; }
+    let n; try { n = G.bot(ui.st, a); } catch (e) { console.error(e); return; }
+    if (n === ui.st) return;
+    await commit(n);
+  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1000 : 650));
+}
+
+// ---------- backends ----------
+function applyRoom(room) {
+  ui.room = room;
+  const st = room && room.s ? JSON.parse(room.s) : null;
+  if (st && (!ui.st || st.v >= (ui.st.v || 0) || ui.st.deal !== st.deal)) ui.st = st;
+  if ((ui.mode === 'online' || ui.mode === 'lan') && ui.view === 'room' && ui.st && room.phase === 'game') ui.view = 'game';
+  afterState(); render();
+}
+const dbB = {
+  async create() { const code = genCode(); await db.doc('rooms/' + code).set({ host: uid, game: ui.gameId || 'mor', phase: 'lobby', s: '', t: Date.now() }); return code; },
+  async open(code, name) {
+    const snap = await db.doc('rooms/' + code).get().catch(() => null);
+    if (!snap || !snap.exists) throw new Error('ما لقيت هالغرفة');
+    const pref = db.doc('rooms/' + code + '/players/' + uid);
+    const me = await pref.get().catch(() => null);
+    if (!me || !me.exists) await pref.set({ name, seat: -1, t: Date.now() });
+    else if (me.data().name !== name) await pref.update({ name }).catch(() => {});
+    unsub.push(db.doc('rooms/' + code).onSnapshot(s => { if (s.exists) applyRoom(s.data()); }, () => toast('انقطع الاتصال بالغرفة')));
+    unsub.push(db.collection('rooms/' + code + '/players').onSnapshot(s => { ui.players = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }));
+  },
+  setSeat(seat) { return db.doc('rooms/' + ui.code + '/players/' + uid).update({ seat }); },
+  async writeState(next, prevV) {
+    const ref = db.doc('rooms/' + ui.code); const cur = await ref.get();
+    const live = cur.exists && cur.data().s ? JSON.parse(cur.data().s) : null;
+    if (live && live.v !== prevV) { const e = new Error('conflict'); e.live = live; throw e; }
+    await ref.update({ s: JSON.stringify(next), phase: 'game' });
+  },
+  chat: null
+};
+const PORT = 8765;
+const lanB = {
+  base: '', rev: -1, alive: false, seen: new Set(),
+  async req(path, body) {
+    const r = await fetch(lanB.base + path, body ? { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) } : {});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 409) { const e = new Error(j.error || 'conflict'); e.code = 409; if (j.room && j.room.s) e.live = JSON.parse(j.room.s); throw e; }
+    if (!r.ok) throw new Error('http ' + r.status);
+    return j;
+  },
+  async create() { lanB.base = location.origin; await lanB.req('/api/create', { host: uid, game: ui.gameId || 'mor' }); return location.hostname; },
+  async open(host, name) {
+    lanB.base = host === location.hostname ? location.origin : 'http://' + host + ':' + PORT;
+    const j = await lanB.req('/api/poll?rev=-1').catch(() => null);
+    if (!j || !j.room || !j.room.host) throw new Error('ما لقيت غرفة على هالعنوان. تأكد إنكم على نفس الواي فاي');
+    (j.chat || []).forEach(m => lanB.seen.add(m.mid));
+    await lanB.req('/api/player', { id: uid, name, seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
+    lanB.alive = true; lanB.rev = -1; lanB.loop();
+    unsub.push(() => { lanB.alive = false; });
+  },
+  async loop() {
+    let fails = 0;
+    while (lanB.alive) {
+      try {
+        const j = await lanB.req('/api/poll?rev=' + lanB.rev);
+        if (!lanB.alive) return;
+        fails = 0; lanB.rev = j.rev; ui.players = j.players; gotChat(j.chat || []); voiceSync(j); applyRoom(j.room);
+      } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، عم جرّب أرجع'); await sleep(1500); }
+    }
+  },
+  setSeat(seat) { const me = ui.players.find(p => p.id === uid); return lanB.req('/api/player', { id: uid, name: me ? me.name : myName(), seat }); },
+  async writeState(next, prevV) { await lanB.req('/api/room', { s: JSON.stringify(next), phase: 'game', sv: next.v, expect: prevV }); },
+  chat: {
+    send(text) { return lanB.req('/api/chat', { id: uid, name: myName(), text }); },
+    voice(data, mime) { return lanB.req('/api/voice', { id: uid, name: myName(), data, mime }); },
+    get(mid) { return lanB.req('/api/voice?mid=' + mid); }
+  }
+};
+const B = () => (ui.mode === 'lan' ? lanB : dbB);
+const isServed = location.protocol === 'http:' && +location.port === PORT;
+const native = window.MorNative || null;
+function myIp() { try { return native ? native.getIp() : ''; } catch (e) { return ''; } }
+
+// ---------- chat ----------
+function gotChat(list) {
+  for (const m of list) {
+    if (lanB.seen.has(m.mid)) continue;
+    lanB.seen.add(m.mid); ui.chat.push(m); if (ui.chat.length > 80) ui.chat.shift();
+    if (m.id !== uid) {
+      if (!ui.chatOpen) ui.unread++;
+      const seat = ui.st && ui.st.seats ? ui.st.seats.indexOf(m.id) : -1;
+      if (seat >= 0) { ui.bubbles[seat] = { text: m.audio ? 'رسالة صوتية' : m.text, t: Date.now() }; setTimeout(render, 4200); }
+      if (m.audio) playVoice(m.mid);
+    }
+  }
+}
+async function playVoice(mid) {
+  try { const j = await lanB.chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
+}
+async function sendChat() {
+  const el = document.getElementById('chatin'); const t = (el && el.value || '').trim(); if (!t) return;
+  el.value = ''; try { await lanB.chat.send(t.slice(0, 200)); } catch (e) { toast('ما انبعتت الرسالة'); }
+}
+const rec = { mr: null, chunks: [], t0: 0, timer: null };
+async function recStart() {
+  if (rec.mr) return;
+  if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي بيشتغل بالتطبيق بس');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    rec.mr = new MediaRecorder(stream); rec.chunks = []; rec.t0 = Date.now();
+    rec.mr.ondataavailable = e => rec.chunks.push(e.data);
+    rec.mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
+      if (dur < 500) return toast('اضغط مطوّل لتسجّل');
+      const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
+      try { await lanB.chat.voice(b64, mime); } catch (e) { toast('ما انبعتت الرسالة الصوتية'); }
+    };
+    rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
+  } catch (e) { toast('اسمح للتطبيق يستعمل المايك'); }
+}
+function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
+
+
+// ---------- live voice (WebRTC over the local network, signalled through the host) ----------
+const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, last: null, members: [], fetching: false };
+async function voiceJoin() {
+  if (!window.RTCPeerConnection) return toast('الصوت المباشر مش مدعوم على هالجهاز');
+  try {
+    vc.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (e) { vc.stream = null; toast('المايك مش متاح: رح تسمع بس'); }
+  vc.on = true; vc.muted = false; vc.seq = 0;
+  try { await lanB.req('/api/voicestate', { id: uid, on: true }); } catch (e) { toast('ما قدرت أدخل المكالمة'); }
+  render(); if (vc.last) voiceSync(vc.last);
+}
+function voiceLeave(silent) {
+  for (const k of Object.keys(vc.pcs)) dropPeer(k);
+  if (vc.stream) vc.stream.getTracks().forEach(t => t.stop());
+  vc.stream = null; vc.on = false;
+  if (!silent) lanB.req('/api/voicestate', { id: uid, on: false }).catch(() => {});
+  render();
+}
+function voiceMute() {
+  vc.muted = !vc.muted;
+  if (vc.stream) vc.stream.getAudioTracks().forEach(t => { t.enabled = !vc.muted; });
+  render();
+}
+function dropPeer(k) {
+  try { vc.pcs[k] && vc.pcs[k].close(); } catch (e) {}
+  delete vc.pcs[k];
+  if (vc.els[k]) { vc.els[k].srcObject = null; vc.els[k].remove(); delete vc.els[k]; }
+}
+function newPeer(peer) {
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pc.ontrack = e => {
+    let a = vc.els[peer];
+    if (!a) { a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; document.body.appendChild(a); vc.els[peer] = a; }
+    a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {});
+  };
+  pc.onconnectionstatechange = () => {
+    if (['failed', 'closed'].includes(pc.connectionState) && vc.pcs[peer] === pc) { dropPeer(peer); setTimeout(() => vc.last && voiceSync(vc.last), 2500); }
+  };
+  vc.pcs[peer] = pc; return pc;
+}
+const iceDone = pc => new Promise(r => {
+  if (pc.iceGatheringState === 'complete') return r();
+  const t = setTimeout(r, 2500);
+  pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } });
+});
+const signal = (to, kind, sdp) => lanB.req('/api/signal', { from: uid, to, kind, sdp });
+async function callPeer(peer) {
+  const pc = newPeer(peer);
+  if (vc.stream) vc.stream.getTracks().forEach(t => pc.addTrack(t, vc.stream));
+  else pc.addTransceiver('audio', { direction: 'recvonly' });
+  await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
+  await signal(peer, 'offer', pc.localDescription.sdp);
+}
+async function onSignal(m) {
+  if (!vc.on) return;
+  if (m.kind === 'offer') {
+    dropPeer(m.from); const pc = newPeer(m.from);
+    await pc.setRemoteDescription({ type: 'offer', sdp: m.sdp });
+    if (vc.stream) vc.stream.getTracks().forEach(t => pc.addTrack(t, vc.stream));
+    await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+    await signal(m.from, 'answer', pc.localDescription.sdp);
+  } else if (m.kind === 'answer' && vc.pcs[m.from] && vc.pcs[m.from].signalingState === 'have-local-offer') {
+    await vc.pcs[m.from].setRemoteDescription({ type: 'answer', sdp: m.sdp });
+  }
+}
+async function voiceSync(j) {
+  vc.last = j; vc.members = j.voice || [];
+  if (!vc.on) return;
+  const others = vc.members.filter(id => id !== uid);
+  for (const k of Object.keys(vc.pcs)) if (!others.includes(k)) dropPeer(k);
+  if (j.sig && j.sig[uid] > vc.seq && !vc.fetching) {
+    vc.fetching = true;
+    try {
+      const list = await lanB.req('/api/signals?to=' + encodeURIComponent(uid) + '&after=' + vc.seq);
+      for (const x of list) { vc.seq = Math.max(vc.seq, x.seq); try { await onSignal(x.msg); } catch (e) { console.error(e); } }
+    } catch (e) {}
+    vc.fetching = false;
+  }
+  for (const p of others) if (!vc.pcs[p] && uid < p) callPeer(p).catch(e => { console.error(e); dropPeer(p); });
+}
+
+// ---------- rooms ----------
+function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
+function myName() { return (document.getElementById('nm')?.value || ls.get('mor-name') || '').trim(); }
+async function createRoom(mode) {
+  const n = myName(); if (!n) return toast('اكتب اسمك أول'); ls.set('mor-name', n);
+  ui.mode = mode; let key;
+  try { key = await B().create(); } catch (e) { ui.mode = null; return toast(mode === 'lan' ? 'ما قدرت أفتح الغرفة على الشبكة' : 'ما قدرت أعمل غرفة: لازم يكون عندك صلاحية تعديل على هالصفحة'); }
+  joinRoom(mode, key);
+}
+async function joinRoom(mode, key) {
+  const n = myName(); if (!n) return toast('اكتب اسمك أول'); ls.set('mor-name', n);
+  key = (key || '').trim();
+  if (mode === 'online') { key = key.toUpperCase(); if (key.length !== 4) return toast('الكود 4 حروف'); }
+  else if (!/^[\d.]+$|^localhost$/.test(key)) return toast('اكتب عنوان المضيف متل 192.168.1.5');
+  unsub.forEach(u => u()); unsub = [];
+  Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0 });
+  try { await B().open(key, n); } catch (e) { ui.mode = null; return toast(e.message || 'ما قدرت أدخل'); }
+  if (ui.view !== 'game') ui.view = 'room';
+  ls.set('mor-room', { mode, key }); render();
+}
+async function sit(seat) {
+  const taken = ui.players.find(p => p.seat === seat && p.id !== uid);
+  if (taken) return toast('المقعد محجوز');
+  const mine = ui.players.find(p => p.id === uid);
+  await B().setSeat(mine && mine.seat === seat ? -1 : seat).catch(() => toast('ما قدرت أقعدك'));
+}
+async function startOnline(withBots) {
+  const bySeat = [0, 1, 2, 3].map(s => ui.players.find(p => p.seat === s));
+  if (!withBots && bySeat.some(p => !p)) return toast('لازم 4 لاعبين قاعدين');
+  const bots = bySeat.map(p => !p);
+  const st = GG(ui.room && ui.room.game || 'mor').newGame(bySeat.map((p, i) => p ? p.name : 'بوت ' + (i + 1)), bots);
+  st.seats = bySeat.map(p => p ? p.id : null); st.deal = Date.now();
+  const prev = ui.st; ui.st = { v: prev ? prev.v : 0 };
+  await commit(st);
+}
+function leave() {
+  if (vc.on) voiceLeave();
+  unsub.forEach(u => u()); unsub = [];
+  Object.assign(ui, { view: ui.gameId ? 'pick' : 'home', mode: null, code: null, room: null, st: null, players: [], confirmExit: false, chatOpen: false, chat: [], dblSel: [] });
+  ls.set('mor-room', null); render();
+}
+function startLocal(kind, resume) {
+  const G = GG(ui.gameId);
+  const saved = ls.get(saveKey(G.id));
+  if (resume && saved) ui.st = saved;
+  else {
+    let names, bots;
+    if (kind === 'solo') { const n = myName() || 'أنا'; ls.set('mor-name', n); names = [n, 'بوت ١', 'بوت ٢', 'بوت ٣']; bots = [false, true, true, true]; }
+    else {
+      names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
+      bots = [0, 1, 2, 3].map(i => !!(ui.localCfg && ui.localCfg[i]));
+      if (bots.every(Boolean)) return toast('لازم لاعب واحد على الأقل مش بوت');
+    }
+    ui.st = G.newGame(names, bots); ui.st.deal = Date.now(); ls.set(saveKey(G.id), ui.st);
+  }
+  ui.order = {};
+  const hs = humans(ui.st), a = G.actor(ui.st);
+  ui.mode = 'local'; ui.view = 'game'; ui.viewer = hs.includes(a) ? a : hs[0]; ui.hidden = hs.length > 1;
+  afterState(); render();
+}
+async function nextRound() {
+  let n; try { n = gameOf(ui.st).next(ui.st); } catch (e) { return toast(e.message); }
+  n.deal = Date.now(); ui.order = {}; await commit(n);
+}
+async function newMatch() {
+  const st = gameOf(ui.st).newGame(ui.st.names, ui.st.bots); st.seats = ui.st.seats; st.deal = Date.now(); ui.order = {}; await commit(st);
+}
+async function toggleBot(seat) {
+  const st = JSON.parse(JSON.stringify(ui.st)); st.bots[seat] = !st.bots[seat];
+  st.log.push(st.names[seat] + (st.bots[seat] ? ': بوت عم يلعب مكانه' : ': رجع يلعب')); await commit(st);
+}
+function setOrient(o) { ui.orient = o; ls.set('mor-orient', o); try { native && native.setOrientation(o); } catch (e) {} render(); }
+
+// ---------- rendering: menu ----------
+function fan(ids, w = 34) { return `<div class="fanlogo" style="width:${w * 2}px;height:${w * 1.6}px">${ids.map((id, i) => cardHTML(id, '', `style="--w:${w}px;left:${i * w * 0.45}px;transform:rotate(${(i - 1) * 14}deg)"`)).join('')}</div>`; }
+function home() {
+  const n = esc(ls.get('mor-name') || ''), last = ls.get('mor-room');
+  return `<div class="menu"><div class="in">
+  <div class="logo">${fan(['H1a', 'S13a', 'J0a'], 42)}<div><h1 style="font-size:42px">سهرة ورق</h1><div class="muted">مور، طرنيب وتركس مع رفقاتك</div></div></div>
+  <div class="panel row"><label class="muted" for="nm" style="flex:none">اسمك</label><input id="nm" class="grow" value="${n}" maxlength="14" autocomplete="nickname" data-save="1">
+    ${last && last.mode ? `<button class="btn alt sm" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button>` : ''}</div>
+  <h2 style="margin:18px 4px 8px;font-size:20px">شو بدك تلعب؟</h2>
+  <div class="glist">${ALL.map(g => {
+    const saved = ls.get(saveKey(g.id));
+    return `<button class="gcard" data-a="pick" data-g="${g.id}">${fan(GICON[g.id] || GICON.mor, 30)}<div class="gt"><b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span>${saved && saved.phase !== 'over' ? '<span class="tag" style="color:var(--a)">في لعبة محفوظة</span>' : ''}</div></button>`;
+  }).join('')}</div>
+  <p class="muted" style="text-align:center;margin-top:18px">${isServed ? 'اللعب على الشبكة المحلية جاهز. ' : ''}الأونلاين جاي قريباً.</p>
+  </div></div>`;
+}
+function gamePage() {
+  const G = GG(ui.gameId), saved = ls.get(saveKey(G.id));
+  const cfg = ui.localCfg || (ui.localCfg = [false, false, false, false]);
+  return `<div class="menu"><div class="in">
+  <div class="row" style="justify-content:space-between;margin-top:4px"><button class="ic" data-a="back" aria-label="رجوع"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></button><span class="muted">${esc(ls.get('mor-name') || '')}</span></div>
+  <div class="logo">${fan(GICON[G.id] || GICON.mor, 40)}<div><h1 style="font-size:32px;text-wrap:balance">${esc(G.name)}</h1><div class="muted">${esc(G.sub)}</div></div></div>
+  ${saved && saved.phase !== 'over' ? `<div class="acts"><button class="btn" data-a="localResume">كمّل اللعبة المحفوظة</button></div>` : ''}
+  <div class="modes" style="margin-top:12px">
+  <div class="panel"><h2>لحالك مع بوتات</h2><div class="muted">${G.teams ? 'إنت وشريك بوت ضد بوتين.' : 'إنت ضد 3 بوتات.'}</div><div class="acts"><button class="btn" data-a="solo">العب</button></div></div>
+  ${isServed ? `<div class="panel"><h2>على الشبكة المحلية</h2><div class="muted">كلكم على نفس الواي فاي أو هوتسبوت جوال المضيف.</div>
+    ${native ? `<div class="acts"><button class="btn" data-a="createLan">استضيف غرفة</button></div>
+    <div class="row" style="margin-top:10px"><input id="ip" class="grow" inputmode="decimal" placeholder="عنوان المضيف متل 192.168.1.5" style="direction:ltr;text-align:center"><button class="btn alt" data-a="joinLan">ادخل</button></div>
+    <div class="muted" style="margin-top:6px">عنوانك: <b dir="ltr">${esc(myIp() || 'مش متصل بشبكة')}</b></div>`
+    : `<div class="acts"><button class="btn" data-a="joinHere">ادخل غرفة هالمضيف</button></div>`}</div>` : ''}
+  <div class="panel"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال. اختار مين بوت.</div>
+    <div class="seats4">${[0, 1, 2, 3].map(i => `<div class="seatin"><input id="ln${i}" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}</div>
+    <div class="acts"><button class="btn alt" data-a="local">ابدأ</button></div></div>
+  ${db ? `<div class="panel"><h2>أونلاين</h2>
+    <div class="acts"><button class="btn" data-a="create">غرفة جديدة</button></div>
+    <div class="row" style="margin-top:10px"><input id="code" class="grow" placeholder="كود الغرفة" maxlength="4" style="text-transform:uppercase;direction:ltr;text-align:center"><button class="btn alt" data-a="join">ادخل</button></div></div>` : ''}
+  </div>
+  <details class="panel rules" ${ui.rulesOpen ? 'open' : ''}><summary>شرح اللعبة والقوانين</summary><div style="margin-top:8px">${G.rules}</div></details>
+  </div></div>`;
+}
+function lobby() {
+  const seat = s => { const p = ui.players.find(x => x.seat === s); return `<button class="seat ${p && p.id === uid ? 'me' : ''}" data-a="sit" data-s="${s}"><div class="muted">${TEAM[s % 2]} · مقعد ${s + 1}</div><b>${p ? esc(p.name) : 'فاضي، اضغط لتقعد'}</b></button>`; };
+  const waiting = ui.players.filter(p => p.seat < 0);
+  const shown = esc(ui.code === location.hostname ? (myIp() || ui.code) : ui.code);
+  const sat = ui.players.filter(p => p.seat >= 0).length;
+  return `<div class="menu"><div class="in"><div class="row" style="justify-content:space-between"><div><h1 style="margin:6px 0 0;font-size:34px">الغرفة</h1><div class="muted">${esc(GG(ui.room && ui.room.game || ui.gameId || 'mor').name)}</div></div><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button></div>
+  <div class="panel" style="text-align:center">${ui.mode === 'lan' ? `<div class="muted">رفقاتك بيكتبوا هالعنوان بالتطبيق</div><div class="code" style="font-size:32px;letter-spacing:1px">${shown}</div><div class="muted" style="margin-top:6px">واللي ما عنده التطبيق بيفتح بالمتصفح:</div><div dir="ltr" style="font-weight:800">http://${shown}:${PORT}</div>` : `<div class="muted">ابعت هالكود لرفقاتك</div><div class="code">${esc(ui.code)}</div>`}</div>
+  <div class="panel"><div class="muted" style="margin-bottom:8px">المقاعد المتقابلة فريق واحد (1 و3 ضد 2 و4)</div><div class="seats4">${seat(0)}${seat(1)}${seat(2)}${seat(3)}</div>
+  ${waiting.length ? `<div class="muted" style="margin-top:8px">ناطرين: ${waiting.map(p => esc(p.name)).join('، ')}</div>` : ''}</div>
+  ${isHost() ? `<div class="acts"><button class="btn" data-a="start" ${sat === 4 ? '' : 'disabled'}>بلّش اللعب</button>${sat >= 1 && sat < 4 ? `<button class="btn alt" data-a="startBots">بلّش وكمّل بالبوتات</button>` : ''}</div>` : `<div class="muted">صاحب الغرفة بيبلّش لما يقعدوا الأربعة.</div>`}</div></div>`;
+}
+
+// ---------- rendering: table ----------
+function seatHTML(st, s, me, cls = '') {
+  const b = ui.bubbles[s] && Date.now() - ui.bubbles[s].t < 4000 ? ui.bubbles[s] : null;
+  const name = st.names[s];
+  return `<div class="seatv ${st.turn === s && st.phase === 'play' ? 'on' : ''} ${cls}" data-seat="${s}" style="--tc:${TC[s % 2]}">
+    ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
+    <div class="av">${esc(st.bots && st.bots[s] && /\d|[١-٩]/.test(name) ? name.trim().slice(-1) : (name || '?').trim().charAt(0))}<span class="cnt">${st.hands[s].length}</span></div>
+    <div><div class="nm">${esc(name)}</div>${st.bots && st.bots[s] ? '<span class="tag">بوت</span>' : ''}${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.seats && vc.members.includes(st.seats[s]) ? '<span class="tag" style="color:var(--b)">بالمكالمة</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'معلن مور' : 'معلن ضمان'}</span>` : ''}</div></div>`;
+}
+function meldHTML(m, canTap, them) {
+  const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
+  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
+}
+function game() {
+  const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
+  const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
+  const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
+  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
+  const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
+  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
+  const canDraw = myTurn && st.step === 'draw';
+  const piles = `<div class="piles"><div class="pile ${canDraw && st.stock.length ? 'can' : ''} ${st.stock.length ? '' : 'gone'}" data-a="${canDraw && st.stock.length ? 'draw' : ''}">${cardHTML('back')}<span class="n">${st.stock.length}</span><span>السحبة</span></div>
+    ${[0, 1].map(k => `<div class="pile ${st.mor[k] ? '' : 'gone'}">${cardHTML('back')}<span>${st.morBy[k] != null ? (st.morBy[k] === myT ? 'إلنا' : 'إلهم') : 'مور'}</span></div>`).join('')}</div>`;
+  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فاضية</span>'}</div>`;
+  let status = '', acts = '';
+  const last = st.log[st.log.length - 1] || '';
+  if (st.phase === 'play') {
+    if (!myTurn) status = `دور ${esc(st.names[st.turn])}${st.bots && st.bots[st.turn] ? ' (بوت)' : ''} <span class="last">${esc(last)}</span>`;
+    else if (st.step === 'draw') { status = st.stock.length ? 'دورك: اسحب من السحبة أو خذ من الأرض' : 'آخر دور! خذ من الأرض'; if (st.stock.length) acts = `<button class="btn sm" data-a="draw">اسحب</button>`; }
+    else if (st.step === 'play') {
+      const decl = st.declared && st.declared.seat === me ? st.declared.kind : null;
+      status = !hand.length ? 'خلّصت ورقك!' : decl ? (decl === 'mor' ? 'معلن: بدك المور' : 'معلن: بدك تضمّن') : 'نزّل أو ارمي ورقة';
+      acts = `<button class="btn sm" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل${nSel ? ' (' + nSel + ')' : ''}</button><button class="btn alt sm" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمي</button>`;
+      if (!st.melded && !decl && hand.length) acts += `<button class="btn sky sm" data-a="declMor">بدي المور</button><button class="btn sky sm" data-a="declClose">بدي ضمّن</button>`;
+      if (decl && !st.melded) acts += `<button class="btn alt sm" data-a="undecl">إلغاء الإعلان</button>`;
+      if (!hand.length && Mor.okMor(st, me)) acts += `<button class="btn sm" data-a="morNow">خذ المور</button>`;
+      if (!hand.length && Mor.okClose(st, me)) acts += `<button class="btn red sm" data-a="close">ضمّن</button>`;
+    }
+  }
+  const fresh = st.got && st.got.seat === me && st.turn === me ? st.got.ids : [];
+  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
+    <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="${vc.on ? (vc.muted ? 'شغّل المايك' : 'سكّر المايك') : 'ادخل المكالمة'}">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}${!vc.on && vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>` : '';
+  return `<div class="game">
+  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
+    <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
+    ${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
+  <div class="partner">${seatHTML(st, P, me)}</div>
+  <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
+  <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">السحبة خلصت: آخر دور من الأرض بس</div>` : ''}<div class="status">${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
+  </div>${overlays(me)}`;
+}
+function overlays(me) {
+  const st = ui.st; let h = '';
+  if (ui.confirmExit) h += `<div class="ov"><div class="box"><h2>بدك تطلع؟</h2><p class="muted">${ui.mode === 'local' ? 'اللعبة بتنحفظ وفيك تكمّلها بعدين.' : 'فيك ترجع للغرفة بعدين من الصفحة الرئيسية.'}</p><div class="acts"><button class="btn red" data-a="leave">إيه، اطلع</button><button class="btn alt" data-a="stay">لا، كمّل</button></div></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
+    h += `<div class="ov"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
+  } else if (ui.sheet) {
+    h += `<div class="ov" data-a="noSheet"><div class="box" data-stop="1"><h2>${ui.sheet.title}</h2><div class="acts">${ui.sheet.opts.map((o, i) => `<button class="btn ${i ? 'alt' : ''}" data-a="sheet" data-i="${i}">${o.label}</button>`).join('')}<button class="btn alt" data-a="noSheet">إلغاء</button></div></div></div>`;
+  } else if (st.phase === 'roundEnd' || st.phase === 'over') {
+    const s = st.summary || { ground: [0, 0], bonus: [0, 0], notes: [] };
+    const can = ui.mode === 'local' || me >= 0;
+    h += `<div class="ov"><div class="box"><h2>${st.phase === 'over' ? 'ربح ' + TEAM[st.winner] + '!' : s.void ? 'الجولة بتنعاد' : 'خلصت الجولة'}</h2>
+    <table><tr><th></th><th style="color:var(--a)">${TEAM[0]}</th><th style="color:var(--b)">${TEAM[1]}</th></tr>
+    <tr><td>المشاريع</td><td>${s.ground[0]}</td><td>${s.ground[1]}</td></tr>
+    <tr><td>زيادة/خصم</td><td>${s.bonus[0]}</td><td>${s.bonus[1]}</td></tr>
+    <tr><td><b>المجموع</b></td><td><b>${st.scores[0]}</b></td><td><b>${st.scores[1]}</b></td></tr></table>
+    <p class="muted">${s.notes.map(esc).join('<br>')}</p>
+    ${can ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
+  }
+  if (ui.chatOpen && ui.mode === 'lan') h += chatPanel();
+  if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
+  return h;
+}
+
+
+// ---------- rendering: trick games (Tarneeb, Trix) ----------
+const liveHs = (st, i) => (st.hs && !['handEnd', 'over'].includes(st.phase) ? st.hs[i] : 0);
+function seatT(st, s, me) {
+  const G = gameOf(st), b = ui.bubbles[s] && Date.now() - ui.bubbles[s].t < 4000 ? ui.bubbles[s] : null, name = st.names[s];
+  const act = G.actor(st) === s;
+  let info = '';
+  if (st.game === 'tarneeb41') info = `طلب ${st.bids[s] ?? '–'} · أكل ${st.tricks[s]}`;
+  else if (st.game === 'tarneeb61') info = `أكل ${st.tricks[s]}${st.passed && st.passed[s] && st.phase === 'bid' ? ' · باس' : ''}`;
+  else info = `${st.scores[s] + liveHs(st, s)}`;
+  const tags = [];
+  if (st.bots && st.bots[s]) tags.push('<span class="tag">بوت</span>');
+  if (G.trixFamily && st.owner === s) tags.push('<span class="tag" style="color:var(--a)">المملكة</span>');
+  if (st.dealer === s && !G.trixFamily) tags.push('<span class="tag">موزّع</span>');
+  if (st.game === 'tarneeb61' && st.bid && st.bid.seat === s) tags.push(`<span class="tag" style="color:var(--a)">طالب ${st.bid.val}</span>`);
+  if (st.finished && st.finished.includes(s)) tags.push(`<span class="tag" style="color:var(--a)">خلّص ${st.finished.indexOf(s) + 1}</span>`);
+  if (st.seats && vc.members.includes(st.seats[s])) tags.push('<span class="tag" style="color:var(--b)">بالمكالمة</span>');
+  return `<div class="seatv ${act ? 'on' : ''}" data-seat="${s}" style="--tc:${G.teams || st.partner ? TC[s % 2] : 'var(--a)'}">
+    ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
+    <div class="av">${esc(st.bots && st.bots[s] && /\d|[١-٩]/.test(name) ? name.trim().slice(-1) : (name || '?').trim().charAt(0))}<span class="cnt">${st.hands[s].length}</span></div>
+    <div><div class="nm">${esc(name)}</div><div class="sinfo">${info}</div>${tags.join('')}</div></div>`;
+}
+function trickTable() {
+  const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
+  const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
+  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
+  const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
+  const teamSum = t => st.game === 'tarneeb61' ? st.tscores[t] : st.scores[t] + st.scores[t + 2] + liveHs(st, t) + liveHs(st, t + 2);
+  const pills = (G.teams || st.partner)
+    ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${teamSum(1)}</b></span>`
+    : `<span class="sp">إلك <b>${me >= 0 ? st.scores[me] + liveHs(st, me) : 0}</b></span>`;
+  // info chips
+  const chips = [];
+  if (st.trump) chips.push(`<span class="ichip">الطرنيب <b class="${'HD'.includes(st.trump) ? 'red' : ''}">${SUIT[st.trump]}</b> ${Games.SN[st.trump]}</span>`);
+  const ctext = c => { const x = Games.cr(c); return `<b class="${'HD'.includes(x.s) ? 'red' : ''}" dir="ltr">${RK[x.r] || x.r}${SUIT[x.s]}</b>`; };
+  if (st.game === 'tarneeb41' && st.reveal) chips.push(`<span class="ichip">الورقة المقلوبة ${ctext(st.reveal)}</span>`);
+  if (st.game === 'tarneeb61') chips.push(`<span class="ichip">${st.bid ? 'الطلب <b>' + st.bid.val + '</b>' : 'مزايدة'} · لـ ${G.target}</span>`);
+  if (st.game === 'tarneeb41') chips.push(`<span class="ichip">مجموع الطلبات <b>${st.bids.reduce((x, y) => x + (y || 0), 0)}</b> · لـ 41</span>`);
+  if (G.trixFamily) {
+    chips.push(`<span class="ichip">مملكة <b>${st.kingdom + 1}</b>/4 · ${esc(st.names[st.owner])}</span>`);
+    if (st.contract && st.phase !== 'choose') chips.push(`<span class="ichip"><b>${Games.CN[st.contract]}</b></span>`);
+    const dbl = [...(st.doubled && st.doubled.K != null ? [Games.cr('H13') && 'H13'] : []), ...Object.keys(st.doubled ? st.doubled.Q : {})];
+    if (dbl.length) chips.push(`<span class="ichip">مدبّل ${dbl.map(ctext).join(' ')}</span>`);
+  }
+  // centre
+  let centre;
+  if (st.phase === 'trix' || (G.trixFamily && st.contract === 'trix' && st.phase !== 'choose')) {
+    centre = `<div class="ladders">${['S', 'H', 'C', 'D'].map(su => {
+      const Lr = st.ladder[su]; let cards = '';
+      if (Lr) for (let r = Lr[0]; r <= Lr[1]; r++) cards += cardHTML(su + r);
+      return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">ناطر الشبّ</span>'}</div></div>`;
+    }).join('')}</div>`;
+  } else {
+    const slot = (s, pos) => { const t = st.trick.find(x => x.seat === s); const win = st.trickDone && st.lastWinner === s; return `<div class="slot ${pos} ${win ? 'win' : ''}">${t ? cardHTML(t.card) : ''}</div>`; };
+    centre = `<div class="trickbox">${slot(P, 'pt')}${slot(L, 'pl')}${slot(R, 'pr')}${slot(base, 'pb')}</div>`;
+  }
+  // status + actions
+  let status = '', acts = '';
+  const nm = s => esc(st.names[s]);
+  if (a >= 0 && !myAct) status = { bid: 'عم يطلب', trump: 'عم يختار الطرنيب', choose: 'عم يختار الطلب', double: 'عم يقرّر الدبل', play: 'دوره', trix: 'دوره' }[st.phase] + ': ' + nm(a) + (st.bots[a] ? ' (بوت)' : '');
+  if (myAct) {
+    if (st.phase === 'bid' && st.game === 'tarneeb61') {
+      const min = st.bid ? st.bid.val + 1 : 7; status = 'شو بتطلب؟';
+      for (let v = min; v <= 13; v++) acts += `<button class="btn sm" data-a="bid" data-n="${v}">${v}</button>`;
+      acts += `<button class="btn alt sm" data-a="bid" data-n="0">باس</button>`;
+    } else if (st.phase === 'bid') {
+      status = 'كم لمّة بتجيب؟';
+      for (let v = 2; v <= 13; v++) acts += `<button class="btn ${v <= 5 ? '' : 'alt'} sm bidb" data-a="bid" data-n="${v}">${v}</button>`;
+    } else if (st.phase === 'trump') {
+      status = 'اختار الطرنيب';
+      acts = ['S', 'H', 'C', 'D'].map(su => `<button class="btn alt sm suitb ${'HD'.includes(su) ? 'red' : ''}" data-a="trump" data-s="${su}">${SUIT[su]} ${Games.SN[su]}</button>`).join('');
+    } else if (st.phase === 'choose') {
+      status = 'مملكتك: اختار الطلب';
+      acts = G.contracts.map((c, i) => st.used.includes(i) ? '' : `<button class="btn sm" data-a="choose" data-i="${i}">${Games.CN[c]}</button>`).join('');
+    } else if (st.phase === 'double') {
+      const el = G.dblCards(st, me); ui.dblSel = (ui.dblSel || []).filter(x => el.includes(x));
+      status = 'بدك تدبّل؟ اختار الورق اللي بدك تدبّله';
+      acts = `<div class="mini dbl">${el.map(c => `<span data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</span>`).join('')}</div>
+        <button class="btn sm" data-a="dblDone">${ui.dblSel.length ? 'دبّل (' + ui.dblSel.length + ')' : 'بدون دبل'}</button>`;
+    } else if (st.phase === 'play') status = 'دورك: العب ورقة';
+    else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'ما معك ورقة بتركب'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
+  }
+  const last = st.log[st.log.length - 1] || '';
+  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
+    <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="المكالمة">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}</button>` : '';
+  return `<div class="game tg">
+  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button><div class="score">${pills}<span class="sp">${esc(G.name)}</span></div>${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
+  <div class="partner">${seatT(st, P, me)}</div>
+  <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
+  <div class="bar"><div class="status">${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, legalSet && !legalSet.includes(id) ? 'dim' : '')).join('')}</div></div>
+  </div>${overlays2(me)}`;
+}
+function overlays2(me) {
+  const st = ui.st, G = gameOf(st); let h = '';
+  if (ui.confirmExit) h += `<div class="ov"><div class="box"><h2>بدك تطلع؟</h2><p class="muted">${ui.mode === 'local' ? 'اللعبة بتنحفظ وفيك تكمّلها بعدين.' : 'فيك ترجع للغرفة بعدين من الصفحة الرئيسية.'}</p><div class="acts"><button class="btn red" data-a="leave">إيه، اطلع</button><button class="btn alt" data-a="stay">لا، كمّل</button></div></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0) h += `<div class="ov"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (st.phase === 'handEnd' || st.phase === 'over') {
+    const S = st.summary || { rows: [], notes: [] };
+    const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;
+    let title = 'خلصت الجولة';
+    if (st.phase === 'over') title = st.winner != null ? 'ربح ' + TEAM[st.winner] + '!' : 'ربح ' + st.names[st.winnerSeat] + '!';
+    const teamRow = S.kind === 'players' && (G.teams || st.partner) ? `<tr><td>مجموع الفريق</td>${[0, 1, 2, 3].map(i => `<td><b>${st.scores[i % 2] + st.scores[i % 2 + 2]}</b></td>`).join('')}</tr>` : '';
+    h += `<div class="ov"><div class="box"><h2>${title}</h2>
+    <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${esc(c)}</th>`).join('')}</tr>
+    ${S.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}${teamRow}</table></div>
+    <p class="muted">${(S.notes || []).map(esc).join('<br>')}</p>
+    ${ui.mode === 'local' || me >= 0 ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
+  }
+  if (ui.chatOpen && ui.mode === 'lan') h += chatPanel();
+  if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
+  return h;
+}
+
+function chatPanel() { return `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b>${vc.on ? `<button class="chip" data-a="voiceLeave">اطلع من المكالمة</button>` : `<button class="chip on" data-a="voice">ادخل المكالمة</button>`}<button class="ic" data-a="chatClose" aria-label="سكّر">${ICON.x}</button></div>
+    <div class="msgs" id="msgs">${ui.chat.map(m => `<div class="msg ${m.id === uid ? 'me' : ''}"><small>${esc(m.name)}</small>${m.audio ? `<button class="chip" data-a="play" data-m="${m.mid}">▶ رسالة صوتية</button>` : esc(m.text)}</div>`).join('') || '<div class="muted">ما في رسائل لسا</div>'}</div>
+    <div class="row"><input id="chatin" class="grow" placeholder="اكتب رسالة" maxlength="200"><button class="ic" data-a="send" aria-label="ابعت">${ICON.send}</button><button class="mic ${rec.mr ? 'rec' : ''}" id="mic" aria-label="اضغط مطوّل وسجّل">${ICON.mic}</button></div>
+    <div class="muted">اضغط مطوّل على المايك وسجّل، وشيل إصبعك لتبعت.</div></div>`; }
+// ---------- hand layout & drag ----------
+function layoutHand() {
+  const el = document.getElementById('hand'); if (!el) return;
+  const cards = [...el.children]; const n = cards.length; if (!n) { el.style.height = '0'; return; }
+  const land = matchMedia('(orientation:landscape) and (max-height:560px)').matches;
+  const W = el.parentElement.clientWidth - 16;
+  let w = land ? 46 : Math.min(64, Math.max(48, W / 7.2));
+  const rows = (!land && n > 16) ? 2 : 1;
+  const perRow = Math.ceil(n / rows);
+  let step = Math.min(w * 0.62, (W - w) / Math.max(1, perRow - 1));
+  const h = w * 1.42, rowGap = h * 0.55;
+  el.style.width = W + 'px'; el.style.height = (h + (rows - 1) * rowGap + 18) + 'px';
+  const pos = [];
+  cards.forEach((c, i) => {
+    const r = Math.floor(i / perRow), k = i % perRow, cnt = Math.min(perRow, n - r * perRow);
+    const total = w + step * (cnt - 1), x0 = (W - total) / 2;
+    const x = x0 + k * step, y = 16 + r * rowGap;
+    c.style.setProperty('--w', w + 'px'); c.style.left = x + 'px'; c.style.top = y + 'px'; c.style.zIndex = i + 1;
+    pos.push({ x, y, id: c.dataset.id });
+  });
+  el._pos = pos; el._w = w; el._step = step;
+}
+let drag = null;
+document.addEventListener('pointerdown', e => {
+  const c = e.target.closest('#hand .c'); if (!c) return;
+  const el = document.getElementById('hand');
+  drag = { id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
+  c.setPointerCapture && c.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 8) return;
+  drag.moved = true; drag.el.classList.add('drag');
+  drag.el.style.left = drag.ox + dx + 'px';
+  drag.el.style.top = drag.oy + dy + 'px';
+});
+document.addEventListener('pointerup', e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) {
+    const id = d.id;
+    if (ui.st && gameOf(ui.st).id !== 'mor') return tapCard(id);
+    ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); return render();
+  }
+  const me = mySeat(); const order = ui.order[me]; if (!order) return render();
+  const x = parseFloat(d.el.style.left) + d.hand._w / 2, y = parseFloat(d.el.style.top);
+  let best = 0, bd = Infinity;
+  d.hand._pos.forEach((p, i) => { const dd = Math.abs(p.x + d.hand._w / 2 - x) + Math.abs(p.y - y) * 2; if (dd < bd) { bd = dd; best = i; } });
+  const from = order.indexOf(d.id); order.splice(from, 1); order.splice(best, 0, d.id);
+  render();
+});
+document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
+
+function tapCard(id) {
+  const st = ui.st, G = gameOf(st), me = mySeat();
+  if (G.actor(st) !== me || ui.hidden) return;
+  if (st.phase === 'play') return act(G.play, id);
+  if (st.phase === 'trix') return act(G.trixPlay, id);
+  if (st.phase === 'double' && G.dblCards(st, me).includes(id)) { ui.dblSel = ui.dblSel || []; ui.dblSel.includes(id) ? ui.dblSel.splice(ui.dblSel.indexOf(id), 1) : ui.dblSel.push(id); render(); }
+}
+function render() {
+  const disc = document.getElementById('disc'); const dscroll = disc ? disc.scrollLeft : null;
+  const msgs = document.getElementById('msgs'); const chatVal = document.getElementById('chatin')?.value;
+  $app.innerHTML = !ready ? '<div class="menu"><div class="in"><h1>مور</h1><p class="muted">عم يحمّل…</p></div></div>' : ui.view === 'home' ? home() : ui.view === 'pick' ? gamePage() : ui.view === 'room' ? lobby() : !ui.st ? lobby() : gameOf(ui.st).id === 'mor' ? game() : trickTable();
+  layoutHand();
+  const d2 = document.getElementById('disc'); if (d2) d2.scrollLeft = d2.scrollWidth;
+  const m2 = document.getElementById('msgs'); if (m2) m2.scrollTop = m2.scrollHeight;
+  const ci = document.getElementById('chatin'); if (ci && chatVal) ci.value = chatVal;
+  if (ui.chatOpen) ui.unread = 0;
+}
+window.addEventListener('resize', () => layoutHand());
+
+// ---------- events ----------
+$app.addEventListener('click', e => {
+  let t = e.target.closest('[data-a]');
+  if (t && t.classList.contains('ov') && e.target.closest('[data-stop]')) return;
+  if (t && !t.dataset.a) t = null;
+  if (!t) t = e.target.closest('[data-di]') || e.target.closest('[data-meld]') || e.target.closest('[data-seat]');
+  if (!t) return;
+  const a = t.dataset.a, st = ui.st;
+  if (a) {
+    e.stopPropagation();
+    ({
+      create: () => createRoom('online'), join: () => joinRoom('online', document.getElementById('code').value), createLan: () => createRoom('lan'),
+      joinLan: () => joinRoom('lan', document.getElementById('ip').value), joinHere: () => joinRoom('lan', location.hostname),
+      rejoin: () => { const r = ls.get('mor-room'); ui.gameId = ui.gameId || 'mor'; joinRoom(r.mode, r.key); },
+      solo: () => startLocal('solo'), local: () => startLocal('pass'), localResume: () => startLocal(null, true),
+      cfgBot: () => { ui.localCfg[+t.dataset.s] = !ui.localCfg[+t.dataset.s]; const v = [0, 1, 2, 3].map(i => document.getElementById('ln' + i)?.value || ''); render(); v.forEach((x, i) => { const el = document.getElementById('ln' + i); if (el) el.value = x; }); },
+      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave,
+      start: () => startOnline(false), startBots: () => startOnline(true), sit: () => sit(+t.dataset.s),
+      draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
+      declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
+      morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
+      sort: () => { const me = mySeat(); const h = ui.st.hands[me]; const cur = ui.order[me] || []; const s1 = sortIds(h, false); ui.order[me] = cur.join() === s1.join() ? sortIds(h, true) : s1; render(); },
+      reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
+      noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
+      chat: () => { ui.chatOpen = true; ui.unread = 0; render(); setTimeout(() => document.getElementById('chatin')?.focus(), 50); },
+      chatClose: () => { ui.chatOpen = false; render(); }, send: sendChat, play: () => playVoice(t.dataset.m),
+      voice: () => (vc.on ? voiceMute() : voiceJoin()), voiceLeave: () => voiceLeave(),
+      pick: () => { ui.gameId = t.dataset.g; ui.view = 'pick'; ui.localCfg = [false, false, false, false]; render(); window.scrollTo(0, 0); },
+      back: () => { ui.view = 'home'; ui.gameId = null; render(); },
+      bid: () => act(gameOf(ui.st).bid, +t.dataset.n), trump: () => act(gameOf(ui.st).chooseTrump, t.dataset.s),
+      choose: () => act(gameOf(ui.st).choose, +t.dataset.i),
+      dblT: () => { const c = t.dataset.c; ui.dblSel = ui.dblSel || []; ui.dblSel.includes(c) ? ui.dblSel.splice(ui.dblSel.indexOf(c), 1) : ui.dblSel.push(c); render(); },
+      dblDone: () => { const sel = (ui.dblSel || []).slice(); ui.dblSel = []; act(gameOf(ui.st).double, sel); },
+      trixPass: () => act(gameOf(ui.st).trixPlay, null),
+      rotate: () => setOrient(ui.orient === 'portrait' ? 'landscape' : 'portrait')
+    }[a] || (() => {}))();
+    return;
+  }
+  if (t.dataset.di != null && st && st.turn === mySeat() && st.step === 'draw' && !ui.hidden) {
+    const i = +t.dataset.di, n = st.discard.length - i;
+    if (n === 1) return act(Mor.takeDiscard, i);
+    ui.sheet = { title: `تاخد ${n} ورقات من الأرض؟`, opts: [{ label: 'إيه خدهم', run: () => act(Mor.takeDiscard, i) }] }; return render();
+  }
+  if (t.dataset.meld) {
+    const m = st.melds.find(x => x.id === t.dataset.meld); const me = mySeat();
+    if (!m || !ui.sel.size || st.turn !== me || st.step !== 'play' || m.team !== Mor.teamOf(me)) return;
+    const ids = [...ui.sel], opts = [];
+    if (Mor.analyze([...m.cards, ...ids])) opts.push({ label: 'زيد على التنزيلة', run: () => act(Mor.addToMeld, m.id, ids) });
+    const sw = ids.length === 1 ? Mor.swapOptions(m, ids[0]) : [];
+    if (sw.length) opts.push({ label: sw.some(o => Mor.isJ(o.w)) ? 'فكّ الجوكر بهالورقة' : 'بدّل الـ2', run: () => act(Mor.swapWild, m.id, ids[0]) });
+    if (!opts.length) return toast('الورق المختار ما بيركب على هالتنزيلة');
+    if (opts.length === 1) return opts[0].run();
+    ui.sheet = { title: 'شو بدك تعمل؟', opts }; return render();
+  }
+  if (t.dataset.seat != null && st && ui.mode !== 'local' && isHost() && +t.dataset.seat !== mySeat()) {
+    const s = +t.dataset.seat;
+    ui.sheet = { title: esc(st.names[s]), opts: [{ label: st.bots[s] ? 'رجّعه يلعب بنفسه' : 'خلّي بوت يلعب مكانه', run: () => toggleBot(s) }] }; render();
+  }
+});
+$app.addEventListener('input', e => { if (e.target.id === 'nm') ls.set('mor-name', e.target.value.trim()); });
+$app.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'code') joinRoom('online', e.target.value);
+  if (e.target.id === 'ip') joinRoom('lan', e.target.value);
+  if (e.target.id === 'chatin') sendChat();
+});
+$app.addEventListener('pointerdown', e => { if (e.target.closest('#mic')) { e.preventDefault(); recStart(); } });
+document.addEventListener('pointerup', () => { if (rec.mr) recStop(); });
+setInterval(() => { if (Object.values(ui.bubbles).some(b => Date.now() - b.t < 4600 && Date.now() - b.t > 4000)) render(); }, 600);
+
+// ---------- boot ----------
+(async () => {
+  let id = ls.get('mor-uid'); if (!id) { id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ls.set('mor-uid', id); }
+  uid = id;
+  try { native && native.setOrientation(ui.orient); } catch (e) {}
+  if (isServed) { ready = true; return render(); }
+  const tm = setTimeout(() => { ready = true; render(); }, 10000);
+  try {
+    const [d, u] = await Promise.all([window.claude?.use?.('db') ?? null, window.claude?.use?.('user') ?? null]);
+    if (d && u) { const cid = await u.id(); if (cid) { db = d; uid = cid; } }
+  } catch (e) {}
+  clearTimeout(tm); ready = true; render();
+})();
+render();
+}
+</script>
+</body>
+</html>
