@@ -182,6 +182,7 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px 6px;b
 </head>
 <body>
 <div id="app"></div>
+<script>/*FIREBASE*/</script>
 <script>
 /*ENGINE*/
 </script>
@@ -300,7 +301,7 @@ function applyRoom(room) {
   ui.room = room;
   const st = room && room.s ? JSON.parse(room.s) : null;
   if (st && (!ui.st || st.v >= (ui.st.v || 0) || ui.st.deal !== st.deal)) ui.st = st;
-  if ((ui.mode === 'online' || ui.mode === 'lan') && ui.view === 'room' && ui.st && room.phase === 'game') ui.view = 'game';
+  if ((ui.mode === 'online' || ui.mode === 'lan' || ui.mode === 'fb') && ui.view === 'room' && ui.st && room.phase === 'game') ui.view = 'game';
   afterState(); render();
 }
 const dbB = {
@@ -339,7 +340,7 @@ const lanB = {
     lanB.base = host === location.hostname ? location.origin : 'http://' + host + ':' + PORT;
     const j = await lanB.req('/api/poll?rev=-1').catch(() => null);
     if (!j || !j.room || !j.room.host) throw new Error('ما لقيت غرفة على هالعنوان. تأكد إنكم على نفس الواي فاي');
-    (j.chat || []).forEach(m => lanB.seen.add(m.mid));
+    (j.chat || []).forEach(m => seenChat.add(m.mid));
     await lanB.req('/api/player', { id: uid, name, seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
     lanB.alive = true; lanB.rev = -1; lanB.loop();
     unsub.push(() => { lanB.alive = false; });
@@ -362,17 +363,76 @@ const lanB = {
     get(mid) { return lanB.req('/api/voice?mid=' + mid); }
   }
 };
-const B = () => (ui.mode === 'lan' ? lanB : dbB);
+const B = () => (ui.mode === 'lan' ? lanB : ui.mode === 'fb' ? fbB : dbB);
 const isServed = location.protocol === 'http:' && +location.port === PORT;
 const native = window.MorNative || null;
 function myIp() { try { return native ? native.getIp() : ''; } catch (e) { return ''; } }
 
+// ---------- online through Firebase ----------
+const FB_CONFIG = { apiKey: 'AIzaSyBfIwS3blYf_KgyXAmVHnXw9a3upGGz8Qw', authDomain: 'mor-games-9dfdf.firebaseapp.com', projectId: 'mor-games-9dfdf', storageBucket: 'mor-games-9dfdf.firebasestorage.app', messagingSenderId: '815493283593', appId: '1:815493283593:web:b471729858f3e2b44e1dd8' };
+const fb = { ready: false, db: null, tried: false };
+async function fbInit() {
+  if (fb.tried || !window.FB) return; fb.tried = true;
+  try {
+    const app = FB.initializeApp(FB_CONFIG);
+    await Promise.race([FB.signInAnonymously(FB.getAuth(app)), sleep(9000).then(() => { throw new Error('timeout'); })]);
+    fb.db = FB.getFirestore(app); fb.ready = true; render();
+  } catch (e) { console.error('firebase', e); fb.tried = false; }
+}
+const fbB = {
+  ref: (...p) => FB.doc(fb.db, ...p),
+  col: (...p) => FB.collection(fb.db, ...p),
+  async create() {
+    const code = genCode();
+    await FB.setDoc(fbB.ref('rooms', code), { host: uid, game: ui.gameId || 'mor', phase: 'lobby', s: '', sv: 0, t: Date.now() });
+    return code;
+  },
+  async open(code, name) {
+    const snap = await FB.getDoc(fbB.ref('rooms', code));
+    if (!snap.exists()) throw new Error('ما لقيت هالغرفة');
+    const pr = fbB.ref('rooms', code, 'players', uid), me = await FB.getDoc(pr);
+    await FB.setDoc(pr, { name, seat: me.exists() ? me.data().seat : -1, voice: false, t: Date.now() });
+    const errH = () => toast('انقطع الاتصال بالغرفة');
+    unsub.push(FB.onSnapshot(fbB.ref('rooms', code), s => { if (s.exists()) applyRoom(s.data()); }, errH));
+    unsub.push(FB.onSnapshot(fbB.col('rooms', code, 'players'), s => {
+      ui.players = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      vc.members = ui.players.filter(p => p.voice).map(p => p.id); voicePeers(); render();
+    }, errH));
+    unsub.push(FB.onSnapshot(FB.query(fbB.col('rooms', code, 'chat'), FB.orderBy('t', 'desc'), FB.limit(40)), s => {
+      gotChat(s.docs.map(d => { const x = d.data(); return { mid: d.id, id: x.id, name: x.name, text: x.text, audio: !!x.audio, t: x.t }; }).reverse());
+    }, errH));
+    unsub.push(FB.onSnapshot(FB.query(fbB.col('rooms', code, 'signals'), FB.where('to', '==', uid)), s => {
+      for (const ch of s.docChanges()) if (ch.type === 'added') { onSignal(ch.doc.data()).catch(e => console.error(e)); FB.deleteDoc(ch.doc.ref).catch(() => {}); }
+    }, errH));
+  },
+  setSeat(seat) { return FB.updateDoc(fbB.ref('rooms', ui.code, 'players', uid), { seat }); },
+  async writeState(next, prevV) {
+    await FB.runTransaction(fb.db, async tx => {
+      const r = fbB.ref('rooms', ui.code), cur = await tx.get(r);
+      const d = cur.data() || {};
+      if ((d.sv || 0) !== prevV) { const e = new Error('conflict'); e.live = d.s ? JSON.parse(d.s) : null; throw e; }
+      tx.update(r, { s: JSON.stringify(next), sv: next.v, phase: 'game' });
+    });
+  },
+  voiceState(on) { return FB.updateDoc(fbB.ref('rooms', ui.code, 'players', uid), { voice: on }); },
+  signal(to, kind, sdp) { return FB.addDoc(fbB.col('rooms', ui.code, 'signals'), { from: uid, to, kind, sdp, t: Date.now() }); },
+  chat: {
+    send(text) { return FB.addDoc(fbB.col('rooms', ui.code, 'chat'), { id: uid, name: myName(), text, audio: false, t: Date.now() }); },
+    voice(data, mime) { return FB.addDoc(fbB.col('rooms', ui.code, 'chat'), { id: uid, name: myName(), text: '', audio: true, data, mime, t: Date.now() }); },
+    async get(mid) { const d = await FB.getDoc(fbB.ref('rooms', ui.code, 'chat', mid)); return d.data(); }
+  }
+};
+lanB.voiceState = on => lanB.req('/api/voicestate', { id: uid, on });
+lanB.signal = (to, kind, sdp) => lanB.req('/api/signal', { from: uid, to, kind, sdp });
+const social = () => ui.mode === 'lan' || ui.mode === 'fb';
+
 // ---------- chat ----------
+const seenChat = new Set();
 function gotChat(list) {
   for (const m of list) {
-    if (lanB.seen.has(m.mid)) continue;
-    lanB.seen.add(m.mid); ui.chat.push(m); if (ui.chat.length > 80) ui.chat.shift();
-    if (m.id !== uid) {
+    if (seenChat.has(m.mid)) continue;
+    seenChat.add(m.mid); ui.chat.push(m); if (ui.chat.length > 80) ui.chat.shift();
+    if (m.id !== uid && Date.now() - (m.t || 0) < 60000) {
       if (!ui.chatOpen) ui.unread++;
       const seat = ui.st && ui.st.seats ? ui.st.seats.indexOf(m.id) : -1;
       if (seat >= 0) { ui.bubbles[seat] = { text: m.audio ? 'رسالة صوتية' : m.text, t: Date.now() }; setTimeout(render, 4200); }
@@ -381,11 +441,11 @@ function gotChat(list) {
   }
 }
 async function playVoice(mid) {
-  try { const j = await lanB.chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
+  try { const j = await B().chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
 }
 async function sendChat() {
   const el = document.getElementById('chatin'); const t = (el && el.value || '').trim(); if (!t) return;
-  el.value = ''; try { await lanB.chat.send(t.slice(0, 200)); } catch (e) { toast('ما انبعتت الرسالة'); }
+  el.value = ''; try { await B().chat.send(t.slice(0, 200)); } catch (e) { toast('ما انبعتت الرسالة'); }
 }
 const rec = { mr: null, chunks: [], t0: 0, timer: null };
 async function recStart() {
@@ -400,30 +460,29 @@ async function recStart() {
       const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
       if (dur < 500) return toast('اضغط مطوّل لتسجّل');
       const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
-      try { await lanB.chat.voice(b64, mime); } catch (e) { toast('ما انبعتت الرسالة الصوتية'); }
+      try { await B().chat.voice(b64, mime); } catch (e) { toast('ما انبعتت الرسالة الصوتية'); }
     };
     rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
   } catch (e) { toast('اسمح للتطبيق يستعمل المايك'); }
 }
 function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
 
-
-// ---------- live voice (WebRTC over the local network, signalled through the host) ----------
-const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, last: null, members: [], fetching: false };
+// ---------- live voice (WebRTC; signalled through the host on LAN, through Firebase online) ----------
+const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, members: [], fetching: false };
 async function voiceJoin() {
   if (!window.RTCPeerConnection) return toast('الصوت المباشر مش مدعوم على هالجهاز');
   try {
     vc.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
   } catch (e) { vc.stream = null; toast('المايك مش متاح: رح تسمع بس'); }
   vc.on = true; vc.muted = false; vc.seq = 0;
-  try { await lanB.req('/api/voicestate', { id: uid, on: true }); } catch (e) { toast('ما قدرت أدخل المكالمة'); }
-  render(); if (vc.last) voiceSync(vc.last);
+  try { await B().voiceState(true); } catch (e) { toast('ما قدرت أدخل المكالمة'); }
+  render(); voicePeers();
 }
 function voiceLeave(silent) {
   for (const k of Object.keys(vc.pcs)) dropPeer(k);
   if (vc.stream) vc.stream.getTracks().forEach(t => t.stop());
   vc.stream = null; vc.on = false;
-  if (!silent) lanB.req('/api/voicestate', { id: uid, on: false }).catch(() => {});
+  if (!silent) B().voiceState(false).catch(() => {});
   render();
 }
 function voiceMute() {
@@ -437,23 +496,24 @@ function dropPeer(k) {
   if (vc.els[k]) { vc.els[k].srcObject = null; vc.els[k].remove(); delete vc.els[k]; }
 }
 function newPeer(peer) {
-  const pc = new RTCPeerConnection({ iceServers: [] });
+  const ice = ui.mode === 'lan' ? [] : [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+  const pc = new RTCPeerConnection({ iceServers: ice });
   pc.ontrack = e => {
     let a = vc.els[peer];
     if (!a) { a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; document.body.appendChild(a); vc.els[peer] = a; }
     a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {});
   };
   pc.onconnectionstatechange = () => {
-    if (['failed', 'closed'].includes(pc.connectionState) && vc.pcs[peer] === pc) { dropPeer(peer); setTimeout(() => vc.last && voiceSync(vc.last), 2500); }
+    if (['failed', 'closed'].includes(pc.connectionState) && vc.pcs[peer] === pc) { dropPeer(peer); setTimeout(voicePeers, 2500); }
   };
   vc.pcs[peer] = pc; return pc;
 }
 const iceDone = pc => new Promise(r => {
   if (pc.iceGatheringState === 'complete') return r();
-  const t = setTimeout(r, 2500);
+  const t = setTimeout(r, 3000);
   pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); r(); } });
 });
-const signal = (to, kind, sdp) => lanB.req('/api/signal', { from: uid, to, kind, sdp });
+const signal = (to, kind, sdp) => B().signal(to, kind, sdp);
 async function callPeer(peer) {
   const pc = newPeer(peer);
   if (vc.stream) vc.stream.getTracks().forEach(t => pc.addTrack(t, vc.stream));
@@ -473,12 +533,15 @@ async function onSignal(m) {
     await vc.pcs[m.from].setRemoteDescription({ type: 'answer', sdp: m.sdp });
   }
 }
-async function voiceSync(j) {
-  vc.last = j; vc.members = j.voice || [];
+function voicePeers() {
   if (!vc.on) return;
   const others = vc.members.filter(id => id !== uid);
   for (const k of Object.keys(vc.pcs)) if (!others.includes(k)) dropPeer(k);
-  if (j.sig && j.sig[uid] > vc.seq && !vc.fetching) {
+  for (const p of others) if (!vc.pcs[p] && uid < p) callPeer(p).catch(e => { console.error(e); dropPeer(p); });
+}
+async function voiceSync(j) {
+  vc.members = j.voice || [];
+  if (vc.on && j.sig && j.sig[uid] > vc.seq && !vc.fetching) {
     vc.fetching = true;
     try {
       const list = await lanB.req('/api/signals?to=' + encodeURIComponent(uid) + '&after=' + vc.seq);
@@ -486,7 +549,7 @@ async function voiceSync(j) {
     } catch (e) {}
     vc.fetching = false;
   }
-  for (const p of others) if (!vc.pcs[p] && uid < p) callPeer(p).catch(e => { console.error(e); dropPeer(p); });
+  voicePeers();
 }
 
 // ---------- rooms ----------
@@ -501,7 +564,7 @@ async function createRoom(mode) {
 async function joinRoom(mode, key) {
   const n = myName(); if (!n) return toast('اكتب اسمك أول'); ls.set('mor-name', n);
   key = (key || '').trim();
-  if (mode === 'online') { key = key.toUpperCase(); if (key.length !== 4) return toast('الكود 4 حروف'); }
+  if (mode === 'online' || mode === 'fb') { key = key.toUpperCase(); if (key.length !== 4) return toast('الكود 4 حروف'); }
   else if (!/^[\d.]+$|^localhost$/.test(key)) return toast('اكتب عنوان المضيف متل 192.168.1.5');
   unsub.forEach(u => u()); unsub = [];
   Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0 });
@@ -592,6 +655,10 @@ function gamePage() {
     <div class="row" style="margin-top:10px"><input id="ip" class="grow" inputmode="decimal" placeholder="عنوان المضيف متل 192.168.1.5" style="direction:ltr;text-align:center"><button class="btn alt" data-a="joinLan">ادخل</button></div>
     <div class="muted" style="margin-top:6px">عنوانك: <b dir="ltr">${esc(myIp() || 'مش متصل بشبكة')}</b></div>`
     : `<div class="acts"><button class="btn" data-a="joinHere">ادخل غرفة هالمضيف</button></div>`}</div>` : ''}
+  ${isServed ? `<div class="panel"><h2>أونلاين</h2>${fb.ready ? `<div class="muted">العب مع رفقاتك من أي مكان بكود غرفة.</div>
+    <div class="acts"><button class="btn" data-a="createFb">غرفة جديدة</button></div>
+    <div class="row" style="margin-top:10px"><input id="fbcode" class="grow" placeholder="كود الغرفة" maxlength="4" style="text-transform:uppercase;direction:ltr;text-align:center"><button class="btn alt" data-a="joinFb">ادخل</button></div>`
+    : `<div class="muted">${window.FB ? 'عم يتصل بالإنترنت…' : 'مش متاح هون'}</div>${window.FB ? '<div class="acts"><button class="btn alt sm" data-a="fbRetry">جرّب كمان مرة</button></div>' : ''}`}</div>` : ''}
   <div class="panel"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال. اختار مين بوت.</div>
     <div class="seats4">${[0, 1, 2, 3].map(i => `<div class="seatin"><input id="ln${i}" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}</div>
     <div class="acts"><button class="btn alt" data-a="local">ابدأ</button></div></div>
@@ -655,7 +722,7 @@ function game() {
     }
   }
   const fresh = st.got && st.got.seat === me && st.turn === me ? st.got.ids : [];
-  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
+  const chatBtn = social() ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
     <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="${vc.on ? (vc.muted ? 'شغّل المايك' : 'سكّر المايك') : 'ادخل المكالمة'}">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}${!vc.on && vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>` : '';
   return `<div class="game">
   <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
@@ -686,7 +753,7 @@ function overlays(me) {
     <p class="muted">${s.notes.map(esc).join('<br>')}</p>
     ${can ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
   }
-  if (ui.chatOpen && ui.mode === 'lan') h += chatPanel();
+  if (ui.chatOpen && social()) h += chatPanel();
   if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
   return h;
 }
@@ -775,7 +842,7 @@ function trickTable() {
     else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'ما معك ورقة بتركب'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
   }
   const last = st.log[st.log.length - 1] || '';
-  const chatBtn = ui.mode === 'lan' ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
+  const chatBtn = social() ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
     <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="المكالمة">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}</button>` : '';
   return `<div class="game tg">
   <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button><div class="score">${pills}<span class="sp">${esc(G.name)}</span></div>${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
@@ -801,7 +868,7 @@ function overlays2(me) {
     <p class="muted">${(S.notes || []).map(esc).join('<br>')}</p>
     ${ui.mode === 'local' || me >= 0 ? `<div class="acts">${st.phase === 'over' ? '<button class="btn" data-a="newMatch">لعبة جديدة</button>' : '<button class="btn" data-a="nextRound">الجولة الجاية</button>'}<button class="btn alt" data-a="exit">طلاع</button></div>` : ''}</div></div>`;
   }
-  if (ui.chatOpen && ui.mode === 'lan') h += chatPanel();
+  if (ui.chatOpen && social()) h += chatPanel();
   if (ui.toast) h += `<div class="toast" role="status">${esc(ui.toast)}</div>`;
   return h;
 }
@@ -917,6 +984,7 @@ $app.addEventListener('click', e => {
       dblT: () => { const c = t.dataset.c; ui.dblSel = ui.dblSel || []; ui.dblSel.includes(c) ? ui.dblSel.splice(ui.dblSel.indexOf(c), 1) : ui.dblSel.push(c); render(); },
       dblDone: () => { const sel = (ui.dblSel || []).slice(); ui.dblSel = []; act(gameOf(ui.st).double, sel); },
       trixPass: () => act(gameOf(ui.st).trixPlay, null),
+      createFb: () => createRoom('fb'), joinFb: () => joinRoom('fb', document.getElementById('fbcode').value), fbRetry: () => fbInit(),
       rotate: () => setOrient(ui.orient === 'portrait' ? 'landscape' : 'portrait')
     }[a] || (() => {}))();
     return;
@@ -947,6 +1015,7 @@ $app.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   if (e.target.id === 'code') joinRoom('online', e.target.value);
   if (e.target.id === 'ip') joinRoom('lan', e.target.value);
+  if (e.target.id === 'fbcode') joinRoom('fb', e.target.value);
   if (e.target.id === 'chatin') sendChat();
 });
 $app.addEventListener('pointerdown', e => { if (e.target.closest('#mic')) { e.preventDefault(); recStart(); } });
@@ -958,7 +1027,7 @@ setInterval(() => { if (Object.values(ui.bubbles).some(b => Date.now() - b.t < 4
   let id = ls.get('mor-uid'); if (!id) { id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); ls.set('mor-uid', id); }
   uid = id;
   try { native && native.setOrientation(ui.orient); } catch (e) {}
-  if (isServed) { ready = true; return render(); }
+  if (isServed) { ready = true; render(); fbInit(); return; }
   const tm = setTimeout(() => { ready = true; render(); }, 10000);
   try {
     const [d, u] = await Promise.all([window.claude?.use?.('db') ?? null, window.claude?.use?.('user') ?? null]);
