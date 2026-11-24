@@ -128,13 +128,24 @@ public class LanServer {
                         if (!e.getKey().equals(id) && ((Integer) e.getValue()[1]) == seat) { json(sock, 409, "{\"error\":\"seat\"}"); return; }
                     String name = str(b.get("name"));
                     if (name.length() > 20) name = name.substring(0, 20);
-                    players.put(id, new Object[]{name, seat});
+                    String av = str(b.get("av"));
+                    if (av.length() > 40) av = av.substring(0, 40);
+                    players.put(id, new Object[]{name, seat, av});
                     break;
                 }
                 case "/api/room": {
                     long expect = (long) num(b.get("expect"), -1);
                     if (expect != sv) { json(sock, 409, "{\"error\":\"conflict\",\"room\":" + roomJson() + "}"); return; }
                     s = str(b.get("s")); phase = str(b.get("phase")); sv = (long) num(b.get("sv"), sv + 1);
+                    break;
+                }
+                case "/api/meta": {
+                    String g = str(b.get("game")); if (!g.isEmpty()) game = g;
+                    String ph = str(b.get("phase")); if (!ph.isEmpty()) phase = ph;
+                    break;
+                }
+                case "/api/leave": {
+                    players.remove(str(b.get("id"))); inVoice.remove(str(b.get("id")));
                     break;
                 }
                 case "/api/voicestate": {
@@ -187,7 +198,7 @@ public class LanServer {
         StringBuilder p = new StringBuilder("[");
         for (Map.Entry<String, Object[]> e : players.entrySet()) {
             if (p.length() > 1) p.append(',');
-            p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append('}');
+            p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append(",\"av\":").append(Json.quote(e.getValue().length > 2 ? (String) e.getValue()[2] : "")).append('}');
         }
         StringBuilder v = new StringBuilder("[");
         for (String id : inVoice) { if (v.length() > 1) v.append(','); v.append(Json.quote(id)); }

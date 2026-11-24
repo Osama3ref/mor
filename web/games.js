@@ -12,7 +12,7 @@ const Games = (() => {
   function log(st, m) { st.log.push(m); if (st.log.length > 30) st.log.shift(); }
   function deal(st) {
     const d = deck(); st.hands = [0, 1, 2, 3].map(i => sortIds(d.slice(i * 13, i * 13 + 13)));
-    st.trick = []; st.trickDone = false; st.prevTrick = null; st.voids = [{}, {}, {}, {}]; st.tricks = [0, 0, 0, 0]; st.taken = [[], [], [], []]; st.summary = null; st.hs = [0, 0, 0, 0];
+    st.trick = []; st.trickDone = false; st.prevTrick = null; st.leads = []; st.voids = [{}, {}, {}, {}]; st.tricks = [0, 0, 0, 0]; st.taken = [[], [], [], []]; st.summary = null; st.hs = [0, 0, 0, 0];
   }
   function base(game, names, bots) {
     return { game, v: 0, names, bots: bots || [false, false, false, false], scores: [0, 0, 0, 0], mistakes: [0, 0, 0, 0], log: [], handNo: 0, history: [] };
@@ -40,6 +40,7 @@ const Games = (() => {
     if (st.turn !== seat) err('مش دورك');
     if (!legal(st, seat).includes(id)) err(st.hands[seat].includes(id) ? 'لازم تلعب من نفس الشكل' : 'الورقة مش معك');
     if (st.trickDone) { st.trick = []; st.trickDone = false; }
+    if (!st.trick.length) (st.leads = st.leads || []).push({ seat, s: id[0] });
     if (st.trick.length && id[0] !== st.trick[0].card[0]) { st.voids = st.voids || [{}, {}, {}, {}]; st.voids[seat][st.trick[0].card[0]] = true; }
     st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
     st.trick.push({ seat, card: id });
@@ -153,6 +154,40 @@ const Games = (() => {
     }
     return low(win);
   }
+
+  // Osama's partnership rules for leading in Complex / King
+  function partnerWantsSuit(st, seat) {
+    const p = (seat + 2) % 4, leads = (st.leads || []).filter(l => l.seat === p);
+    const out = [];
+    for (let i = 0; i < leads.length; i++) {
+      const s = leads[i].s, later = leads.slice(i + 1);
+      if (later.length && !later.some(l => l.s === s)) out.push(s);
+      if (leads.filter(l => l.s === s).length >= 2) out.push(s);
+    }
+    for (const s of Object.keys((st.voids || [])[p] || {})) out.push(s);
+    return [...new Set(out)];
+  }
+  function osamaLead(st, seat, x, M) {
+    const c = st.contract, has = k => c === k || c === 'complex', { s, r } = cr(x), h = st.hands[seat];
+    const p = (seat + 2) % 4, left = (seat + 3) % 4;
+    let v = 0;
+    if (has('king') && s === 'H' && !st.taken.flat().includes(KH)) {
+      const d = st.doubled ? st.doubled.K : null, holdK = h.includes(KH), holdA = h.includes('H14');
+      const pLeads = (st.leads || []).filter(l => l.seat === p);
+      if (st.partner && d === p) v -= 80;
+      else if (st.partner && d === left && !pLeads.some(l => l.s === 'H')) v -= 60;
+      else if (st.partner && pLeads.length && !pLeads.some(l => l.s === 'H')) v -= 40;
+      else if (d == null && !holdK && !holdA) v += 18 - Math.abs(r - 7.5) * 3;
+    }
+    if (st.partner) {
+      const want = partnerWantsSuit(st, seat);
+      if (want.includes(s) && !M.voids.some((vv, o) => o !== seat && o !== p && vv[s])) v += 22 - r;
+      const iDoubled = st.doubled && (st.doubled.K === seat || Object.values(st.doubled.Q || {}).includes(seat));
+      if (iDoubled && s !== 'H') { const n = h.filter(y => y[0] === s).length; if (n <= 2) v += 12 - n * 3; }
+    }
+    return v;
+  }
+
   function penaltyPlayStrong(st, seat) {
     const L = legal(st, seat), c = st.contract, R = x => cr(x).r, M = memory(st, seat), h = st.hands[seat];
     const has = k => c === k || c === 'complex';
@@ -172,6 +207,7 @@ const Games = (() => {
         if (has('queens') && out.includes(12) && r < 12) v += 3;
         if (has('queens') && h.includes(s + '12') && r !== 12) v -= 10;
         if (has('diamonds') && s === 'D') v -= 4 + (higher === 0 ? 20 : 0);
+        v += osamaLead(st, seat, x, M);
         return v;
       };
       return L.slice().sort((a, b) => score(b) - score(a))[0];
@@ -179,6 +215,12 @@ const Games = (() => {
     const led = st.trick[0].card[0], follow = L[0][0] === led;
     const curW = winnerOf(st.trick, null), curR = R(st.trick.find(t => t.seat === curW).card);
     const last = st.trick.length === 3;
+    if (follow && Games.sig !== false && c === 'complex' && st.partner && st.trick[0].seat === (seat + 2) % 4 && !(has('king') && L.includes(KH))) {
+      const k = (st.leads || []).filter(l => l.seat === st.trick[0].seat && l.s === led).length;
+      const safeL = L.filter(x => !(has('queens') && isQ(x)));
+      if (k <= 1) { const lowc = (safeL.length ? safeL : L).slice().sort((a, b) => R(a) - R(b))[0]; if (lowc) return lowc; }
+      else { const over = (safeL.length ? safeL : L).filter(x => R(x) > curR); if (over.length) return over.slice().sort((a, b) => R(b) - R(a))[0]; }
+    }
     if (follow) {
       const under = L.filter(x => R(x) < curR);
       if (under.length) {
@@ -490,7 +532,13 @@ const Games = (() => {
         }
         if (st.phase === 'double') {
           const el = G.dblCards(st, seat);
-          const pick = el.filter(c => { const n = h.filter(x => x[0] === c[0]).length; return c === KH ? n >= 5 : n >= 5 && !h.includes(c[0] + '14'); });
+          let need = 5;
+          if (st.kingdom === 3) {
+            const my = st.partner ? st.scores[seat % 2] + st.scores[seat % 2 + 2] : st.scores[seat];
+            const opp = st.partner ? st.scores[(seat + 1) % 2] + st.scores[(seat + 1) % 2 + 2] : Math.max(...st.scores.filter((x, i) => i !== seat));
+            if (my < opp - 60) need = 3;
+          }
+          const pick = el.filter(c => h.filter(x => x[0] === c[0]).length >= need);
           return G.double(st, seat, pick);
         }
         if (st.phase === 'trix') {
