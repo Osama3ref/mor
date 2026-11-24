@@ -6,15 +6,16 @@ const Games = (() => {
   function err(m) { const e = new Error(m); e.game = true; throw e; }
   function rnd(n) { if (typeof crypto !== 'undefined' && crypto.getRandomValues) { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; } return Math.floor(Math.random() * n); }
   function deck() { const d = []; for (const s of SUITS) for (let r = 2; r <= 14; r++) d.push(s + r); for (let i = d.length - 1; i > 0; i--) { const j = rnd(i + 1); [d[i], d[j]] = [d[j], d[i]]; } return d; }
-  const sortIds = h => h.slice().sort((a, b) => SUITS.indexOf(a[0]) - SUITS.indexOf(b[0]) || cr(a).r - cr(b).r);
+  const HORD = ['H', 'S', 'D', 'C'];
+  const sortIds = h => h.slice().sort((a, b) => HORD.indexOf(a[0]) - HORD.indexOf(b[0]) || cr(b).r - cr(a).r);
   const SN = { S: 'بستوني', H: 'كبة', C: 'سباتي', D: 'ديناري' };
   function log(st, m) { st.log.push(m); if (st.log.length > 30) st.log.shift(); }
   function deal(st) {
     const d = deck(); st.hands = [0, 1, 2, 3].map(i => sortIds(d.slice(i * 13, i * 13 + 13)));
-    st.trick = []; st.trickDone = false; st.tricks = [0, 0, 0, 0]; st.taken = [[], [], [], []]; st.summary = null; st.hs = [0, 0, 0, 0];
+    st.trick = []; st.trickDone = false; st.prevTrick = null; st.voids = [{}, {}, {}, {}]; st.tricks = [0, 0, 0, 0]; st.taken = [[], [], [], []]; st.summary = null; st.hs = [0, 0, 0, 0];
   }
   function base(game, names, bots) {
-    return { game, v: 0, names, bots: bots || [false, false, false, false], scores: [0, 0, 0, 0], log: [], handNo: 0, history: [] };
+    return { game, v: 0, names, bots: bots || [false, false, false, false], scores: [0, 0, 0, 0], mistakes: [0, 0, 0, 0], log: [], handNo: 0, history: [] };
   }
 
   // ---------- trick taking core ----------
@@ -39,13 +40,14 @@ const Games = (() => {
     if (st.turn !== seat) err('مش دورك');
     if (!legal(st, seat).includes(id)) err(st.hands[seat].includes(id) ? 'لازم تلعب من نفس الشكل' : 'الورقة مش معك');
     if (st.trickDone) { st.trick = []; st.trickDone = false; }
+    if (st.trick.length && id[0] !== st.trick[0].card[0]) { st.voids = st.voids || [{}, {}, {}, {}]; st.voids[seat][st.trick[0].card[0]] = true; }
     st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
     st.trick.push({ seat, card: id });
     st.turn = (seat + 1) % 4;
     if (st.trick.length === 4) {
       const w = winnerOf(st.trick, st.trump);
       st.tricks[w]++; st.taken[w].push(...st.trick.map(t => t.card));
-      st.trickDone = true; st.turn = w; st.lastWinner = w;
+      st.trickDone = true; st.turn = w; st.lastWinner = w; st.prevTrick = { cards: st.trick.slice(), winner: w };
       const end = G.onTrick ? G.onTrick(st, w) : false;
       if (end || st.hands.every(h => !h.length)) G.endHand(st);
     }
@@ -101,6 +103,105 @@ const Games = (() => {
     return pool.slice().sort((a, b) => cr(a).r - cr(b).r)[0];
   }
 
+
+  // ---------- stronger trick play (card memory) ----------
+  function memory(st, seat) {
+    const gone = new Set(st.taken.flat());
+    if (!st.trickDone) for (const t of st.trick) gone.add(t.card);
+    const mine = new Set(st.hands[seat]);
+    const out = s => { const r = []; for (let k = 2; k <= 14; k++) { const c = s + k; if (!gone.has(c) && !mine.has(c) && !(st.trick || []).some(t => t.card === c)) r.push(k); } return r; };
+    return { gone, out, voids: st.voids || [{}, {}, {}, {}] };
+  }
+  const isMaster = (M, c) => { const { s, r } = cr(c); return !M.out(s).some(k => k > r); };
+  function tarneebPlay(st, seat) {
+    const L = legal(st, seat), trump = st.trump, R = c => cr(c).r, M = memory(st, seat), me = teamOf(seat);
+    const low = a => a.slice().sort((x, y) => R(x) - R(y))[0], high = a => a.slice().sort((x, y) => R(y) - R(x))[0];
+    const opps = [0, 1, 2, 3].filter(x => teamOf(x) !== me), partner = (seat + 2) % 4;
+    const trumpsOut = M.out(trump).length;
+    const oppVoid = su => opps.some(o => M.voids[o][su] && !M.voids[o][trump]);
+    const fresh = !st.trick.length || st.trickDone;
+    const junk = arr => {
+      const nonT = arr.filter(c => c[0] !== trump), pool = nonT.length ? nonT : arr;
+      const keep = c => (isMaster(M, c) ? 20 : 0) + R(c) + (pool.filter(x => x[0] === c[0]).length <= 1 ? -6 : 0);
+      return pool.slice().sort((a, b) => keep(a) - keep(b))[0];
+    };
+    if (fresh) {
+      const myT = L.filter(c => c[0] === trump);
+      if (myT.length && trumpsOut > 0 && myT.length >= trumpsOut && isMaster(M, high(myT))) return high(myT);
+      const masters = L.filter(c => c[0] !== trump && isMaster(M, c) && !(trumpsOut && oppVoid(c[0])));
+      if (masters.length) return high(masters);
+      const toPartner = L.filter(c => c[0] !== trump && M.voids[partner][c[0]] && !M.voids[partner][trump] && !oppVoid(c[0]));
+      if (toPartner.length) return low(toPartner);
+      const side = L.filter(c => c[0] !== trump && !oppVoid(c[0]));
+      const bySuit = {}; for (const c of (side.length ? side : L)) (bySuit[c[0]] = bySuit[c[0]] || []).push(c);
+      const suits = Object.values(bySuit).sort((a, b) => b.length - a.length);
+      const sg = suits.find(a => !(a.some(c => R(c) === 13) && !a.some(c => R(c) === 14) && a.length <= 2)) || suits[0];
+      return low(sg);
+    }
+    const trick = st.trick, curW = winnerOf(trick, trump), curC = trick.find(t => t.seat === curW).card, led = trick[0].card[0];
+    const beats = c => winnerOf([...trick, { seat, card: c }], trump) === seat;
+    const last = trick.length === 3, second = trick.length === 1;
+    const partnerSafe = teamOf(curW) === me && (last || (isMaster(M, curC) && !(curC[0] !== trump && trumpsOut && opps.some(o => trick.every(t => t.seat !== o) && M.voids[o][led]))) || (curC[0] === trump && led !== trump && isMaster(M, curC)));
+    if (partnerSafe) return junk(L);
+    const win = L.filter(beats);
+    if (!win.length) return junk(L);
+    if (L[0][0] === led) {
+      if (second && !win.some(c => isMaster(M, c))) return low(L);
+      const m = win.filter(c => isMaster(M, c));
+      if (!last && m.length) return low(m);
+      return low(win);
+    }
+    return low(win);
+  }
+  function penaltyPlayStrong(st, seat) {
+    const L = legal(st, seat), c = st.contract, R = x => cr(x).r, M = memory(st, seat), h = st.hands[seat];
+    const has = k => c === k || c === 'complex';
+    const fresh = !st.trick.length || st.trickDone;
+    const othersVoid = su => [0, 1, 2, 3].some(o => o !== seat && M.voids[o][su]);
+    if (fresh) {
+      const score = x => {
+        const { s, r } = cr(x), out = M.out(s), higher = out.filter(k => k > r).length, lower = out.filter(k => k < r).length;
+        if (!out.length) return -50;
+        let v = higher * 2 - lower * 1.2;
+        if (higher === 0) v -= 40;
+        if (othersVoid(s)) v -= 15;
+        if (has('king') && x === KH) v -= 200;
+        if (has('king') && s === 'H' && !h.includes(KH) && out.includes(13) && higher > 0) v += 6;
+        if (has('king') && s === 'H' && h.includes(KH)) v -= 25;
+        if (has('queens') && r === 12) v -= 60;
+        if (has('queens') && out.includes(12) && r < 12) v += 3;
+        if (has('queens') && h.includes(s + '12') && r !== 12) v -= 10;
+        if (has('diamonds') && s === 'D') v -= 4 + (higher === 0 ? 20 : 0);
+        return v;
+      };
+      return L.slice().sort((a, b) => score(b) - score(a))[0];
+    }
+    const led = st.trick[0].card[0], follow = L[0][0] === led;
+    const curW = winnerOf(st.trick, null), curR = R(st.trick.find(t => t.seat === curW).card);
+    const last = st.trick.length === 3;
+    if (follow) {
+      const under = L.filter(x => R(x) < curR);
+      if (under.length) {
+        if (st.partner && teamOf(curW) === teamOf(seat)) { const safe = under.filter(x => danger(x, c) < 30); if (safe.length) return safe.slice().sort((a, b) => R(b) - R(a))[0]; }
+        return under.slice().sort((a, b) => danger(b, c) - danger(a, c))[0];
+      }
+      const pen = st.trick.some(t => (has('king') && t.card === KH) || (has('queens') && isQ(t.card)) || (has('diamonds') && t.card[0] === 'D'));
+      const outBelow = M.out(led).filter(k => k < Math.min(...L.map(R))).length;
+      if (last || pen) return L.slice().sort((a, b) => R(b) - R(a)).find(x => !(has('king') && x === KH) && !(has('queens') && isQ(x))) || L.slice().sort((a, b) => R(b) - R(a))[0];
+      return outBelow ? L.slice().sort((a, b) => R(a) - R(b))[0] : L.slice().sort((a, b) => R(b) - R(a))[0];
+    }
+    const partnerWins = st.partner && teamOf(curW) === teamOf(seat);
+    const dumpScore = x => {
+      let d = danger(x, c);
+      if (partnerWins && d > 30) d = -d;
+      const n = h.filter(y => y[0] === x[0]).length;
+      if (n === 1) d += 6;
+      if (M.out(x[0]).filter(k => k < R(x)).length >= 2) d += 4;
+      return d;
+    };
+    return L.slice().sort((a, b) => dumpScore(b) - dumpScore(a))[0];
+  }
+
   // ---------- Tarneeb 61 (team bidding) ----------
   const T61 = {
     id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 لـ 13', target: 61, teams: true,
@@ -117,7 +218,10 @@ const Games = (() => {
         const min = st.bid ? st.bid.val + 1 : 7;
         if (val < min || val > 13) err('لازم تطلب ' + min + ' أو أكتر');
         st.bid = { seat, val }; log(st, st.names[seat] + ' طلب ' + val);
-      } else { st.passed[seat] = true; log(st, st.names[seat] + ' باس'); }
+      } else {
+        if (!st.bid && st.passed.filter(Boolean).length === 3) err('التلاتة قالوا باس: لازم تطلب 7 على الأقل');
+        st.passed[seat] = true; log(st, st.names[seat] + ' باس');
+      }
       const active = [0, 1, 2, 3].filter(i => !st.passed[i]);
       if (!st.bid && active.length === 0) { log(st, 'كلهم باس، توزيع جديد'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; }
       if (st.bid && (active.length === 1 && active[0] === st.bid.seat || st.bid.val === 13)) {
@@ -139,7 +243,7 @@ const Games = (() => {
       const tt = [st.tricks[0] + st.tricks[2], st.tricks[1] + st.tricks[3]];
       const d = [0, 0]; const notes = [];
       if (tt[B] >= st.bid.val) { d[B] = st.bid.val === 13 ? 26 : tt[B]; notes.push('الفريق الطالب جاب طلبه'); }
-      else { d[B] = st.bid.val === 13 ? -16 : -st.bid.val; d[O] = tt[O] === 13 ? 16 : tt[O]; notes.push('الفريق الطالب انكسر'); }
+      else { d[B] = st.bid.val === 13 ? -16 : -st.bid.val; d[O] = tt[O] === 13 ? 16 : tt[O]; notes.push('الفريق الطالب انكسر'); st.mistakes[st.bid.seat]++; }
       st.tscores = [st.tscores[0] + d[0], st.tscores[1] + d[1]];
       st.summary = { kind: 'team', rows: [['اللمّات', tt[0], tt[1]], ['نقاط الجولة', d[0], d[1]], ['المجموع', st.tscores[0], st.tscores[1]]], notes: [`الطلب: ${st.bid.val} (${st.names[st.bid.seat]})`, ...notes] };
       st.phase = 'handEnd';
@@ -154,6 +258,8 @@ const Games = (() => {
         const team = best + 2.6, min = st.bid ? st.bid.val + 1 : 7;
         const partnerBid = st.bid && teamOf(st.bid.seat) === teamOf(seat);
         const cap = Math.min(13, Math.floor(team + (partnerBid ? 0.3 : 0)));
+        const forced = !st.bid && st.passed.filter(Boolean).length === 3;
+        if (forced) return T61.bid(st, seat, 7);
         return T61.bid(st, seat, !partnerBid && cap >= min ? min : (partnerBid && cap >= min + 1 ? min : 0));
       }
       if (st.phase === 'trump') {
@@ -161,11 +267,11 @@ const Games = (() => {
         for (const s of SUITS) { const e = estTricks(st.hands[seat], s) + st.hands[seat].filter(c => c[0] === s).length * 0.2; if (e > best) { best = e; bs = s; } }
         return T61.chooseTrump(st, seat, bs);
       }
-      if (st.phase === 'play') return T61.play(st, seat, trickPlayBot(st, seat, true));
+      if (st.phase === 'play') return T61.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين، كل اتنين متقابلين شركاء. اللعب عكس عقارب الساعة، وكل لاعب معه 13 ورقة.</p>
-<p><b>المزايدة:</b> بتبلّش من يمين الموزّع. كل طلب لازم يكون أعلى من اللي قبله، من 7 لـ 13، واللي بيقول «باس» بيطلع من المزايدة. إذا قالوا كلهم باس بينعاد التوزيع.</p>
+<p><b>المزايدة:</b> بتبلّش من يمين الموزّع. كل طلب لازم يكون أعلى من اللي قبله، من 7 لـ 13، واللي بيقول «باس» بيطلع من المزايدة. إذا قالوا التلاتة الأوائل باس، الأخير ما بيقدر يقول باس ولازم يطلب 7 على الأقل.</p>
 <p><b>الطرنيب:</b> اللي ربح المزايدة بيختار الطرنيب وبيلعب أول ورقة.</p>
 <p><b>اللعب:</b> لازم تلعب من نفس الشكل إذا معك، وإذا ما معك بتلعب أي ورقة. الأكلة لأعلى ورقة من الشكل اللي انلعب، إلا إذا انلعب طرنيب فبتكون لأعلى طرنيب.</p>
 <p><b>الحساب:</b> إذا جاب الفريق طلبه بياخد عدد اللمّات اللي جابها والخصم ما بياخد شي. إذا انكسر بينخصم منه قيمة طلبه، والخصم بياخد لمّاته. طلب 13 وجابها: +26، وانكسر: −16. إذا الفريق الخصم أكل كل الـ13: +16.</p>
@@ -174,6 +280,9 @@ const Games = (() => {
 
   // ---------- Tarneeb Syrian 41 (individual bids) ----------
   const PAIR = { S: 'C', C: 'S', H: 'D', D: 'H' };
+  const t41min = (st, s) => (st.scores[s] >= 30 ? 3 : 2);
+  const t41total = st => (st.scores.some(x => x >= 30) ? 12 : 11);
+  const t41val = (st, s, b) => (b >= (st.scores[s] >= 30 ? 7 : 5) ? b * 2 : b);
   const T41 = {
     id: 'tarneeb41', name: 'طرنيب 41', sub: 'سوري · كل لاعب بيطلب لحاله', target: 41, teams: true,
     newGame(names, bots) { const st = base('tarneeb41', names, bots); st.dealer = rnd(4); T41.startHand(st); return st; },
@@ -187,21 +296,30 @@ const Games = (() => {
     bid(s, seat, val) {
       const st = clone(s);
       if (st.phase !== 'bid' || st.turn !== seat) err('مش دورك بالطلب');
-      if (!(val >= 2 && val <= 13)) err('الطلب من 2 لـ 13');
+      const mn = t41min(st, seat);
+      if (!(val >= mn && val <= 13)) err('طلبك من ' + mn + ' لـ 13');
       st.bids[seat] = val; log(st, st.names[seat] + ' طلب ' + val);
       const next = (seat + 1) % 4;
       if (st.bids.every(b => b != null)) {
         const tot = st.bids.reduce((a, b) => a + b, 0);
-        if (tot < 11) { log(st, 'مجموع الطلبات ' + tot + '، توزيع جديد'); T41.startHand(st); return st; }
+        if (tot < t41total(st)) { log(st, 'مجموع الطلبات ' + tot + ' أقل من ' + t41total(st) + '، توزيع جديد'); T41.startHand(st); return st; }
         st.phase = 'play'; st.turn = (st.dealer + 1) % 4;
       } else st.turn = next;
       return st;
     },
     play(s, seat, id) { return playCard(s, seat, id, T41); },
     endHand(st) {
-      const d = [0, 1, 2, 3].map(i => (st.tricks[i] >= st.bids[i] ? st.bids[i] : -st.bids[i]));
+      const val = [0, 1, 2, 3].map(i => t41val(st, i, st.bids[i]));
+      const made = [0, 1, 2, 3].map(i => st.tricks[i] >= st.bids[i]);
+      const d = [0, 1, 2, 3].map(i => (made[i] ? val[i] : -val[i]));
+      const notes = [];
+      for (let x = 0; x < 4; x++) {
+        const p = (x + 2) % 4;
+        if (!made[x] && st.scores[p] >= 30 && st.bids[x] > t41min(st, x) && d[p] > 0) { d[p] = -val[p]; notes.push(st.names[p] + ' انكسر مع شريكه ' + st.names[x]); }
+      }
+      for (let i = 0; i < 4; i++) if (!made[i]) st.mistakes[i]++;
       st.scores = st.scores.map((x, i) => x + d[i]);
-      st.summary = { kind: 'players', rows: [['الطلب', ...st.bids], ['اللمّات', ...st.tricks], ['نقاط الجولة', ...d], ['المجموع', ...st.scores]], notes: [] };
+      st.summary = { kind: 'players', rows: [['الطلب', ...st.bids], ['اللمّات', ...st.tricks], ['نقاط الجولة', ...d], ['المجموع', ...st.scores]], notes };
       st.phase = 'handEnd';
       const qual = [0, 1].filter(t => { const a = st.scores[t], b = st.scores[t + 2]; return (a >= 41 && b > 0) || (b >= 41 && a > 0); });
       if (qual.length) {
@@ -214,20 +332,23 @@ const Games = (() => {
     next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T41.startHand(st); return st; },
     bot(st, seat) {
       if (st.phase === 'bid') {
-        let e = Math.round(estTricks(st.hands[seat], st.trump));
-        e = Math.max(2, Math.min(13, e));
-        const others = st.bids.filter(b => b != null), sum = others.reduce((a, b) => a + b, 0);
-        if (others.length === 3 && sum + e < 11 && e < 4) e = Math.min(13, Math.max(e, 11 - sum));
+        const mn = t41min(st, seat), p = (seat + 2) % 4;
+        let e = Math.round(estTricks(st.hands[seat], st.trump) - 0.15);
+        if (st.scores[p] >= 30) e = Math.min(e, mn);
+        e = Math.max(mn, Math.min(13, e));
+        const others = st.bids.filter(b => b != null), sum = others.reduce((a, b) => a + b, 0), need = t41total(st);
+        if (others.length === 3 && sum + e < need && need - sum - e <= 2 && st.scores[p] < 30) e = Math.min(13, need - sum);
         return T41.bid(st, seat, e);
       }
-      if (st.phase === 'play') return T41.play(st, seat, trickPlayBot(st, seat, st.tricks[seat] < st.bids[seat] || st.tricks[(seat + 2) % 4] < st.bids[(seat + 2) % 4]));
+      if (st.phase === 'play') return T41.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين متقابلين، بس الطلب والحساب لكل لاعب لحاله. اللعب عكس عقارب الساعة، و13 ورقة لكل لاعب.</p>
 <p><b>الطرنيب:</b> بتنقلب ورقة من ورق الموزّع، والطرنيب بيكون الشكل التاني من نفس اللون: الكبة بتعطي ديناري والعكس، والبستوني بيعطي سباتي والعكس.</p>
-<p><b>الطلب:</b> كل لاعب بيطلب مرة وحدة بس، من 2 لـ 13 لمّة. إذا مجموع الطلبات أقل من 11 بينعاد التوزيع.</p>
+<p><b>الطلب:</b> كل لاعب بيطلب مرة وحدة بس، من 2 لـ 13 لمّة. إذا مجموع الطلبات أقل من 11 بينعاد التوزيع. إذا في لاعب رصيده 30 أو أكتر، أقل مجموع بيصير 12، وأقل طلب إله بيصير 3.</p>
 <p><b>اللعب:</b> بيبلّش اللي على يمين الموزّع. لازم تلعب من نفس الشكل إذا معك، والطرنيب بيغلب كل الأشكال.</p>
-<p><b>الحساب:</b> إذا جبت طلبك أو أكتر بينضاف قيمة طلبك بس. إذا ما جبته بينخصم قيمة طلبك.</p>
+<p><b>الحساب:</b> إذا جبت طلبك أو أكتر بينضاف قيمة طلبك بس، وإذا ما جبته بينخصم قيمة طلبك. الطلب من 5 وفوق بينحسب دبل (5 = 10، 6 = 12…)، بس إذا رصيدك 30 أو أكتر الدبل بيبلّش من 7.</p>
+<p><b>انكسار الشريك:</b> إذا شريكك رصيده 30 أو أكتر، وإنت طلبت أكتر من أقل طلب إلك وانكسرت، بينكسر شريكك معك بقيمة طلبه حتى لو جاب طلبه.</p>
 <p><b>الفوز:</b> بيربح الفريق لما يوصل واحد منه لـ 41 وشريكه نقاطه فوق الصفر.</p>`
   };
 
@@ -375,14 +496,27 @@ const Games = (() => {
         if (st.phase === 'trix') {
           const L = G.trixLegal(st, seat);
           if (!L.length) return G.trixPlay(st, seat, null);
+          const mineIn = (su, from, dir) => { let n = 0; for (let k = from + dir; k >= 2 && k <= 14; k += dir) if (h.includes(su + k)) n++; return n; };
           const score = c => {
+            const { s, r } = cr(c), Ld = st.ladder[s];
+            if (r === 11 && !Ld) {
+              const up = mineIn(s, 11, 1), dn = mineIn(s, 11, -1);
+              return up + dn + (h.includes(s + '12') ? 2 : 0) + (h.includes(s + '10') ? 2 : 0) - (up + dn === 0 ? 3 : 0);
+            }
+            const dir = r > 11 ? 1 : -1, next = r + dir;
+            const own = mineIn(s, r, dir), nextMine = h.includes(s + next) ? 3 : 0;
+            const opensOthers = next >= 2 && next <= 14 && !h.includes(s + next) ? 1.5 : 0;
+            return own * 1.6 + nextMine - opensOthers + (h.length <= 3 ? 2 : 0);
+          };
+          const scoreEasy = c => {
             const { s, r } = cr(c); const mine = h.filter(x => x[0] === s).map(x => cr(x).r);
             const up = r >= 11 ? mine.filter(x => x > r).length : 0, down = r <= 11 ? mine.filter(x => x < r).length : 0;
             return up + down + (r === 11 ? 0.5 : 0) - (r === 11 && mine.length <= 1 ? 1 : 0);
           };
-          return G.trixPlay(st, seat, L.slice().sort((a, b) => score(b) - score(a))[0]);
+          const f = Games.easy ? scoreEasy : score;
+          return G.trixPlay(st, seat, L.slice().sort((a, b) => f(b) - f(a))[0]);
         }
-        if (st.phase === 'play') return G.play(st, seat, penaltyPlay(st, seat));
+        if (st.phase === 'play') return G.play(st, seat, (Games.easy ? penaltyPlay(st, seat) : penaltyPlayStrong(st, seat)));
         return st;
       },
       rules: trixRules(contracts, partner)
@@ -413,7 +547,10 @@ const Games = (() => {
     const curW = winnerOf(st.trick, null), curR = R(st.trick.find(t => t.seat === curW).card);
     if (follow) {
       const under = L.filter(x => R(x) < curR);
-      if (under.length) return under.slice().sort((a, b) => danger(b, c) - danger(a, c))[0];
+      if (under.length) {
+        if (st.partner && teamOf(curW) === teamOf(seat)) { const safe = under.filter(x => danger(x, c) < 30); if (safe.length) return safe.slice().sort((a, b) => R(b) - R(a))[0]; }
+        return under.slice().sort((a, b) => danger(b, c) - danger(a, c))[0];
+      }
       if (st.trick.length === 3) return L.slice().sort((a, b) => R(b) - R(a))[0];
       return L.slice().sort((a, b) => R(a) - R(b))[0];
     }

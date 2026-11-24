@@ -30,7 +30,7 @@ input{font:inherit;font-size:16px;min-height:44px;padding:8px 12px;border-radius
 :focus-visible{outline:3px solid var(--a);outline-offset:2px}
 .muted{color:var(--dim);font-size:13px}
 /* ---------- menu ---------- */
-.menu{height:100%;overflow-y:auto;padding:max(16px,env(safe-area-inset-top)) max(4vw,14px) 40px}
+.menu{position:fixed;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding:max(16px,env(safe-area-inset-top)) max(4vw,14px) 40px}
 .menu .in{max-width:720px;margin:0 auto}
 .logo{display:flex;align-items:center;gap:14px;margin:6px 0 4px}
 .logo h1{font-size:52px;line-height:1;margin:0;font-weight:800;letter-spacing:-1px}
@@ -159,6 +159,26 @@ table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:7px 6px;b
 .dbl{display:flex;direction:ltr;gap:6px}.dbl .c{--w:34px;margin:0}.dbl .dsel .c{box-shadow:0 0 0 3px var(--red);transform:translateY(-6px)}
 .bidb{min-width:44px}.suitb{font-size:15px}
 @media(orientation:landscape) and (max-height:560px){.trickbox{height:min(52vh,190px)}.slot .c{--w:44px}}
+.rank{display:flex;gap:12px;align-items:center}
+.lvl{width:58px;height:58px;border-radius:16px;background:linear-gradient(#ffd56e,#e9ad2b);color:#2a1d00;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none}
+.lvl b{font:600 24px/1 Oswald,sans-serif}.lvl span{font-size:10px}
+.mrow{padding:6px 0;border-bottom:1px solid var(--line)}
+@keyframes inB{from{transform:translateY(160px) scale(.85);opacity:.2}}@keyframes inT{from{transform:translateY(-160px) scale(.85);opacity:.2}}
+@keyframes inL{from{transform:translateX(-140px) scale(.85);opacity:.2}}@keyframes inR{from{transform:translateX(140px) scale(.85);opacity:.2}}
+.c.in-pb{animation:inB .3s cubic-bezier(.2,.8,.3,1)}.c.in-pt{animation:inT .3s cubic-bezier(.2,.8,.3,1)}.c.in-pl{animation:inL .3s cubic-bezier(.2,.8,.3,1)}.c.in-pr{animation:inR .3s cubic-bezier(.2,.8,.3,1)}
+@keyframes toB{to{transform:translateY(170px) scale(.4);opacity:0}}@keyframes toT{to{transform:translateY(-170px) scale(.4);opacity:0}}
+@keyframes toL{to{transform:translateX(-150px) scale(.4);opacity:0}}@keyframes toR{to{transform:translateX(150px) scale(.4);opacity:0}}
+.trickbox.collect .c{animation-duration:.45s;animation-timing-function:ease-in;animation-fill-mode:forwards;animation-delay:var(--cd)}
+.trickbox.c-pb .c{animation-name:toB}.trickbox.c-pt .c{animation-name:toT}.trickbox.c-pl .c{animation-name:toL}.trickbox.c-pr .c{animation-name:toR}
+@keyframes deal{from{transform:translateY(-220px) rotate(-8deg);opacity:0}}
+.hand .c.deal{animation:deal .38s cubic-bezier(.2,.8,.3,1) backwards}
+@keyframes drop{from{transform:translateY(-90px) scale(1.15);opacity:.3}}
+.disc .c.drop{animation:drop .3s cubic-bezier(.2,.8,.3,1)}
+.lastt{align-self:flex-end;margin-inline-end:4px;background:rgba(0,0,0,.35);border-radius:12px;padding:4px 6px;font-size:10.5px;color:var(--dim);display:flex;flex-direction:column;gap:2px}
+.lastt .lrow .c{--w:24px;margin-right:-6px}.lastt .lrow .c .big{display:none}.lastt .lrow .c .rk{font-size:10px}.lastt .lrow .c .su{display:block;top:13px;left:3px;font-size:10px}
+.tboard{position:relative}
+.hint{text-align:center;font-size:11.5px;color:var(--dim);margin-top:2px}
+.hand .c.sel{z-index:60!important}
 @keyframes turn{0%,100%{box-shadow:0 0 0 3px var(--tc),0 0 0 6px rgba(255,255,255,.0)}50%{box-shadow:0 0 0 3px var(--tc),0 0 18px 6px var(--tc)}}
 @keyframes pulse{50%{opacity:.75}}
 @keyframes pop{from{transform:scale(.6);opacity:0}}
@@ -203,12 +223,14 @@ const ICON = {
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   micoff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/></svg>',
   phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+  spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11" stroke-linecap="round"/></svg>',
+  spkoff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20l18-8L3 4v6l12 2-12 2z" transform="scale(-1,1) translate(-24,0)"/></svg>'
 };
 
 let db = null, uid = null, ready = false;
 const ui = { view: 'home', mode: null, code: null, room: null, players: [], st: null, sel: new Set(), sheet: null, hidden: false, viewer: 0, busy: false, toast: null,
-  order: {}, chat: [], chatOpen: false, unread: 0, bubbles: {}, confirmExit: false, orient: ls.get('mor-orient') || 'portrait', localCfg: null };
+  order: {}, doneAt: {}, seenCard: new Set(), armed: null, dealtKey: null, chat: [], chatOpen: false, unread: 0, bubbles: {}, confirmExit: false, orient: ls.get('mor-orient') || 'portrait', localCfg: null };
 let unsub = [];
 const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة ومورين', teams: true, rules: `<p>14 ورقة لكل لاعب ومورين كل واحد 11. بدورك: اسحب من السحبة أو خذ من الأرض (ورقة، أو من تحت مع كل اللي فوقها)، نزّل إذا بدك، وارمي ورقة. الورقة اللي بتاخدها لحالها من الأرض ما بترجّعها إلا إذا معك متلها.<br>
   سيري: 7–9 = 40 (مكسور 20)، 10–11 = 60 (40)، 12 = 80 (60)، 13 = 100 (80). الـ2 من شكل تاني أو الجوكر بيكسر.<br>
@@ -230,7 +252,7 @@ function cardHTML(id, extra = '', attrs = '') {
   const c = Mor.card(id), red = c.s === 'H' || c.s === 'D', r = RK[c.r] || c.r;
   return `<div class="c ${red ? 'r' : ''} ${extra}" data-id="${id}" ${attrs} aria-label="${r}${SUIT[c.s]}"><span class="rk">${r}</span><span class="su">${SUIT[c.s]}</span><span class="big">${SUIT[c.s]}</span></div>`;
 }
-const SO = { S: 0, H: 1, C: 2, D: 3 };
+const SO = { H: 0, S: 1, D: 2, C: 3 };
 function sortIds(h, byRank) {
   return h.slice().sort((a, b) => {
     if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
@@ -245,6 +267,52 @@ function handOrder(seat, hand) {
   ui.order[seat] = o; return o;
 }
 function toast(m) { ui.toast = m; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 2800); }
+
+// ---------- sounds ----------
+const snd = { on: ls.get('mor-sound') !== false, ctx: null };
+function actx() { if (!snd.ctx) { try { snd.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } } if (snd.ctx.state === 'suspended') snd.ctx.resume(); return snd.ctx; }
+function noise(dur, freq, gain, sweep) {
+  const c = actx(); if (!c || !snd.on) return;
+  const n = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, n, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+  const src = c.createBufferSource(); src.buffer = buf;
+  const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 0.9;
+  if (sweep) f.frequency.exponentialRampToValueAtTime(sweep, c.currentTime + dur);
+  const g = c.createGain(); g.gain.value = gain;
+  src.connect(f); f.connect(g); g.connect(c.destination); src.start();
+}
+function tone(freqs, gap, gain) {
+  const c = actx(); if (!c || !snd.on) return;
+  freqs.forEach((fr, i) => {
+    const o = c.createOscillator(), g = c.createGain(), t = c.currentTime + i * gap;
+    o.type = 'sine'; o.frequency.value = fr; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.4);
+  });
+}
+const SFX = {
+  card: () => noise(0.07, 2200, 0.55),
+  collect: () => noise(0.32, 900, 0.35, 3500),
+  deal: () => { for (let i = 0; i < 6; i++) setTimeout(() => noise(0.05, 2600, 0.35), i * 70); },
+  turn: () => tone([660, 880], 0.09, 0.08),
+  win: () => tone([523, 659, 784, 1047], 0.11, 0.1),
+  bad: () => tone([330, 247], 0.12, 0.08)
+};
+function soundsFor(prev, st, me) {
+  if (!prev || !st || prev === st) return;
+  const G = gameOf(st);
+  if ((st.handNo || st.round) !== (prev.handNo || prev.round) || st.deal !== prev.deal) return SFX.deal();
+  if (st.phase === 'over' && prev.phase !== 'over') return SFX.win();
+  if (G.id === 'mor') {
+    if (st.discard.length !== prev.discard.length || st.melds.length !== prev.melds.length || JSON.stringify(st.melds) !== JSON.stringify(prev.melds)) SFX.card();
+    if (st.stock.length < prev.stock.length) SFX.card();
+  } else {
+    const n = t => (t.trick || []).length + (t.trickDone ? 10 : 0);
+    if (n(st) !== n(prev) || (st.ladder && JSON.stringify(st.ladder) !== JSON.stringify(prev.ladder))) SFX.card();
+    if (st.trickDone && !prev.trickDone) setTimeout(SFX.collect, 750);
+  }
+  if (me >= 0 && G.actor(st) === me && G.actor(prev) !== me) setTimeout(SFX.turn, 150);
+}
+document.addEventListener('pointerdown', () => actx(), { once: true });
 
 // ---------- viewer ----------
 function humans(st) { return [0, 1, 2, 3].filter(s => !(st.bots && st.bots[s])); }
@@ -264,15 +332,19 @@ async function act(fn, ...args) {
 }
 async function commit(next) {
   next.v = (ui.st && ui.st.v || 0) + 1;
-  ui.sel.clear(); ui.sheet = null;
+  ui.sel.clear(); ui.sheet = null; ui.armed = null;
   if (ui.mode === 'local') { ui.st = next; ls.set(saveKey(next.game || 'mor'), next); afterState(); return render(); }
   ui.busy = true; const prev = ui.st; ui.st = next; render();
   try { await B().writeState(next, prev && prev.v || 0); }
   catch (e) { if (e.live) { ui.st = e.live; toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
   ui.busy = false; afterState(); render();
 }
+let prevSt = null;
 function afterState() {
   const st = ui.st; if (!st) return;
+  try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
+  prevSt = st;
+  if (ui.mode === 'fb' && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
   const a = gameOf(st).actor(st);
   if (ui.mode === 'local' && a >= 0) {
     const hs = humans(st);
@@ -293,7 +365,7 @@ function runBots() {
     let n; try { n = G.bot(ui.st, a); } catch (e) { console.error(e); return; }
     if (n === ui.st) return;
     await commit(n);
-  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1000 : 650));
+  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1500 : 700));
 }
 
 // ---------- backends ----------
@@ -390,6 +462,7 @@ const fbB = {
   async open(code, name) {
     const snap = await FB.getDoc(fbB.ref('rooms', code));
     if (!snap.exists()) throw new Error('ما لقيت هالغرفة');
+    FB.setDoc(fbB.ref('users', uid), { name, t: Date.now() }, { merge: true }).catch(() => {});
     const pr = fbB.ref('rooms', code, 'players', uid), me = await FB.getDoc(pr);
     await FB.setDoc(pr, { name, seat: me.exists() ? me.data().seat : -1, voice: false, t: Date.now() });
     const errH = () => toast('انقطع الاتصال بالغرفة');
@@ -425,6 +498,110 @@ const fbB = {
 lanB.voiceState = on => lanB.req('/api/voicestate', { id: uid, on });
 lanB.signal = (to, kind, sdp) => lanB.req('/api/signal', { from: uid, to, kind, sdp });
 const social = () => ui.mode === 'lan' || ui.mode === 'fb';
+
+
+// ---------- ratings, leaderboards and match history (online only) ----------
+const START = 1000;
+const TITLES = [[0, 'مبتدئ'], [1050, 'هاوي'], [1150, 'لاعب'], [1300, 'محترف'], [1500, 'خبير'], [1800, 'أسطورة']];
+const titleOf = r => TITLES.filter(t => r >= t[0]).pop()[1];
+const levelOf = r => Math.max(1, Math.floor((r - START) / 50) + 1);
+function seatWon(st, s) {
+  const G = gameOf(st);
+  if (st.winner != null && (G.teams || st.partner || G.id === 'mor')) return s % 2 === st.winner;
+  return st.winnerSeat === s;
+}
+let recording = null;
+async function recordMatch(st) {
+  if (recording === st.deal) return; recording = st.deal;
+  const G = gameOf(st), seats = st.seats || [];
+  const humans = [0, 1, 2, 3].filter(s => seats[s]);
+  if (humans.length < 2) return;
+  try {
+    const roomRef = fbB.ref('rooms', ui.code);
+    const ok = await FB.runTransaction(fb.db, async tx => { const r = await tx.get(roomRef); if ((r.data() || {}).recorded === st.deal) return false; tx.update(roomRef, { recorded: st.deal }); return true; });
+    if (!ok) return;
+    const mist = st.mistakes || [0, 0, 0, 0];
+    await FB.addDoc(fbB.col('matches'), {
+      game: G.id, t: Date.now(), uids: humans.map(s => seats[s]),
+      players: [0, 1, 2, 3].map(s => ({ uid: seats[s] || null, name: st.names[s], seat: s, won: seatWon(st, s), bot: !seats[s], mistakes: mist[s] || 0 })),
+      scores: st.tscores || st.scores
+    });
+    for (const s of humans) {
+      const ref = fbB.ref('users', seats[s]);
+      await FB.runTransaction(fb.db, async tx => {
+        const d = (await tx.get(ref)).data() || {};
+        const all = d.stats || {}, me = all[G.id] || { rating: START, played: 0, wins: 0, losses: 0, mistakes: 0 };
+        const won = seatWon(st, s), m = mist[s] || 0;
+        me.rating = Math.max(0, me.rating + (won ? 25 : -20) - 3 * m);
+        me.played++; won ? me.wins++ : me.losses++; me.mistakes += m;
+        all[G.id] = me;
+        tx.set(ref, { name: st.names[s], t: Date.now(), stats: all }, { merge: true });
+      });
+    }
+    toast('انحفظت النتيجة بالترتيب');
+  } catch (e) { console.error(e); recording = null; }
+}
+async function loadMyStats(gid) {
+  try { const d = await FB.getDoc(fbB.ref('users', uid)); ui.myStats = ((d.data() || {}).stats || {})[gid] || null; ui.myStatsFor = gid; render(); } catch (e) {}
+}
+async function openBoard(gid) {
+  ui.board = { gid, loading: true, rows: [] }; render();
+  try {
+    const q = FB.query(fbB.col('users'), FB.orderBy('stats.' + gid + '.rating', 'desc'), FB.limit(30));
+    const r = await FB.getDocs(q);
+    ui.board.rows = r.docs.map(d => ({ id: d.id, name: d.data().name, ...(d.data().stats || {})[gid] }));
+  } catch (e) { ui.board.err = 'ما قدرت أجيب الترتيب'; }
+  ui.board.loading = false; render();
+}
+async function openHistory(gid) {
+  ui.hist = { gid, loading: true, list: [], h2h: [] }; render();
+  try {
+    const r = await FB.getDocs(FB.query(fbB.col('matches'), FB.where('uids', 'array-contains', uid), FB.limit(200)));
+    const list = r.docs.map(d => d.data()).filter(m => m.game === gid).sort((a, b) => b.t - a.t);
+    const h = {};
+    for (const m of list) {
+      const me = m.players.find(p => p.uid === uid); if (!me) continue;
+      for (const p of m.players) {
+        if (!p.uid || p.uid === uid) continue;
+        const partner = GG(gid).teams && (p.seat % 2) === (me.seat % 2);
+        const k = p.uid; h[k] = h[k] || { name: p.name, vsW: 0, vsL: 0, withW: 0, withL: 0 };
+        h[k].name = p.name;
+        if (partner) me.won ? h[k].withW++ : h[k].withL++; else me.won ? h[k].vsW++ : h[k].vsL++;
+      }
+    }
+    ui.hist.list = list.slice(0, 30); ui.hist.h2h = Object.values(h).sort((a, b) => (b.vsW + b.vsL + b.withW + b.withL) - (a.vsW + a.vsL + a.withW + a.withL));
+  } catch (e) { ui.hist.err = 'ما قدرت أجيب السجل'; }
+  ui.hist.loading = false; render();
+}
+function rankPanel(G) {
+  if (!fb.ready) return '';
+  if (ui.myStatsFor !== G.id) { ui.myStatsFor = G.id; ui.myStats = null; loadMyStats(G.id); }
+  const m = ui.myStats, r = m ? m.rating : START;
+  return `<div class="panel"><h2>ترتيبك</h2>
+    <div class="rank"><div class="lvl"><b>${levelOf(r)}</b><span>مستوى</span></div><div><b style="font-size:18px">${titleOf(r)}</b><div class="muted">${r} نقطة · ربح ${m ? m.wins : 0} · خسارة ${m ? m.losses : 0} · أخطاء ${m ? m.mistakes : 0}</div></div></div>
+    <div class="acts"><button class="btn alt sm" data-a="board">لوحة الترتيب</button><button class="btn alt sm" data-a="hist">سجلّي والمواجهات</button></div>
+    <div class="muted" style="margin-top:6px">الترتيب بيتحسب بالألعاب الأونلاين اللي فيها لاعبين حقيقيين أو أكتر: الربح +25، الخسارة −20، وكل غلطة −3 (انكسار بالطلب أو بالإعلان).</div></div>`;
+}
+function rankOverlays() {
+  let h = '';
+  if (ui.board) {
+    const b = ui.board;
+    h += `<div class="ov" data-a="closeBoard"><div class="box" data-stop="1"><div class="row" style="justify-content:space-between"><h2>لوحة الترتيب · ${esc(GG(b.gid).name)}</h2><button class="ic" data-a="closeBoard">${ICON.x}</button></div>
+      ${b.loading ? '<p class="muted">عم يحمّل…</p>' : b.err ? `<p class="muted">${b.err}</p>` : b.rows.length ? `<table><tr><th>#</th><th>اللاعب</th><th>المستوى</th><th>نقاط</th><th>ربح/خسارة</th></tr>${b.rows.map((x, i) => `<tr ${x.id === uid ? 'style="background:rgba(242,193,78,.15)"' : ''}><td>${i + 1}</td><td>${esc(x.name)}</td><td>${levelOf(x.rating)} · ${titleOf(x.rating)}</td><td>${x.rating}</td><td>${x.wins}/${x.losses}</td></tr>`).join('')}</table>` : '<p class="muted">لسا ما حدا لعب أونلاين بهاللعبة.</p>'}
+    </div></div>`;
+  }
+  if (ui.hist) {
+    const H = ui.hist, G = GG(H.gid);
+    h += `<div class="ov" data-a="closeHist"><div class="box" data-stop="1"><div class="row" style="justify-content:space-between"><h2>سجلّي · ${esc(G.name)}</h2><button class="ic" data-a="closeHist">${ICON.x}</button></div>
+      ${H.loading ? '<p class="muted">عم يحمّل…</p>' : H.err ? `<p class="muted">${H.err}</p>` : `
+      <h3 style="margin:8px 0 4px">المواجهات المباشرة</h3>
+      ${H.h2h.length ? `<table><tr><th>اللاعب</th><th>ضده</th><th>معه</th></tr>${H.h2h.map(x => `<tr><td>${esc(x.name)}</td><td>${x.vsW} ربح · ${x.vsL} خسارة</td><td>${x.withW + x.withL ? x.withW + ' ربح · ' + x.withL + ' خسارة' : '–'}</td></tr>`).join('')}</table>` : '<p class="muted">لسا ما في مواجهات.</p>'}
+      <h3 style="margin:12px 0 4px">آخر اللعبات</h3>
+      ${H.list.length ? H.list.map(m => { const me = m.players.find(p => p.uid === uid); return `<div class="mrow"><b style="color:${me && me.won ? 'var(--a)' : '#ff6b74'}">${me && me.won ? 'ربح' : 'خسارة'}</b> <span class="muted">${new Date(m.t).toLocaleDateString('ar')}</span><div class="muted">${m.players.map(p => esc(p.name) + (p.won ? ' ✓' : '')).join(' · ')}</div></div>`; }).join('') : '<p class="muted">لسا ما لعبت أونلاين بهاللعبة.</p>'}`}
+    </div></div>`;
+  }
+  return h;
+}
 
 // ---------- chat ----------
 const seenChat = new Set();
@@ -666,8 +843,9 @@ function gamePage() {
     <div class="acts"><button class="btn" data-a="create">غرفة جديدة</button></div>
     <div class="row" style="margin-top:10px"><input id="code" class="grow" placeholder="كود الغرفة" maxlength="4" style="text-transform:uppercase;direction:ltr;text-align:center"><button class="btn alt" data-a="join">ادخل</button></div></div>` : ''}
   </div>
+  ${rankPanel(G)}
   <details class="panel rules" ${ui.rulesOpen ? 'open' : ''}><summary>شرح اللعبة والقوانين</summary><div style="margin-top:8px">${G.rules}</div></details>
-  </div></div>`;
+  </div></div>${rankOverlays()}${ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : ''}`;
 }
 function lobby() {
   const seat = s => { const p = ui.players.find(x => x.seat === s); return `<button class="seat ${p && p.id === uid ? 'me' : ''}" data-a="sit" data-s="${s}"><div class="muted">${TEAM[s % 2]} · مقعد ${s + 1}</div><b>${p ? esc(p.name) : 'فاضي، اضغط لتقعد'}</b></button>`; };
@@ -705,7 +883,8 @@ function game() {
   const canDraw = myTurn && st.step === 'draw';
   const piles = `<div class="piles"><div class="pile ${canDraw && st.stock.length ? 'can' : ''} ${st.stock.length ? '' : 'gone'}" data-a="${canDraw && st.stock.length ? 'draw' : ''}">${cardHTML('back')}<span class="n">${st.stock.length}</span><span>السحبة</span></div>
     ${[0, 1].map(k => `<div class="pile ${st.mor[k] ? '' : 'gone'}">${cardHTML('back')}<span>${st.morBy[k] != null ? (st.morBy[k] === myT ? 'إلنا' : 'إلهم') : 'مور'}</span></div>`).join('')}</div>`;
-  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فاضية</span>'}</div>`;
+  const topK = st.discard.length + ':' + st.discard[st.discard.length - 1], dropNew = ui.topK && ui.topK !== topK && st.discard.length; ui.topK = topK;
+  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, dropNew && i === st.discard.length - 1 ? 'drop' : '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فاضية</span>'}</div>`;
   let status = '', acts = '';
   const last = st.log[st.log.length - 1] || '';
   if (st.phase === 'play') {
@@ -727,7 +906,7 @@ function game() {
   return `<div class="game">
   <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
     <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
-    ${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
+    ${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}<button class="ic" data-a="sound" aria-label="${snd.on ? 'كتم الصوت' : 'شغّل الصوت'}">${snd.on ? ICON.spk : ICON.spkoff}</button></div>
   <div class="partner">${seatHTML(st, P, me)}</div>
   <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
   <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">السحبة خلصت: آخر دور من الأرض بس</div>` : ''}<div class="status">${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
@@ -783,9 +962,11 @@ function seatT(st, s, me) {
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  const hand = me >= 0 ? Games.sortIds(st.hands[me]) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
+  const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
+  if (ui.armed && !hand.includes(ui.armed)) ui.armed = null;
   const teamSum = t => st.game === 'tarneeb61' ? st.tscores[t] : st.scores[t] + st.scores[t + 2] + liveHs(st, t) + liveHs(st, t + 2);
   const pills = (G.teams || st.partner)
     ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${teamSum(1)}</b></span>`
@@ -812,8 +993,21 @@ function trickTable() {
       return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">ناطر الشبّ</span>'}</div></div>`;
     }).join('')}</div>`;
   } else {
-    const slot = (s, pos) => { const t = st.trick.find(x => x.seat === s); const win = st.trickDone && st.lastWinner === s; return `<div class="slot ${pos} ${win ? 'win' : ''}">${t ? cardHTML(t.card) : ''}</div>`; };
-    centre = `<div class="trickbox">${slot(P, 'pt')}${slot(L, 'pl')}${slot(R, 'pr')}${slot(base, 'pb')}</div>`;
+    const posOf = x => (x === base ? 'pb' : x === R ? 'pr' : x === P ? 'pt' : 'pl');
+    const doneKey = st.handNo + ':' + st.tricks.reduce((x, y) => x + y, 0);
+    let cls = '', delay = 0, hideAll = false;
+    if (st.trickDone) {
+      const t0 = ui.doneAt[doneKey] || (ui.doneAt[doneKey] = Date.now()), el = Date.now() - t0;
+      if (el > 1500) hideAll = true; else { cls = 'collect c-' + posOf(st.lastWinner); delay = 750 - el; setTimeout(render, 1560 - el); }
+    }
+    const slot = (x, pos) => {
+      const t = hideAll ? null : st.trick.find(y => y.seat === x); let extra = '';
+      if (t) { const k = st.handNo + ':' + t.card; if (!ui.seenCard.has(k)) { ui.seenCard.add(k); if (!st.trickDone) extra = 'in-' + pos; } }
+      return `<div class="slot ${pos} ${st.trickDone && st.lastWinner === x && !hideAll ? 'win' : ''}">${t ? cardHTML(t.card, extra) : ''}</div>`;
+    };
+    const pt = st.prevTrick && (!st.trickDone || hideAll) ? st.prevTrick : (st.trickDone && hideAll ? st.prevTrick : null);
+    const lastBox = pt && st.phase === 'play' ? `<div class="lastt"><span>آخر لطشة · ${esc(st.names[pt.winner])}</span><div class="mini lrow">${pt.cards.map(t => cardHTML(t.card)).join('')}</div></div>` : '';
+    centre = `${lastBox}<div class="trickbox ${cls}" style="--cd:${delay}ms">${slot(P, 'pt')}${slot(L, 'pl')}${slot(R, 'pr')}${slot(base, 'pb')}</div>`;
   }
   // status + actions
   let status = '', acts = '';
@@ -845,11 +1039,11 @@ function trickTable() {
   const chatBtn = social() ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
     <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="المكالمة">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}</button>` : '';
   return `<div class="game tg">
-  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button><div class="score">${pills}<span class="sp">${esc(G.name)}</span></div>${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}</div>
+  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button><div class="score">${pills}<span class="sp">${esc(G.name)}</span></div>${chatBtn}${native ? `<button class="ic" data-a="rotate" aria-label="تدوير">${ICON.rot}</button>` : ''}<button class="ic" data-a="sound" aria-label="${snd.on ? 'كتم الصوت' : 'شغّل الصوت'}">${snd.on ? ICON.spk : ICON.spkoff}</button></div>
   <div class="partner">${seatT(st, P, me)}</div>
   <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
   <div class="bar"><div class="status">${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
-  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, legalSet && !legalSet.includes(id) ? 'dim' : '')).join('')}</div></div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اكبس مرتين على الورقة أو اسحبها لفوق لتلعبها</div>' : ''}</div>
   </div>${overlays2(me)}`;
 }
 function overlays2(me) {
@@ -917,11 +1111,12 @@ document.addEventListener('pointermove', e => {
 document.addEventListener('pointerup', e => {
   if (!drag) return;
   const d = drag; drag = null;
-  if (!d.moved) {
-    const id = d.id;
-    if (ui.st && gameOf(ui.st).id !== 'mor') return tapCard(id);
-    ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); return render();
+  const tg = ui.st && gameOf(ui.st).id !== 'mor';
+  if (tg) {
+    if (d.moved) { if (d.sy - e.clientY > 70) return tryPlay(d.id); return render(); }
+    return tapCard(d.id);
   }
+  if (!d.moved) { const id = d.id; ui.sel.has(id) ? ui.sel.delete(id) : ui.sel.add(id); return render(); }
   const me = mySeat(); const order = ui.order[me]; if (!order) return render();
   const x = parseFloat(d.el.style.left) + d.hand._w / 2, y = parseFloat(d.el.style.top);
   let best = 0, bd = Infinity;
@@ -931,12 +1126,18 @@ document.addEventListener('pointerup', e => {
 });
 document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
 
-function tapCard(id) {
+function tryPlay(id) {
   const st = ui.st, G = gameOf(st), me = mySeat();
-  if (G.actor(st) !== me || ui.hidden) return;
+  if (G.actor(st) !== me || ui.hidden) { ui.armed = null; return render(); }
   if (st.phase === 'play') return act(G.play, id);
   if (st.phase === 'trix') return act(G.trixPlay, id);
-  if (st.phase === 'double' && G.dblCards(st, me).includes(id)) { ui.dblSel = ui.dblSel || []; ui.dblSel.includes(id) ? ui.dblSel.splice(ui.dblSel.indexOf(id), 1) : ui.dblSel.push(id); render(); }
+  render();
+}
+function tapCard(id) {
+  const st = ui.st, G = gameOf(st), me = mySeat();
+  if (st.phase === 'double' && G.actor(st) === me && G.dblCards(st, me).includes(id)) { ui.dblSel = ui.dblSel || []; ui.dblSel.includes(id) ? ui.dblSel.splice(ui.dblSel.indexOf(id), 1) : ui.dblSel.push(id); return render(); }
+  if (ui.armed === id) return tryPlay(id);
+  ui.armed = id; render();
 }
 function render() {
   const disc = document.getElementById('disc'); const dscroll = disc ? disc.scrollLeft : null;
@@ -985,6 +1186,9 @@ $app.addEventListener('click', e => {
       dblDone: () => { const sel = (ui.dblSel || []).slice(); ui.dblSel = []; act(gameOf(ui.st).double, sel); },
       trixPass: () => act(gameOf(ui.st).trixPlay, null),
       createFb: () => createRoom('fb'), joinFb: () => joinRoom('fb', document.getElementById('fbcode').value), fbRetry: () => fbInit(),
+      board: () => openBoard(ui.gameId), hist: () => openHistory(ui.gameId),
+      closeBoard: () => { ui.board = null; render(); }, closeHist: () => { ui.hist = null; render(); },
+      sound: () => { snd.on = !snd.on; ls.set('mor-sound', snd.on); if (snd.on) SFX.card(); render(); },
       rotate: () => setOrient(ui.orient === 'portrait' ? 'landscape' : 'portrait')
     }[a] || (() => {}))();
     return;

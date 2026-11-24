@@ -241,7 +241,7 @@ const Mor = (() => {
     }
     log(st, nm(st, seat) + ' رمى ورقة');
     if (st.declared && st.declared.seat === seat) {
-      st.pen[teamOf(seat)] += 20; st.penNotes.push(nm(st, seat) + ' أعلن ' + (st.declared.kind === 'mor' ? 'المور' : 'الضمان') + ' وما قدر: −20');
+      st.pen[teamOf(seat)] += 20; st.mistakes = st.mistakes || [0, 0, 0, 0]; st.mistakes[seat]++; st.penNotes.push(nm(st, seat) + ' أعلن ' + (st.declared.kind === 'mor' ? 'المور' : 'الضمان') + ' وما قدر: −20');
       log(st, nm(st, seat) + ' انكسر: −20');
     }
     return nextTurn(st);
