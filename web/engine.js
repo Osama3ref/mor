@@ -157,14 +157,14 @@ const Mor = (() => {
   function draw(s, seat) {
     const st = clone(s); need(st, seat, 'draw');
     if (!st.stock.length) err('السحبة خلصت، خذ من الأرض');
-    const c = st.stock.pop(); st.hands[seat].push(c); st.step = 'play'; st.got = { seat, ids: [c] }; st.noDiscard = null;
+    const c = st.stock.pop(); st.hands[seat].push(c); st.step = 'play'; st.got = { seat, ids: [c] }; st.noDiscard = null; st.sinceDraw = 0;
     log(st, nm(st, seat) + ' سحب من السحبة');
     return st;
   }
   function takeDiscard(s, seat, index) {
     const st = clone(s); need(st, seat, 'draw');
     if (index < 0 || index >= st.discard.length) err('ورقة غلط');
-    const got = st.discard.splice(index);
+    const got = st.discard.splice(index); st.sinceDraw = (st.sinceDraw || 0) + 1;
     st.hands[seat].push(...got); st.step = 'play'; st.got = { seat, ids: got };
     st.noDiscard = got.length === 1 ? { seat, id: got[0] } : null;
     (st.taken = st.taken || []).push({ seat, ids: got.slice(0, 6) }); if (st.taken.length > 24) st.taken.shift();
@@ -458,11 +458,11 @@ const Mor = (() => {
     const late = st.stock.length < 10;
     const P = Mor.P || {};
     const hungry = h.length <= (P.hungryN ?? 5) && ground(st, T) < MOR_MIN;
-    let best = -1, bv = st.stock.length ? (hungry ? (P.hbase ?? 1) : (P.base ?? 5)) : -Infinity;
+    let best = -1, bv = st.stock.length ? (hungry ? (P.hbase ?? 1) : (P.base ?? -6)) + (st.sinceDraw || 0) * (P.sd ?? 2) : -Infinity;
     for (let i = st.discard.length - 1; i >= 0 && i >= st.discard.length - 30; i--) {
       const got = st.discard.slice(i);
       if (hungry && got.length < (P.hmin ?? 4) && st.stock.length) continue;
-      const v = potential([...h, ...got], st.melds, T) - base - got.length * (hungry ? (P.hcost ?? -0.6) : late ? (P.late ?? 1.5) : (P.early ?? 0.8));
+      const v = potential([...h, ...got], st.melds, T) - base - got.length * (hungry ? (P.hcost ?? -0.6) : late ? (P.late ?? 1) : (P.early ?? 0.3));
       if (v > bv) { bv = v; best = i; }
     }
     return best;
