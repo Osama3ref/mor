@@ -41,7 +41,7 @@ function afterState() {
   const st = ui.st; if (!st) return;
   try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
   prevSt = st;
-  if (ui.mode === 'fb' && st.game !== 'mafia' && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
+  if (ui.mode === 'fb' && !['mafia', 'coup'].includes(st.game) && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
   const a = gameOf(st).actor(st);
   if (ui.mode === 'local' && a >= 0) {
     const hs = humans(st);

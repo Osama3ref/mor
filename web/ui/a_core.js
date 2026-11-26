@@ -50,7 +50,7 @@ const CSTY = [['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], 
 const BACKS = [['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
 const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'classic', back: 'navy', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
 if (!prof.name && ls.get('mor-name')) prof.name = ls.get('mor-name');
-if (prof.lastGame === 'mafia') prof.lastGame = 'mor';
+if (prof.lastGame === 'mafia' || prof.lastGame === 'coup') prof.lastGame = 'mor';
 function saveProf() { ls.set('mor-prof', prof); applySkin(); }
 function applySkin() { const d = document.documentElement.dataset; d.skin = prof.skin; d.cards = prof.cards; d.back = prof.back; }
 applySkin();
@@ -80,7 +80,12 @@ const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين وأ�
   <b>بالنهار:</b> بينعرف مين انقتل، وبتتناقشوا بالصوت أو الدردشة، وبعدين بتصوّتوا مين يطلع. التعادل ما بيطلّع حدا.<br>
   الشعب بيربح إذا طلّع كل المافيا. المافيا بتربح إذا صار عددها قد الباقيين.<br>
   الراوي ممكن يكون التطبيق، أو صاحب الغرفة (بيشوف كل الأدوار وبيدير اللعبة بدون ما يلعب). صاحب الغرفة بيختار إذا دور اللي بيطلع بينكشف ولا لأ.</p>` };
-const ROOMG = [...ALL, MafiaG];
+const CoupG = { id: 'coup', name: 'كو (Coup)', sub: '2–6 لاعبين · كذب وانقلابات', icon: '🃏', social: true, actor: () => -1,
+  rules: `<p>كل لاعب معه ورقتين شخصيات مخفيين (نفوذ) و2 مصاري. اللي بيخسر ورقتيه بيطلع، وآخر واحد بيضل بيربح.<br>
+  <b>بدورك بتعمل حركة وحدة:</b> دخل +1 · مساعدة خارجية +2 (الدوق بيمنعها) · انقلاب بـ 7: لاعب بيخسر ورقة، وما حدا بيقدر يمنعه، وإذا معك 10 لازم تعمله.<br>
+  <b>حركات الشخصيات (فيك تكذب فيها):</b> 👑 الدوق: ضريبة +3 · 🗡️ القاتل: اغتيال بـ 3 (الكونتيسة بتمنعه) · ⚓ القبطان: بيسرق 2 من لاعب (القبطان أو السفير بيمنعوه) · 🕊️ السفير: بياخد ورقتين من السحبة وبيرجّع اتنين.<br>
+  <b>الشك:</b> أي حدا فيه يشكّك بادعاء أو بمنع. إذا طلع معه الشخصية، اللي شكّك بيخسر ورقة، وصاحب الشخصية بيبدّلها بورقة جديدة. وإذا كان كذّاب هو بيخسر ورقة والحركة بتفشل.</p>` };
+const ROOMG = [...ALL, MafiaG, CoupG];
 const GG = id => ROOMG.find(g => g.id === id) || MorG;
 const gameIcon = (g, w = 30) => (g.icon ? `<span class="gemo" style="font-size:${w * 1.3}px">${g.icon}</span>` : fan(GICON[g.id] || GICON.mor, w));
 const gameOf = st => GG(st && st.game || 'mor');
@@ -185,6 +190,16 @@ const SFX = {
 function soundsFor(prev, st, me) {
   if (!prev || !st || prev === st) return;
   const G = gameOf(st);
+  if (st.game === 'coup') {
+    if (st.phase === 'over' && prev.phase !== 'over') return SFX.win();
+    const dead = q => q.players.reduce((n, p) => n + p.cards.filter(c => c.dead).length, 0);
+    if (dead(st) > dead(prev)) return SFX.bad();
+    const coins = q => q.players.reduce((n, p) => n + p.coins, 0);
+    if (coins(st) !== coins(prev)) return play(t => { [0, 0.07, 0.13].forEach(d => bell(t + d, 1900 + Math.random() * 400, 0.05, 0.25)); });
+    if (st.phase !== prev.phase && st.phase === 'turn' && Coup.cur(st).id === uid) return SFX.turn();
+    if (st.phase !== prev.phase) SFX.tap();
+    return;
+  }
   if (st.game === 'mafia') {
     if (st.phase !== prev.phase) {
       if (st.phase === 'over') return SFX.win();

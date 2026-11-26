@@ -1,4 +1,4 @@
-parts=['a_core','b_mid','c_rooms','d_screens','e_table','e_mafia','f_hand','g_main']
+parts=['a_core','b_mid','c_rooms','d_screens','e_table','e_mafia','e_coup','f_hand','g_main']
 js='\n'.join(open(f'/home/claude/mor/ui/{p}.js').read() for p in parts)
 import json,base64,re as _re
 _ff=''.join("@font-face{font-family:'%s';font-style:normal;font-weight:%d;font-display:swap;src:url(data:font/woff2;base64,%s) format('woff2');unicode-range:%s}" % (f,w,base64.b64encode(open('/home/claude/mor/fonts/'+fn,'rb').read()).decode(),ur) for f,w,fn,ur in json.load(open('/home/claude/mor/fonts/fonts.json')))
@@ -9,7 +9,8 @@ eng=open('/home/claude/mor/engine.js').read().replace("if (typeof module !== 'un
 gm=open('/home/claude/mor/games.js').read().replace("if (typeof module !== 'undefined') module.exports = Games;","")
 fbjs=open('/tmp/fbbuild/fb.js').read()
 mf=open('/home/claude/mor/mafia.js').read().replace("if (typeof module !== 'undefined') module.exports = Mafia;","")
-base=s.replace('/*ENGINE*/',eng+'\n'+gm+'\n'+mf)
+cp=open('/home/claude/mor/coup.js').read().replace("if (typeof module !== 'undefined') module.exports = Coup;","")
+base=s.replace('/*ENGINE*/',eng+'\n'+gm+'\n'+mf+'\n'+cp)
 open('/home/claude/mor/index.html','w').write(base.replace('/*FIREBASE*/',''))
 open('/home/claude/mor/app.html','w').write(base.replace('/*FIREBASE*/',fbjs))
 import re

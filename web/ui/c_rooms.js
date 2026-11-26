@@ -32,12 +32,13 @@ async function sit(seat) {
   await B().setSeat(mine && mine.seat === seat ? -1 : seat).catch(() => toast('ما قدرت أقعدك'));
 }
 async function setRoomGame(gid) {
-  if (gid !== 'mafia') prof.lastGame = gid; saveProf(); ui.pop = null;
+  if (gid !== 'mafia' && gid !== 'coup') prof.lastGame = gid; saveProf(); ui.pop = null;
   try { await B().meta({ game: gid }); } catch (e) { toast('ما قدرت أغيّر اللعبة'); }
   render();
 }
 async function startOnline(withBots) {
   if (ui.room && ui.room.game === 'mafia') return startMafia();
+  if (ui.room && ui.room.game === 'coup') return startCoup();
   const bySeat = [0, 1, 2, 3].map(s => ui.players.find(p => p.seat === s));
   if (!withBots && bySeat.some(p => !p)) return toast('لازم 4 لاعبين قاعدين، أو كمّل بالبوت');
   if (bySeat.every(p => !p)) return toast('اقعد على كرسي أول');

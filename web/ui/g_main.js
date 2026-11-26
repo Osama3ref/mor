@@ -9,6 +9,7 @@ function render() {
     : ui.view === 'home' ? home()
     : ui.view === 'room' || !ui.st ? lobby()
     : ui.st.game === 'mafia' ? mafiaView()
+    : ui.st.game === 'coup' ? coupView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
   layoutHand();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
@@ -37,6 +38,7 @@ $app.addEventListener('click', e => {
   if (a) {
     e.stopPropagation();
     if (mafiaActs[a]) return mafiaActs[a](t);
+    if (coupActs[a]) return coupActs[a](t);
     ({
       tab: () => { ui.tab = t.dataset.t; ui.view = 'home'; render(); },
       closePop: () => { ui.pop = null; ui.obAv = null; render(); },
