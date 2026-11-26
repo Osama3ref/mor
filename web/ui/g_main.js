@@ -8,6 +8,7 @@ function render() {
     : ui.view === 'dm' && ui.dm ? dmView()
     : ui.view === 'home' ? home()
     : ui.view === 'room' || !ui.st ? lobby()
+    : ui.st.game === 'mafia' ? mafiaView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
   layoutHand();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
@@ -35,6 +36,7 @@ $app.addEventListener('click', e => {
   const a = t.dataset.a, st = ui.st, g = t.dataset.g;
   if (a) {
     e.stopPropagation();
+    if (mafiaActs[a]) return mafiaActs[a](t);
     ({
       tab: () => { ui.tab = t.dataset.t; ui.view = 'home'; render(); },
       closePop: () => { ui.pop = null; ui.obAv = null; render(); },

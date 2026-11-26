@@ -14,21 +14,34 @@ async function act(fn, ...args) {
   try { next = fn(ui.st, mySeat(), ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
   await commit(next);
 }
-async function commit(next) {
+async function commit(next, quiet) {
   next.v = (ui.st && ui.st.v || 0) + 1;
   ui.sel.clear(); ui.sheet = null; ui.armed = null;
   if (ui.mode === 'local') { ui.st = next; ls.set(saveKey(next.game || 'mor'), next); afterState(); return render(); }
   ui.busy = true; const prev = ui.st; ui.st = next; render();
+  let res = 'ok';
   try { await B().writeState(next, prev && prev.v || 0); }
-  catch (e) { if (e.live) { ui.st = e.live; toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
-  ui.busy = false; afterState(); render();
+  catch (e) { if (e.live) { ui.st = e.live; res = 'conflict'; if (!quiet) toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; res = 'fail'; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
+  ui.busy = false; afterState(); render(); return res;
+}
+// several players act at once (votes, night picks): re-apply the action to the latest state on conflict
+async function actR(fn, ...args) {
+  for (let i = 0; i < 6; i++) {
+    while (ui.busy) await sleep(60);
+    let next;
+    try { next = fn(ui.st, ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
+    const r = await commit(next, true);
+    if (r !== 'conflict') return;
+    await sleep(60 + Math.random() * 240);
+  }
+  toast('في ضغط، جرّب كمان مرة');
 }
 let prevSt = null;
 function afterState() {
   const st = ui.st; if (!st) return;
   try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
   prevSt = st;
-  if (ui.mode === 'fb' && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
+  if (ui.mode === 'fb' && st.game !== 'mafia' && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
   const a = gameOf(st).actor(st);
   if (ui.mode === 'local' && a >= 0) {
     const hs = humans(st);

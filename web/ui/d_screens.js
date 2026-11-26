@@ -38,9 +38,9 @@ function homeTab() {
   ${!native && isServed ? `<button class="btn alt wide" data-a="joinHere" style="margin-top:8px">ادخل غرفة هالمضيف</button>` : ''}`;
 }
 function gameGrid(action, selected) {
-  return `<div class="glist">${ALL.map(g => {
+  return `<div class="glist">${(action === 'setGame' ? ROOMG : ALL).map(g => {
     const saved = action === 'soloPick' && (s => s && s.phase !== 'over')(ls.get(saveKey(g.id)));
-    return `<button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}"><span class="info" data-a="rules" data-g="${g.id}" aria-label="القوانين">؟</span>${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${fan(GICON[g.id] || GICON.mor, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button>`;
+    return `<button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}"><span class="info" data-a="rules" data-g="${g.id}" aria-label="القوانين">؟</span>${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button>`;
   }).join('')}</div>`;
 }
 function soloTab() {
@@ -84,7 +84,7 @@ function meTab() {
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">طولي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">عرضي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.7.1</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.8</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -150,6 +150,7 @@ function dmView() {
 }
 function lobby() {
   const G = GG(ui.room && ui.room.game || 'mor'), host = isHost(), mine = ui.players.find(p => p.id === uid);
+  if (G.id === 'mafia') return mafiaLobby();
   const teams = G.teams;
   const seat = s => {
     const p = ui.players.find(x => x.seat === s), me = p && p.id === uid;
@@ -166,7 +167,7 @@ function lobby() {
     <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="المكالمة">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}${!vc.on && vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button></div>
   <div class="card" style="text-align:center;padding:12px">${ui.mode === 'lan' ? `<div class="muted">رفقاتك بيكتبوا هالعنوان بـ «دخول برمز»</div><div class="roomcode" style="font-size:32px;letter-spacing:2px">${shown}</div><div class="muted">أو من المتصفح: <b dir="ltr">http://${shown}:${PORT}</b></div>`
     : `<div class="muted">كود الغرفة</div><div class="roomcode">${esc(ui.code)}</div><div class="acts" style="justify-content:center;margin-top:8px"><button class="btn alt sm" data-a="copyCode">${ICON.copy} انسخ</button>${online() ? `<button class="btn sm" data-a="invitePop">${ICON.invite} ادعي أصدقاء</button>` : ''}</div>`}</div>
-  <div class="gsel">${fan(GICON[G.id] || GICON.mor, 26)}<div style="flex:1"><div class="muted">اللعبة</div><b>${esc(G.name)}</b><div class="muted" style="font-size:12px">${esc(G.sub)}</div></div>${host ? `<button class="btn alt sm" data-a="gamePick">غيّر</button>` : ''}<button class="ic" data-a="rules" data-g="${G.id}" aria-label="القوانين">${ICON.info}</button></div>
+  <div class="gsel">${gameIcon(G, 26)}<div style="flex:1"><div class="muted">اللعبة</div><b>${esc(G.name)}</b><div class="muted" style="font-size:12px">${esc(G.sub)}</div></div>${host ? `<button class="btn alt sm" data-a="gamePick">غيّر</button>` : ''}<button class="ic" data-a="rules" data-g="${G.id}" aria-label="القوانين">${ICON.info}</button></div>
   <div class="minitable"><div class="felt">${teams ? 'المتقابلين فريق واحد' : 'كل واحد لحاله'}<br>اكبس على كرسي لتقعد</div>${[0, 1, 2, 3].map(seat).join('')}</div>
   ${watchers.length ? `<div class="muted" style="text-align:center">بيتفرّجوا: </div><div class="spect" style="justify-content:center">${watchers.map(p => `<span class="chip">${avatarHTML(p.av, p.name, 'xs')} ${esc(p.name)}</span>`).join('')}</div>` : ''}
   ${host ? `<div class="acts"><button class="btn wide" data-a="start" ${sat === 4 ? '' : 'disabled'}>ابدأ اللعب</button>${sat < 4 ? `<button class="btn alt wide" data-a="startBots" ${sat ? '' : 'disabled'}>${ICON.bot} ابدأ وكمّل الكراسي الفاضية بالبوت</button>` : ''}</div>`

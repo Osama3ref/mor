@@ -50,6 +50,7 @@ const CSTY = [['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], 
 const BACKS = [['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
 const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'classic', back: 'navy', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
 if (!prof.name && ls.get('mor-name')) prof.name = ls.get('mor-name');
+if (prof.lastGame === 'mafia') prof.lastGame = 'mor';
 function saveProf() { ls.set('mor-prof', prof); applySkin(); }
 function applySkin() { const d = document.documentElement.dataset; d.skin = prof.skin; d.cards = prof.cards; d.back = prof.back; }
 applySkin();
@@ -73,7 +74,15 @@ const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة وم
   الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</p>`,
   newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s) => Mor.botTurn(st, s), next: st => Mor.nextRound(st) };
 const ALL = [MorG, ...Games.LIST];
-const GG = id => ALL.find(g => g.id === id) || MorG;
+const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين وأكتر · أدوار سرّية', icon: '🎭', social: true, actor: () => -1,
+  rules: `<p>كل واحد بياخد دور سرّي: مافيا، شعب، وإذا مفعّلين: طبيب ومحقق.<br>
+  <b>بالليل:</b> المافيا بيختاروا مين يقتلوا، الطبيب بيختار مين يحمي (ما بيحمي نفس الشخص ليلتين ورا بعض)، والمحقق بيسأل عن واحد وبيعرف إذا مافيا ولا لأ.<br>
+  <b>بالنهار:</b> بينعرف مين انقتل، وبتتناقشوا بالصوت أو الدردشة، وبعدين بتصوّتوا مين يطلع. التعادل ما بيطلّع حدا.<br>
+  الشعب بيربح إذا طلّع كل المافيا. المافيا بتربح إذا صار عددها قد الباقيين.<br>
+  الراوي ممكن يكون التطبيق، أو صاحب الغرفة (بيشوف كل الأدوار وبيدير اللعبة بدون ما يلعب). صاحب الغرفة بيختار إذا دور اللي بيطلع بينكشف ولا لأ.</p>` };
+const ROOMG = [...ALL, MafiaG];
+const GG = id => ROOMG.find(g => g.id === id) || MorG;
+const gameIcon = (g, w = 30) => (g.icon ? `<span class="gemo" style="font-size:${w * 1.3}px">${g.icon}</span>` : fan(GICON[g.id] || GICON.mor, w));
 const gameOf = st => GG(st && st.game || 'mor');
 const saveKey = id => (id === 'mor' ? 'mor-local' : 'mor-local-' + id);
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
@@ -172,6 +181,16 @@ const SFX = {
 function soundsFor(prev, st, me) {
   if (!prev || !st || prev === st) return;
   const G = gameOf(st);
+  if (st.game === 'mafia') {
+    if (st.phase !== prev.phase) {
+      if (st.phase === 'over') return SFX.win();
+      const ev = st.events[st.events.length - 1], pe = prev.events.length;
+      if (st.events.length > pe && ev && (ev.victim || ev.out)) return SFX.bad();
+      if (st.phase === 'night') return play(t => { bell(t, 220, 0.1, 1.4); bell(t + 0.3, 165, 0.08, 1.6); });
+      if (st.phase === 'day' || st.phase === 'vote') return SFX.turn();
+    } else if (JSON.stringify(st.votes) !== JSON.stringify(prev.votes)) SFX.tap();
+    return;
+  }
   if ((st.handNo || st.round) !== (prev.handNo || prev.round) || st.deal !== prev.deal) return SFX.deal();
   if (st.phase === 'over' && prev.phase !== 'over') return SFX.win();
   if (G.id === 'mor') {
