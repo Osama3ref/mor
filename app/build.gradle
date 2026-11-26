@@ -6,10 +6,16 @@ android {
         applicationId 'com.mor.cards'
         minSdk 24
         targetSdk 34
-        versionCode 10
-        versionName '1.8'
+        versionCode 11
+        versionName '1.9'
     }
-    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.debug } }
+    signingConfigs {
+        stable {
+            def ks = System.getenv('KS_FILE')
+            if (ks) { storeFile file(ks); storePassword System.getenv('KS_PASS'); keyAlias 'sahra'; keyPassword System.getenv('KS_PASS') }
+        }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig System.getenv('KS_FILE') ? signingConfigs.stable : signingConfigs.debug } }
     lint { abortOnError false; checkReleaseBuilds false }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

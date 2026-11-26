@@ -98,10 +98,16 @@ h1,h2,h3{margin:0;line-height:1.2}
 .tile .cards{display:flex;justify-content:center;direction:ltr}.tile .cards .c{--w:40px;margin:0 -6px}
 /* games grid */
 .glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:10px;margin-top:10px}
-.gcard{position:relative;padding:12px 10px 12px;border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:150px}
+.gentry{position:relative;display:flex}
+.gcard{width:100%;position:relative;padding:12px 10px 12px;border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:150px}
 .gcard.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 10px 30px rgba(0,0,0,.3)}
 .gcard b{font-size:15.5px}.gcard .muted{font-size:11.5px;line-height:1.35}
-.gcard .info{position:absolute;top:6px;left:6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.3);font-weight:800;font-size:14px;color:var(--gold)}
+.gentry .info{position:absolute;top:0;left:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--gold)}
+.gentry .info span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.4)}
+.gentry .info:focus-visible{outline-offset:-3px}
+.saved-games .resume{flex-wrap:wrap;overflow:visible;margin-top:9px}
+.saved-games .chip{min-height:44px}
+.ov.handoff{background:var(--bg2);backdrop-filter:none}
 .gcard .saved{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 .seg{display:flex;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);gap:4px}
 .seg button{flex:1;min-height:38px;border-radius:11px;font-weight:700;font-size:14px;color:var(--dim)}
@@ -409,7 +415,7 @@ const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة وم
   قبل ما تنزّل لازم تعلن «بدي المور» أو «بدي ضمّن». إذا أعلنت وما قدرت: −20.<br>
   المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة، بيبين ورقه معك وبتلعب فيه بدورك الجاي.<br>
   الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</p>`,
-  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s) => Mor.botTurn(st, s), next: st => Mor.nextRound(st) };
+  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s, stronger) => Mor.botTurn(st, s, stronger), next: st => Mor.nextRound(st) };
 const ALL = [MorG, ...Games.LIST];
 const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين وأكتر · أدوار سرّية', icon: '🎭', social: true, actor: () => -1,
   rules: `<p>كل واحد بياخد دور سرّي: مافيا، شعب، وإذا مفعّلين: طبيب ومحقق.<br>
@@ -422,6 +428,10 @@ const GG = id => ROOMG.find(g => g.id === id) || MorG;
 const gameIcon = (g, w = 30) => (g.icon ? `<span class="gemo" style="font-size:${w * 1.3}px">${g.icon}</span>` : fan(GICON[g.id] || GICON.mor, w));
 const gameOf = st => GG(st && st.game || 'mor');
 const saveKey = id => (id === 'mor' ? 'mor-local' : 'mor-local-' + id);
+const savedGame = id => {
+  const st = ls.get(saveKey(id));
+  return st && st.phase !== 'over' && Array.isArray(st.hands) && st.hands.length === 4 ? st : null;
+};
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
 window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s) };
 
@@ -594,25 +604,37 @@ function afterState() {
   }
   runBots();
 }
-let botKey = null;
+let botJob = null;
+function cancelBot() {
+  if (botJob) clearTimeout(botJob.timer);
+  botJob = null;
+}
 function runBots() {
   const st = ui.st;
-  if (!st || !st.bots || !isHost()) return;
+  if (!st || !st.bots || !isHost()) return cancelBot();
   const G = gameOf(st), a = G.actor(st);
-  if (a < 0 || !st.bots[a]) return;
-  const key = st.v + ':' + a; if (botKey === key) return; botKey = key;
-  setTimeout(async () => {
-    if (!ui.st || ui.st.v + ':' + G.actor(ui.st) !== key || ui.busy) { botKey = null; return; }
-    let n; try { n = G.bot(ui.st, a); } catch (e) { console.error(e); return; }
-    if (n === ui.st) return;
-    await commit(n);
-  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1500 : 700));
+  if (a < 0 || !st.bots[a]) return cancelBot();
+  const keyFor = state => JSON.stringify([ui.mode, ui.code, G.id, state.deal, state.v, a]);
+  const key = keyFor(st);
+  if (botJob && botJob.key === key) return;
+  cancelBot();
+  const job = { key, timer: setTimeout(async () => {
+    if (botJob !== job) return;
+    botJob = null;
+    const live = ui.st;
+    if (ui.busy || !live || !isHost() || gameOf(live) !== G ||
+        !live.bots?.[a] || G.actor(live) !== a || keyFor(live) !== key) return;
+    let n; try { n = G.bot(live, a, ui.mode === 'local' && prof.botLevel === 'expert' ? 'expert' : ui.mode !== 'local' || prof.botLevel !== 'normal'); } catch (e) { console.error(e); return; }
+    if (n !== live) await commit(n);
+  }, G.id === 'mor' ? 1100 : (st.trickDone ? 1500 : 700)) };
+  botJob = job;
 }
 
 // ---------- backends ----------
 function applyRoom(room) {
   ui.room = room;
   if (room.phase === 'lobby') {
+    cancelBot();
     if (ui.st) { ui.st = null; prevSt = null; ui.order = {}; }
     if (ui.view === 'game') { ui.view = 'room'; ui.confirmExit = false; }
     return render();
@@ -981,6 +1003,7 @@ async function joinRoom(mode, key) {
   key = (key || '').trim(); if (mode === 'fb') key = key.toUpperCase();
   unsub.forEach(u => u()); unsub = [];
   if (mode === 'fb' && fb.uid) uid = fb.uid;
+  cancelBot();
   Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0, pop: null });
   prevSt = null;
   try { await B().open(key, n); } catch (e) { ui.mode = null; ui.code = null; return toast(e.message || 'ما قدرت أدخل'); }
@@ -1016,6 +1039,7 @@ async function backToRoom() {
   try { await B().meta({ phase: 'lobby' }); } catch (e) { toast('ما قدرت أرجع للغرفة'); }
 }
 function leave() {
+  cancelBot();
   if (vc.on) voiceLeave();
   if (ui.mode === 'lan' || ui.mode === 'fb') B().leave();
   unsub.forEach(u => u()); unsub = [];
@@ -1023,22 +1047,32 @@ function leave() {
   if (fb.uid) uid = fb.uid;
   prevSt = null; ls.set('mor-room', null); render();
 }
-function startLocal(gid, kind, resume) {
-  const G = GG(gid); prof.lastGame = G.id; saveProf();
-  const saved = ls.get(saveKey(G.id));
-  if (resume && saved) ui.st = saved;
-  else {
-    let names, bots, avs;
-    if (kind === 'solo') { names = [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣']; bots = [false, true, true, true]; avs = [prof.av, 'bot', 'bot', 'bot']; }
-    else {
-      names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
-      bots = [0, 1, 2, 3].map(i => !!(ui.localCfg && ui.localCfg[i]));
-      if (bots.every(Boolean)) return toast('لازم لاعب واحد على الأقل مش بوت');
-      avs = bots.map((b, i) => (b ? 'bot' : i + '|A'));
-    }
-    ui.st = G.newGame(names, bots); ui.st.deal = Date.now(); ui.st.avs = avs; ls.set(saveKey(G.id), ui.st);
+function localSetup(kind) {
+  if (kind === 'solo') return { names: [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣'], bots: [false, true, true, true], avs: [prof.av, 'bot', 'bot', 'bot'] };
+  if (ui.localCfg.every(Boolean)) { toast('لازم لاعب واحد على الأقل مش بوت'); return null; }
+  const bots = ui.localCfg.slice(), drafts = ui.passNames = [0, 1, 2, 3].map(i => document.getElementById('ln' + i)?.value ?? '');
+  return { names: drafts.map((name, i) => name.trim() || 'لاعب ' + (i + 1)), bots, avs: bots.map((b, i) => b ? 'bot' : i + '|A') };
+}
+function requestLocal(gid, kind) {
+  const setup = localSetup(kind);
+  if (!setup) return;
+  if (savedGame(gid)) {
+    ui.pop = { k: 'replaceLocal', g: gid, kind, setup };
+    return render();
   }
-  ui.order = {}; ui.pop = null; prevSt = null;
+  startLocal(gid, setup);
+}
+function startLocal(gid, setup) {
+  const G = GG(gid);
+  if (setup) {
+    ui.st = G.newGame(setup.names, setup.bots); ui.st.deal = Date.now(); ui.st.avs = setup.avs; ls.set(saveKey(G.id), ui.st);
+  } else {
+    const st = savedGame(G.id);
+    if (!st) return toast('ما في لعبة محفوظة');
+    ui.st = st;
+  }
+  prof.lastGame = G.id; saveProf(); cancelBot();
+  ui.order = {}; ui.sel.clear(); ui.armed = null; ui.sheet = null; ui.dblSel = []; ui.pop = null; prevSt = null;
   const hs = humans(ui.st), a = G.actor(ui.st);
   ui.mode = 'local'; ui.view = 'game'; ui.viewer = hs.includes(a) ? a : hs[0]; ui.hidden = hs.length > 1;
   afterState(); render();
@@ -1235,26 +1269,32 @@ function onboarding() {
 }
 function homeTab() {
   const last = ls.get('mor-room');
-  const saved = ALL.filter(g => { const s = ls.get(saveKey(g.id)); return s && s.phase !== 'over'; });
+  const saved = ALL.filter(g => savedGame(g.id));
   const canCreate = online() || native;
   return `<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
   ${meBar()}
+  ${saved.length ? `<section class="card saved-games"><h2>كمّل لعبك</h2><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></section>` : ''}
   <button class="big-act main" data-a="newRoom" ${canCreate ? '' : 'disabled'}><span class="bi">${ICON.plus}</span><div><b>إنشاء غرفة</b><span>${canCreate ? 'افتح طاولة وادعي رفقاتك' : 'بدها إنترنت أو التطبيق على الواي فاي'}</span></div></button>
   <button class="big-act" data-a="joinPop"><span class="bi">${ICON.key}</span><div><b>دخول برمز</b><span>عندك كود غرفة من صاحبك؟</span></div></button>
   <button class="big-act" data-a="tab" data-t="solo"><span class="bi">${ICON.bot}</span><div><b>لعب ضد الكمبيوتر</b><span>تدرّب مع بوتات قوية</span></div></button>
   ${last && last.mode ? `<div class="row" style="justify-content:center"><button class="chip" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}
-  ${saved.length ? `<div class="muted" style="margin:10px 4px 4px">ألعاب محفوظة</div><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">كمّل ${esc(g.name)}</button>`).join('')}</div>` : ''}
+  <button class="big-act" data-a="passPop"><span class="bi">${ICON.users}</span><div><b>على جوال واحد</b><span>العبوا ومرّروا الجوال بينكم، بدون إنترنت</span></div></button>
   ${!native && isServed ? `<button class="btn alt wide" data-a="joinHere" style="margin-top:8px">ادخل غرفة هالمضيف</button>` : ''}`;
 }
 function gameGrid(action, selected) {
   return `<div class="glist">${(action === 'setGame' ? ROOMG : ALL).map(g => {
-    const saved = action === 'soloPick' && (s => s && s.phase !== 'over')(ls.get(saveKey(g.id)));
-    return `<button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}"><span class="info" data-a="rules" data-g="${g.id}" aria-label="القوانين">؟</span>${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button>`;
+    const saved = action === 'soloPick' && savedGame(g.id);
+    return `<div class="gentry"><button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}">${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button><button class="info" data-a="rules" data-g="${g.id}" aria-label="قوانين ${esc(g.name)}"><span aria-hidden="true">؟</span></button></div>`;
   }).join('')}</div>`;
+}
+function botLevelButtons() {
+  const mode = ['normal','expert'].includes(prof.botLevel) ? prof.botLevel : 'hard';
+  return `<div class="seg" role="group" aria-label="قوّة البوتات للعب المحلّي">${[['normal','عادي'], ['hard','قوي'], ['expert','خبير']].map(([v,label]) => `<button class="${mode === v ? 'on' : ''}" data-a="setP" data-k="botLevel" data-v="${v}" aria-pressed="${mode === v}">${label}</button>`).join('')}</div>`;
 }
 function soloTab() {
   return `<div class="hdr"><button class="ic" data-a="tab" data-t="home" aria-label="رجوع">${ICON.back}</button><h1>لعب ضد الكمبيوتر</h1></div>
   <div class="muted">اختار اللعبة. بالألعاب الشراكة البوت شريكك.</div>
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}</div>
   ${gameGrid('soloPick')}
   <div class="card"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال لبعض، وفيك تخلّي بعض الكراسي بوت.</div><div class="acts"><button class="btn alt sm" data-a="passPop">رتّب اللعبة</button></div></div>`;
 }
@@ -1287,13 +1327,14 @@ function meTab() {
   </div>
   ${online() ? `<div class="card"><h2>استرجاع الحساب</h2>${prof.email ? `<div class="muted">حسابك مربوط بـ <b dir="ltr">${esc(prof.email)}</b>. إذا غيّرت الجوال، ادخل بنفس الإيميل.</div><div class="acts"><button class="btn alt sm" data-a="emailPop" data-m="rec">دخول بحساب تاني</button></div>`
     : `<div class="muted">اربط حسابك بإيميل (اختياري) لترجّع أصدقاءك وترتيبك إذا غيّرت الجوال.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط إيميل</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">عندي حساب</button></div>`}</div>` : ''}
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">بتطبّق على اللعب ضد الكمبيوتر وعلى جوال واحد.</p></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
   <div class="card"><h2>شكل الورق</h2><div class="tiles">${CSTY.map(tileCard).join('')}</div></div>
   <div class="card"><h2>ظهر الورق</h2><div class="tiles">${BACKS.map(tileBack).join('')}</div></div>
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">طولي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">عرضي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.8</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.9</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -1314,11 +1355,14 @@ function pops() {
     <div class="muted" style="margin-top:12px">شكل الورق</div><div class="resume" style="margin-top:6px">${CSTY.map(c => `<button class="chip ${prof.cards === c[0] ? 'on' : ''}" data-a="setP" data-k="cards" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
     <div class="acts">${native ? `<button class="btn alt sm" data-a="rotate">${ICON.rot} ${ui.orient === 'portrait' ? 'خلّيها عرضي' : 'خلّيها طولي'}</button>` : ''}<button class="btn alt sm" data-a="rules" data-g="${G.id}">${ICON.info} القوانين</button></div>`); }
   if (p.k === 'rules') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="rules">${G.rules}</div>`); }
-  if (p.k === 'soloStart') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="muted">عندك لعبة محفوظة.</div><div class="acts"><button class="btn" data-a="soloGo" data-g="${G.id}" data-r="1">كمّل المحفوظة</button><button class="btn alt" data-a="soloGo" data-g="${G.id}">لعبة جديدة</button></div>`); }
+  if (p.k === 'replaceLocal') {
+    const G = GG(p.g);
+    return sheet(`${sheetHead(esc(G.name), 'cancelLocal')}<p class="muted">عندك لعبة محفوظة. إذا بلّشت لعبة جديدة رح تنمسح المحفوظة لهاللعبة بس.</p><div class="acts"><button class="btn" data-a="resume" data-g="${G.id}">كمّل المحفوظة</button><button class="btn red" data-a="replaceLocal">استبدلها بلعبة جديدة</button><button class="btn alt" data-a="cancelLocal">إلغاء</button></div>`, 'cancelLocal');
+  }
   if (p.k === 'pass') {
     const cfg = ui.localCfg || (ui.localCfg = [false, false, false, false]), G = GG(p.g || prof.lastGame || 'mor');
     return sheet(`${sheetHead('على جوال واحد')}<div class="resume">${ALL.map(g => `<button class="chip ${g.id === G.id ? 'on' : ''}" data-a="passGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div>
-      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}
+      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" aria-label="اسم اللاعب ${i + 1}" maxlength="14" value="${esc(ui.passNames?.[i] || '')}"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}" aria-pressed="${!!cfg[i]}" aria-label="بوت للمقعد ${i + 1}">بوت</button></div>`).join('')}
       <div class="acts"><button class="btn wide" data-a="local" data-g="${G.id}">ابدأ</button></div>`);
   }
   if (p.k === 'gamePick') return sheet(`${sheetHead('اختار اللعبة')}${gameGrid('setGame', ui.room && ui.room.game)}`);
@@ -1402,7 +1446,7 @@ function game() {
   const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
   const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
-  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
@@ -1450,7 +1494,7 @@ function endActs(st, can) {
 function overlays(me) {
   const st = ui.st; let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play' && !st.bots[st.turn]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
     h += `<div class="ov cen"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
   } else if (ui.sheet) {
@@ -1504,7 +1548,7 @@ function dblFor(st, s) {
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 ? Games.sortIds(st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
@@ -1589,7 +1633,7 @@ function trickTable() {
 function overlays2(me) {
   const st = ui.st, G = gameOf(st); let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0) h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'handEnd' || st.phase === 'over') {
     const S = st.summary || { rows: [], notes: [] };
     const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;
@@ -1776,13 +1820,13 @@ function layoutHand() {
 }
 let drag = null;
 document.addEventListener('pointerdown', e => {
-  const c = e.target.closest('#hand .c'); if (!c) return;
+  const c = e.target.closest('#hand .c'); if (!c || drag || ui.hidden || e.button !== 0) return;
   const el = document.getElementById('hand');
-  drag = { id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
+  drag = { pointerId: e.pointerId, id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
   c.setPointerCapture && c.setPointerCapture(e.pointerId);
 });
 document.addEventListener('pointermove', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId || !drag.el.isConnected) return;
   const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
   if (!drag.moved && Math.hypot(dx, dy) < 8) return;
   drag.moved = true; drag.el.classList.add('drag');
@@ -1790,8 +1834,9 @@ document.addEventListener('pointermove', e => {
   drag.el.style.top = drag.oy + dy + 'px';
 });
 document.addEventListener('pointerup', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId) return;
   const d = drag; drag = null;
+  if (!d.el.isConnected || !ui.st || ui.hidden) return;
   const tg = ui.st && gameOf(ui.st).id !== 'mor';
   if (tg) {
     if (d.moved) { if (d.sy - e.clientY > 70) return tryPlay(d.id); return render(); }
@@ -1805,7 +1850,7 @@ document.addEventListener('pointerup', e => {
   const from = order.indexOf(d.id); order.splice(from, 1); order.splice(best, 0, d.id);
   render();
 });
-document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
+document.addEventListener('pointercancel', e => { if (drag?.pointerId === e.pointerId) { drag = null; render(); } });
 
 function tryPlay(id) {
   const st = ui.st, G = gameOf(st), me = mySeat();
@@ -1868,14 +1913,15 @@ $app.addEventListener('click', e => {
       joinGo: () => joinAny(document.getElementById('jcode').value),
       joinHere: () => joinRoom('lan', location.hostname),
       rejoin: () => { const r = ls.get('mor-room'); if (r) joinRoom(r.mode, r.key); },
-      resume: () => startLocal(g, 'solo', true),
-      soloPick: () => { const s = ls.get(saveKey(g)); if (s && s.phase !== 'over') { ui.pop = { k: 'soloStart', g }; render(); } else startLocal(g, 'solo'); },
-      soloGo: () => startLocal(g, 'solo', !!t.dataset.r),
+      resume: () => startLocal(g),
+      soloPick: () => requestLocal(g, 'solo'),
+      replaceLocal: () => { const p = ui.pop; if (p?.k === 'replaceLocal') startLocal(p.g, p.setup); },
+      cancelLocal: () => { const p = ui.pop; ui.pop = p?.kind === 'pass' ? { k: 'pass', g: p.g } : null; render(); },
       rules: () => { e.stopPropagation(); ui.pop = { k: 'rules', g }; render(); },
-      passPop: () => { ui.localCfg = [false, false, false, false]; ui.pop = { k: 'pass', g: prof.lastGame }; render(); },
+      passPop: () => { ui.localCfg = [false, false, false, false]; ui.passNames = []; ui.pop = { k: 'pass', g: prof.lastGame }; render(); },
       passGame: () => { ui.pop.g = g; render(); },
       cfgBot: () => { ui.localCfg[+t.dataset.s] = !ui.localCfg[+t.dataset.s]; render(); },
-      local: () => startLocal(g, 'pass'),
+      local: () => requestLocal(g, 'pass'),
       // onboarding and profile
       obAv: () => { ui.obAv = t.dataset.v; render(); },
       obCol: () => { const [, gl] = (ui.obAv || prof.av).split('|'); ui.obAv = t.dataset.v + '|' + gl; render(); },
@@ -1902,7 +1948,7 @@ $app.addEventListener('click', e => {
       // room
       copyCode: () => copyText(ui.code, 'انسخ الكود: ' + ui.code),
       gamePick: () => { ui.pop = { k: 'gamePick' }; render(); }, setGame: () => setRoomGame(g),
-      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave: () => { const local = ui.mode === 'local'; if (local) { Object.assign(ui, { view: 'home', tab: 'home', mode: null, st: null, confirmExit: false }); prevSt = null; return render(); } leave(); },
+      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave: () => { const local = ui.mode === 'local'; if (local) { cancelBot(); Object.assign(ui, { view: 'home', tab: 'home', mode: null, st: null, confirmExit: false }); prevSt = null; return render(); } leave(); },
       start: () => startOnline(false), startBots: () => startOnline(true), sit: () => sit(+t.dataset.s),
       backRoom: backToRoom,
       // Mor

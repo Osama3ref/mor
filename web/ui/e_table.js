@@ -15,7 +15,7 @@ function game() {
   const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
   const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
-  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
@@ -63,7 +63,7 @@ function endActs(st, can) {
 function overlays(me) {
   const st = ui.st; let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play' && !st.bots[st.turn]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
     h += `<div class="ov cen"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
   } else if (ui.sheet) {
@@ -117,7 +117,7 @@ function dblFor(st, s) {
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 ? Games.sortIds(st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
@@ -202,7 +202,7 @@ function trickTable() {
 function overlays2(me) {
   const st = ui.st, G = gameOf(st); let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0) h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'handEnd' || st.phase === 'over') {
     const S = st.summary || { rows: [], notes: [] };
     const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;

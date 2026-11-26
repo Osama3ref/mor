@@ -22,13 +22,13 @@ function layoutHand() {
 }
 let drag = null;
 document.addEventListener('pointerdown', e => {
-  const c = e.target.closest('#hand .c'); if (!c) return;
+  const c = e.target.closest('#hand .c'); if (!c || drag || ui.hidden || e.button !== 0) return;
   const el = document.getElementById('hand');
-  drag = { id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
+  drag = { pointerId: e.pointerId, id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
   c.setPointerCapture && c.setPointerCapture(e.pointerId);
 });
 document.addEventListener('pointermove', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId || !drag.el.isConnected) return;
   const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
   if (!drag.moved && Math.hypot(dx, dy) < 8) return;
   drag.moved = true; drag.el.classList.add('drag');
@@ -36,8 +36,9 @@ document.addEventListener('pointermove', e => {
   drag.el.style.top = drag.oy + dy + 'px';
 });
 document.addEventListener('pointerup', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId) return;
   const d = drag; drag = null;
+  if (!d.el.isConnected || !ui.st || ui.hidden) return;
   const tg = ui.st && gameOf(ui.st).id !== 'mor';
   if (tg) {
     if (d.moved) { if (d.sy - e.clientY > 70) return tryPlay(d.id); return render(); }
@@ -51,7 +52,7 @@ document.addEventListener('pointerup', e => {
   const from = order.indexOf(d.id); order.splice(from, 1); order.splice(best, 0, d.id);
   render();
 });
-document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
+document.addEventListener('pointercancel', e => { if (drag?.pointerId === e.pointerId) { drag = null; render(); } });
 
 function tryPlay(id) {
   const st = ui.st, G = gameOf(st), me = mySeat();

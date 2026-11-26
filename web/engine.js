@@ -513,6 +513,243 @@ const Mor = (() => {
     return st;
   }
 
-  return { botTurnStrong, botTurnEasy: botTurn, botTurn: botTurnStrong, declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+  // Explore runs before sets as well as extending the team's table first.
+  // Every candidate goes through the same meld validator as a human move.
+  function morPlans(st, seat) {
+    const team = teamOf(seat), hand = st.hands[seat], melds = st.melds.filter(m => m.team === team);
+    const skip = st.noDiscard?.seat === seat ? st.noDiscard.id : null;
+    function extension(table, rest, fast) {
+      let best = null, value = -Infinity;
+      for (const m of table) {
+        const shape = analyze(m.cards); if (!shape) continue;
+        const before = meldValue(m);
+        const pool = rest.filter(c => isJ(c) || rankOf(c) === 2 ||
+          (shape.type === 'set' ? rankOf(c) === shape.rank : c[0] === shape.suit));
+        const consider = ids => {
+          const cards = [...m.cards,...ids], a = analyze(cards);
+          if (!a || a.type !== shape.type) return;
+          const delta = meldValue({cards:a.order}) - before;
+          const v = delta*1.8 + ids.length*2.6 + Math.min(7,cards.length)*0.7
+            - ids.filter(c=>a.wild.includes(c)).length*(delta>0 ? 3 : 7.5);
+          if (v > value && v>0) { value=v; best={t:'add',id:m.id,ids,cards:a.order}; }
+        };
+        for (let i=0;i<pool.length;i++) {
+          consider([pool[i]]);
+          if (!fast) for (let j=i+1;j<pool.length;j++) consider([pool[i],pool[j]]);
+        }
+      }
+      return best;
+    }
+    function runOptions(rest, addWild, priority) {
+      const options = [];
+      const wild = rest.filter(c => isJ(c) || rankOf(c) === 2);
+      for (const suit of SUITS) {
+        const ranks = new Map();
+        // At most one copy of each natural rank can enter a given run.
+        for (const c of rest) if (c[0] === suit && !ranks.has(rankOf(c))) ranks.set(rankOf(c),c);
+        for (let start=1;start<=12;start++) {
+          const natural=[], seen = new Set(); let gaps=0;
+          for (let end=start;end<=14 && end-start<13;end++) {
+            const card = ranks.get(end===14?1:end);
+            if (card && !seen.has(card)) { seen.add(card); natural.push(card); }
+            else gaps++;
+            if (gaps > (addWild ? 1 : 0)) break;
+            if (end-start+1 < 3 || natural.length < 2) continue;
+            const used = gaps ? wild.find(w => !seen.has(w) && analyzeSeq([...natural,w])) : null;
+            if (gaps && !used) continue;
+            const ids = used ? [...natural,used] : natural.slice(), shape=analyzeSeq(ids);
+            if (!shape) continue;
+            const score = meldValue({cards:ids})*2 + ids.length*(priority?3.8:4.4)
+              - (used ? (ids.length<7 ? 8.0 : 2) : 0) + (ids.includes(skip)?0.4:0);
+            options.push({ids,score});
+          }
+        }
+      }
+      return options;
+    }
+    function alternate(tableFirst, addWild) {
+      let rest=hand.slice(), table=melds.map(m=>({id:m.id,cards:m.cards.slice()})), fresh=[], acts=[];
+      function apply(a) {
+        acts.push(a);
+        rest=rest.filter(c=>!a.ids.includes(c));
+        if (a.t==='add') table.find(m=>m.id===a.id).cards=a.cards;
+        else fresh.push(a.ids);
+      }
+      function extend(fast) {
+        for (let n=0;n<12 && rest.length;n++) {
+          const a=extension(table,rest,fast);
+          if (!a) break;
+          apply(a);
+        }
+      }
+      if (tableFirst) extend(false);
+      for (let n=0;n<8 && rest.length>=3;n++) {
+        const options=runOptions(rest,addWild,tableFirst);
+        for (const r of [1,3,4,5,6,7,8,9,10,11,12,13]) {
+          const ids=rest.filter(c=>rankOf(c)===r);
+          if (ids.length>=3) {
+            options.push({ids,score:meldValue({cards:ids})*2+ids.length*3.5+(ids.includes(skip)?0.4:0)});
+            const j=rest.find(isJ);
+            if (addWild && j && (ids.length===6 || ids.length===7)) {
+              const mix=[...ids,j]; options.push({ids:mix,score:meldValue({cards:mix})*2+mix.length*3.5-3});
+            }
+          }
+          if (ids.length===2 && addWild) {
+            const j=rest.find(isJ); if(j) options.push({ids:[...ids,j],score:3});
+          }
+        }
+        options.sort((a,b)=>b.score-a.score);
+        if (!options.length) break;
+        apply({t:'new',ids:options[0].ids});
+      }
+      if (!tableFirst) extend(false);
+      const g=[...table.map(m=>m.cards),...fresh];
+      return {rest,acts,ground:g.reduce((v,c)=>v+meldValue({cards:c}),0),lens:g.map(c=>c.length)};
+    }
+    const out=[planMelds(hand,st.melds,team),alternate(false,false),alternate(true,true)];
+    const canFinish=p=>p.rest.length===0 || (p.rest.length===1 && p.rest[0]!==skip);
+    const score=p=>{
+      const close = p.ground>=CLOSE_MIN && st.morBy.some(x=>x!=null);
+      const mor = p.ground>=MOR_MIN && morLeft(st)>=0;
+      const finish = canFinish(p) ? close ? 230 : mor ? 155 : -28 : 0;
+      const wilds = p.rest.filter(c=>isJ(c)||rankOf(c)===2).length;
+      return finish + p.ground*2.3 + (hand.length-p.rest.length)*2 + wilds*7 +
+        p.lens.reduce((a,n)=>a+(n>=5 && n<7 ? (n-4)*4 : 0),0);
+    };
+    return out.sort((a,b)=>score(b)-score(a));
+  }
+  // This evaluates likely future pickups from the public card pool. It never
+  // inspects the deck order, the other hands or the reserved Mor cards.
+  function morBelief(st,seat) {
+    const seen=new Set([...st.hands[seat], ...st.discard, ...st.melds.flatMap(m=>m.cards)]);
+    for (const x of (st.taken||[]).slice(-4)) for (const c of x.ids) seen.add(c);
+    return buildDeck().filter(c=>!seen.has(c));
+  }
+  function morPickSpread(pool,n,salt) {
+    const p=pool.slice(), out=[];
+    let z=(0x9E3779B9^salt)>>>0;
+    for(let i=0;i<n && p.length;i++){
+      z=(Math.imul(z,1664525)+1013904223)>>>0;
+      out.push(p.splice(z%p.length,1)[0]);
+    }
+    return out;
+  }
+  function morFutureValue(st,seat,hand) {
+    const team=teamOf(seat), plan=planMelds(hand,st.melds,team);
+    const h=plan.rest, needed=morLeft(st)>=0 ? MOR_MIN : CLOSE_MIN;
+    const turns=st.stock.length, end=turns<=6;
+    let value=plan.ground*2.4 + Math.min(plan.ground,needed)*0.60;
+    value+=(hand.length-h.length)*2.25-h.length*(end?3.2:1.4);
+    for(const c of h) value+=isJ(c)||rankOf(c)===2 ? 7 : Math.min(7,cardKeep(c,h))*0.62;
+    for(const len of plan.lens) if(len<7) value+=Math.max(0,len-3)**2*1.3;
+    if(plan.ground>=needed){
+      if(h.length<=1) value+=34;
+      else if(h.length<=3) value+=12;
+    }
+    return value;
+  }
+  function morForecastDraw(st,seat) {
+    const normal=chooseDraw(st,seat), pile=st.discard, own=st.hands[seat];
+    if(!pile.length || !st.stock.length) return normal;
+    const hidden=morBelief(st,seat), base=morFutureValue(st,seat,own), end=st.stock.length<=6;
+    const samples=morPickSpread(hidden,8,313*own.length+73*st.stock.length+st.round);
+    if(!samples.length)return normal;
+    const pickup=xs=>morFutureValue(st,seat,[...own,...xs])-base;
+    let threshold=samples.reduce((v,c)=>v+pickup([c]),0)/samples.length;
+    threshold+=(st.sinceDraw||0)*(end?2.4:1.1);
+    let best=-1, score=threshold+(normal<0?0.4:1.6);
+    const choices=new Set([normal]);
+    for(let len=1;len<=Math.min(10,pile.length);len++) choices.add(pile.length-len);
+    if(pile.length>10) for(const extra of [14,18,23]) if(pile.length>=extra) choices.add(pile.length-extra);
+    for(const i of choices) if(i>=0){
+      const got=pile.slice(i);
+      const gain=pickup(got)-Math.max(0,got.length-1)*(end?1.3:0.48);
+      if(gain>score){score=gain;best=i;}
+    }
+    return best;
+  }
+  function morForecastDiscard(st,seat) {
+    const normal=chooseDiscard(st,seat), h=st.hands[seat];
+    if(h.length<2 || !normal) return normal;
+    const skip=st.noDiscard?.seat===seat?st.noDiscard.id:null;
+    const limit=st.stock.length>22?4:6, risk=st.stock.length<8?1.35:1.12;
+    const candidates=h.filter(c=>c!==skip||h.some(x=>x!==c&&twinKey(x)===twinKey(c)))
+      .map(c=>{
+        const rest=h.filter(x=>x!==c), control=danger(st,seat,c)*risk,
+          current=morFutureValue(st,seat,rest)-control;
+        return {c,rest,current};
+      }).sort((a,b)=>b.current-a.current);
+    const pool=morBelief(st,seat), samples=morPickSpread(pool,limit,197*st.stock.length+71*h.length+st.round);
+    if(!samples.length)return normal;
+    const short=candidates.slice(0,4), baseline=candidates.find(o=>o.c===normal);
+    if(baseline&&!short.includes(baseline))short.push(baseline);
+    const score=o=>o.current*0.65 +
+      0.35*samples.reduce((v,x)=>v+morFutureValue(st,seat,[...o.rest,x])-danger(st,seat,o.c)*risk,0)/samples.length;
+    let top=normal, best=baseline?score(baseline)+0.35:-Infinity;
+    for(const o of short){
+      const v=score(o);
+      if(v>best){top=o.c;best=v;}
+    }
+    return top;
+  }
+
+  function morExpert(s, seat, expert = false) {
+    if (s.phase !== 'play' || s.turn !== seat || s.step==='choice') return botTurnStrong(s,seat);
+    const team=teamOf(seat), other=1-team;
+    let st=s;
+    const go=(q,fn,...args)=>{try{return fn(q,seat,...args);}catch(e){if(!e.game)throw e;return null;}};
+    if (st.step==='draw') {
+      const i=expert ? morForecastDraw(st,seat) : chooseDraw(st,seat);
+      st=(i>=0&&go(st,takeDiscard,i)) || go(st,draw) || go(st,takeDiscard,st.discard.length-1) || s;
+      if (st===s) return s;
+    }
+    for(let repeat=0;repeat<3;repeat++){
+      const plans=morPlans(st,seat), skip=st.noDiscard?.seat===seat?st.noDiscard.id:null;
+      const apply=(start,p,finish)=>{
+        let q=start;
+        for(const a of p.acts){
+          if(!finish && q.hands[seat].length-a.ids.length<2) continue;
+          const next=a.t==='new'?go(q,meldNew,a.ids):go(q,addToMeld,a.id,a.ids);
+          if(next) q=next;
+          else if(finish) return null;
+        }
+        return q;
+      };
+      let continuous=null;
+      if (!st.melded) for(const p of plans){
+        if(p.rest.length>1 || (p.rest.length===1 && p.rest[0]===skip)) continue;
+        const took=st.morBy.filter(x=>x!=null).length;
+        const wantClose=p.ground>=CLOSE_MIN && took>0 &&
+          (morLeft(st)<0 || st.morBy.includes(team) || p.ground>ground(st,other)+50);
+        const mode=wantClose?'close':morLeft(st)>=0&&p.ground>=MOR_MIN?'mor':took&&p.ground>=CLOSE_MIN?'close':null;
+        if(!mode) continue;
+        const dec=go(st,declare,mode);
+        if(!dec) continue;
+        let q=apply(dec,p,true);
+        if(!q) continue;
+        if(q.hands[seat].length===1) q=go(q,discard,q.hands[seat][0]);
+        if(!q || q.hands[seat].length!==0) continue;
+        if(mode==='close'){
+          const closed=go(q,close);
+          if(closed && (!expert || closed.phase!=='over' || closed.winner===team)) return closed;
+        }
+        else if(q.step==='choice'){const taken=go(q,chooseMor); if(taken)return taken;}
+        else { continuous=go(q,takeMorNow); if(continuous) break; }
+      }
+      if (continuous){st=continuous;continue;}
+      st=apply(st,plans[0],false);
+      for (const m of st.melds.filter(x=>x.team===team)) {
+        for(const c of st.hands[seat].slice()){
+          if (swapOptions(m,c).length){st=go(st,swapWild,m.id,c)||st;break;}
+        }
+      }
+      break;
+    }
+    const c=expert ? morForecastDiscard(st,seat) : chooseDiscard(st,seat);
+    const next=(c&&go(st,discard,c)) || st.hands[seat].map(x=>go(st,discard,x)).find(Boolean);
+    return next && next.turn===seat && next.step==='choice' ? botTurnStrong(next,seat) : next || botTurnStrong(st,seat);
+  }
+
+  return { botTurnStrong, botTurnEasy: botTurn, botTurn: (st, seat, stronger = true) => stronger ? morExpert(st, seat, stronger === 'expert') : botTurnStrong(st, seat), declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
 })();
 if (typeof module !== 'undefined') module.exports = Mor;

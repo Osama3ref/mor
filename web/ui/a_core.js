@@ -72,7 +72,7 @@ const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة وم
   قبل ما تنزّل لازم تعلن «بدي المور» أو «بدي ضمّن». إذا أعلنت وما قدرت: −20.<br>
   المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة، بيبين ورقه معك وبتلعب فيه بدورك الجاي.<br>
   الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</p>`,
-  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s) => Mor.botTurn(st, s), next: st => Mor.nextRound(st) };
+  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s, stronger) => Mor.botTurn(st, s, stronger), next: st => Mor.nextRound(st) };
 const ALL = [MorG, ...Games.LIST];
 const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين وأكتر · أدوار سرّية', icon: '🎭', social: true, actor: () => -1,
   rules: `<p>كل واحد بياخد دور سرّي: مافيا، شعب، وإذا مفعّلين: طبيب ومحقق.<br>
@@ -85,6 +85,10 @@ const GG = id => ROOMG.find(g => g.id === id) || MorG;
 const gameIcon = (g, w = 30) => (g.icon ? `<span class="gemo" style="font-size:${w * 1.3}px">${g.icon}</span>` : fan(GICON[g.id] || GICON.mor, w));
 const gameOf = st => GG(st && st.game || 'mor');
 const saveKey = id => (id === 'mor' ? 'mor-local' : 'mor-local-' + id);
+const savedGame = id => {
+  const st = ls.get(saveKey(id));
+  return st && st.phase !== 'over' && Array.isArray(st.hands) && st.hands.length === 4 ? st : null;
+};
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
 window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s) };
 

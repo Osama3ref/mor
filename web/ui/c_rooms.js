@@ -17,6 +17,7 @@ async function joinRoom(mode, key) {
   key = (key || '').trim(); if (mode === 'fb') key = key.toUpperCase();
   unsub.forEach(u => u()); unsub = [];
   if (mode === 'fb' && fb.uid) uid = fb.uid;
+  cancelBot();
   Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0, pop: null });
   prevSt = null;
   try { await B().open(key, n); } catch (e) { ui.mode = null; ui.code = null; return toast(e.message || 'ما قدرت أدخل'); }
@@ -52,6 +53,7 @@ async function backToRoom() {
   try { await B().meta({ phase: 'lobby' }); } catch (e) { toast('ما قدرت أرجع للغرفة'); }
 }
 function leave() {
+  cancelBot();
   if (vc.on) voiceLeave();
   if (ui.mode === 'lan' || ui.mode === 'fb') B().leave();
   unsub.forEach(u => u()); unsub = [];
@@ -59,22 +61,32 @@ function leave() {
   if (fb.uid) uid = fb.uid;
   prevSt = null; ls.set('mor-room', null); render();
 }
-function startLocal(gid, kind, resume) {
-  const G = GG(gid); prof.lastGame = G.id; saveProf();
-  const saved = ls.get(saveKey(G.id));
-  if (resume && saved) ui.st = saved;
-  else {
-    let names, bots, avs;
-    if (kind === 'solo') { names = [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣']; bots = [false, true, true, true]; avs = [prof.av, 'bot', 'bot', 'bot']; }
-    else {
-      names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
-      bots = [0, 1, 2, 3].map(i => !!(ui.localCfg && ui.localCfg[i]));
-      if (bots.every(Boolean)) return toast('لازم لاعب واحد على الأقل مش بوت');
-      avs = bots.map((b, i) => (b ? 'bot' : i + '|A'));
-    }
-    ui.st = G.newGame(names, bots); ui.st.deal = Date.now(); ui.st.avs = avs; ls.set(saveKey(G.id), ui.st);
+function localSetup(kind) {
+  if (kind === 'solo') return { names: [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣'], bots: [false, true, true, true], avs: [prof.av, 'bot', 'bot', 'bot'] };
+  if (ui.localCfg.every(Boolean)) { toast('لازم لاعب واحد على الأقل مش بوت'); return null; }
+  const bots = ui.localCfg.slice(), drafts = ui.passNames = [0, 1, 2, 3].map(i => document.getElementById('ln' + i)?.value ?? '');
+  return { names: drafts.map((name, i) => name.trim() || 'لاعب ' + (i + 1)), bots, avs: bots.map((b, i) => b ? 'bot' : i + '|A') };
+}
+function requestLocal(gid, kind) {
+  const setup = localSetup(kind);
+  if (!setup) return;
+  if (savedGame(gid)) {
+    ui.pop = { k: 'replaceLocal', g: gid, kind, setup };
+    return render();
   }
-  ui.order = {}; ui.pop = null; prevSt = null;
+  startLocal(gid, setup);
+}
+function startLocal(gid, setup) {
+  const G = GG(gid);
+  if (setup) {
+    ui.st = G.newGame(setup.names, setup.bots); ui.st.deal = Date.now(); ui.st.avs = setup.avs; ls.set(saveKey(G.id), ui.st);
+  } else {
+    const st = savedGame(G.id);
+    if (!st) return toast('ما في لعبة محفوظة');
+    ui.st = st;
+  }
+  prof.lastGame = G.id; saveProf(); cancelBot();
+  ui.order = {}; ui.sel.clear(); ui.armed = null; ui.sheet = null; ui.dblSel = []; ui.pop = null; prevSt = null;
   const hs = humans(ui.st), a = G.actor(ui.st);
   ui.mode = 'local'; ui.view = 'game'; ui.viewer = hs.includes(a) ? a : hs[0]; ui.hidden = hs.length > 1;
   afterState(); render();

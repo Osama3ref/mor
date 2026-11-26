@@ -98,10 +98,16 @@ h1,h2,h3{margin:0;line-height:1.2}
 .tile .cards{display:flex;justify-content:center;direction:ltr}.tile .cards .c{--w:40px;margin:0 -6px}
 /* games grid */
 .glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:10px;margin-top:10px}
-.gcard{position:relative;padding:12px 10px 12px;border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:150px}
+.gentry{position:relative;display:flex}
+.gcard{width:100%;position:relative;padding:12px 10px 12px;border-radius:20px;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line2);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-height:150px}
 .gcard.on{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 10px 30px rgba(0,0,0,.3)}
 .gcard b{font-size:15.5px}.gcard .muted{font-size:11.5px;line-height:1.35}
-.gcard .info{position:absolute;top:6px;left:6px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.3);font-weight:800;font-size:14px;color:var(--gold)}
+.gentry .info{position:absolute;top:0;left:0;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:15px;color:var(--gold)}
+.gentry .info span{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:rgba(0,0,0,.4)}
+.gentry .info:focus-visible{outline-offset:-3px}
+.saved-games .resume{flex-wrap:wrap;overflow:visible;margin-top:9px}
+.saved-games .chip{min-height:44px}
+.ov.handoff{background:var(--bg2);backdrop-filter:none}
 .gcard .saved{position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--gold);box-shadow:0 0 8px var(--gold)}
 .seg{display:flex;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);gap:4px}
 .seg button{flex:1;min-height:38px;border-radius:11px;font-weight:700;font-size:14px;color:var(--dim)}
@@ -2234,7 +2240,244 @@ const Mor = (() => {
     return st;
   }
 
-  return { botTurnStrong, botTurnEasy: botTurn, botTurn: botTurnStrong, declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+  // Explore runs before sets as well as extending the team's table first.
+  // Every candidate goes through the same meld validator as a human move.
+  function morPlans(st, seat) {
+    const team = teamOf(seat), hand = st.hands[seat], melds = st.melds.filter(m => m.team === team);
+    const skip = st.noDiscard?.seat === seat ? st.noDiscard.id : null;
+    function extension(table, rest, fast) {
+      let best = null, value = -Infinity;
+      for (const m of table) {
+        const shape = analyze(m.cards); if (!shape) continue;
+        const before = meldValue(m);
+        const pool = rest.filter(c => isJ(c) || rankOf(c) === 2 ||
+          (shape.type === 'set' ? rankOf(c) === shape.rank : c[0] === shape.suit));
+        const consider = ids => {
+          const cards = [...m.cards,...ids], a = analyze(cards);
+          if (!a || a.type !== shape.type) return;
+          const delta = meldValue({cards:a.order}) - before;
+          const v = delta*1.8 + ids.length*2.6 + Math.min(7,cards.length)*0.7
+            - ids.filter(c=>a.wild.includes(c)).length*(delta>0 ? 3 : 7.5);
+          if (v > value && v>0) { value=v; best={t:'add',id:m.id,ids,cards:a.order}; }
+        };
+        for (let i=0;i<pool.length;i++) {
+          consider([pool[i]]);
+          if (!fast) for (let j=i+1;j<pool.length;j++) consider([pool[i],pool[j]]);
+        }
+      }
+      return best;
+    }
+    function runOptions(rest, addWild, priority) {
+      const options = [];
+      const wild = rest.filter(c => isJ(c) || rankOf(c) === 2);
+      for (const suit of SUITS) {
+        const ranks = new Map();
+        // At most one copy of each natural rank can enter a given run.
+        for (const c of rest) if (c[0] === suit && !ranks.has(rankOf(c))) ranks.set(rankOf(c),c);
+        for (let start=1;start<=12;start++) {
+          const natural=[], seen = new Set(); let gaps=0;
+          for (let end=start;end<=14 && end-start<13;end++) {
+            const card = ranks.get(end===14?1:end);
+            if (card && !seen.has(card)) { seen.add(card); natural.push(card); }
+            else gaps++;
+            if (gaps > (addWild ? 1 : 0)) break;
+            if (end-start+1 < 3 || natural.length < 2) continue;
+            const used = gaps ? wild.find(w => !seen.has(w) && analyzeSeq([...natural,w])) : null;
+            if (gaps && !used) continue;
+            const ids = used ? [...natural,used] : natural.slice(), shape=analyzeSeq(ids);
+            if (!shape) continue;
+            const score = meldValue({cards:ids})*2 + ids.length*(priority?3.8:4.4)
+              - (used ? (ids.length<7 ? 8.0 : 2) : 0) + (ids.includes(skip)?0.4:0);
+            options.push({ids,score});
+          }
+        }
+      }
+      return options;
+    }
+    function alternate(tableFirst, addWild) {
+      let rest=hand.slice(), table=melds.map(m=>({id:m.id,cards:m.cards.slice()})), fresh=[], acts=[];
+      function apply(a) {
+        acts.push(a);
+        rest=rest.filter(c=>!a.ids.includes(c));
+        if (a.t==='add') table.find(m=>m.id===a.id).cards=a.cards;
+        else fresh.push(a.ids);
+      }
+      function extend(fast) {
+        for (let n=0;n<12 && rest.length;n++) {
+          const a=extension(table,rest,fast);
+          if (!a) break;
+          apply(a);
+        }
+      }
+      if (tableFirst) extend(false);
+      for (let n=0;n<8 && rest.length>=3;n++) {
+        const options=runOptions(rest,addWild,tableFirst);
+        for (const r of [1,3,4,5,6,7,8,9,10,11,12,13]) {
+          const ids=rest.filter(c=>rankOf(c)===r);
+          if (ids.length>=3) {
+            options.push({ids,score:meldValue({cards:ids})*2+ids.length*3.5+(ids.includes(skip)?0.4:0)});
+            const j=rest.find(isJ);
+            if (addWild && j && (ids.length===6 || ids.length===7)) {
+              const mix=[...ids,j]; options.push({ids:mix,score:meldValue({cards:mix})*2+mix.length*3.5-3});
+            }
+          }
+          if (ids.length===2 && addWild) {
+            const j=rest.find(isJ); if(j) options.push({ids:[...ids,j],score:3});
+          }
+        }
+        options.sort((a,b)=>b.score-a.score);
+        if (!options.length) break;
+        apply({t:'new',ids:options[0].ids});
+      }
+      if (!tableFirst) extend(false);
+      const g=[...table.map(m=>m.cards),...fresh];
+      return {rest,acts,ground:g.reduce((v,c)=>v+meldValue({cards:c}),0),lens:g.map(c=>c.length)};
+    }
+    const out=[planMelds(hand,st.melds,team),alternate(false,false),alternate(true,true)];
+    const canFinish=p=>p.rest.length===0 || (p.rest.length===1 && p.rest[0]!==skip);
+    const score=p=>{
+      const close = p.ground>=CLOSE_MIN && st.morBy.some(x=>x!=null);
+      const mor = p.ground>=MOR_MIN && morLeft(st)>=0;
+      const finish = canFinish(p) ? close ? 230 : mor ? 155 : -28 : 0;
+      const wilds = p.rest.filter(c=>isJ(c)||rankOf(c)===2).length;
+      return finish + p.ground*2.3 + (hand.length-p.rest.length)*2 + wilds*7 +
+        p.lens.reduce((a,n)=>a+(n>=5 && n<7 ? (n-4)*4 : 0),0);
+    };
+    return out.sort((a,b)=>score(b)-score(a));
+  }
+  // This evaluates likely future pickups from the public card pool. It never
+  // inspects the deck order, the other hands or the reserved Mor cards.
+  function morBelief(st,seat) {
+    const seen=new Set([...st.hands[seat], ...st.discard, ...st.melds.flatMap(m=>m.cards)]);
+    for (const x of (st.taken||[]).slice(-4)) for (const c of x.ids) seen.add(c);
+    return buildDeck().filter(c=>!seen.has(c));
+  }
+  function morPickSpread(pool,n,salt) {
+    const p=pool.slice(), out=[];
+    let z=(0x9E3779B9^salt)>>>0;
+    for(let i=0;i<n && p.length;i++){
+      z=(Math.imul(z,1664525)+1013904223)>>>0;
+      out.push(p.splice(z%p.length,1)[0]);
+    }
+    return out;
+  }
+  function morFutureValue(st,seat,hand) {
+    const team=teamOf(seat), plan=planMelds(hand,st.melds,team);
+    const h=plan.rest, needed=morLeft(st)>=0 ? MOR_MIN : CLOSE_MIN;
+    const turns=st.stock.length, end=turns<=6;
+    let value=plan.ground*2.4 + Math.min(plan.ground,needed)*0.60;
+    value+=(hand.length-h.length)*2.25-h.length*(end?3.2:1.4);
+    for(const c of h) value+=isJ(c)||rankOf(c)===2 ? 7 : Math.min(7,cardKeep(c,h))*0.62;
+    for(const len of plan.lens) if(len<7) value+=Math.max(0,len-3)**2*1.3;
+    if(plan.ground>=needed){
+      if(h.length<=1) value+=34;
+      else if(h.length<=3) value+=12;
+    }
+    return value;
+  }
+  function morForecastDraw(st,seat) {
+    const normal=chooseDraw(st,seat), pile=st.discard, own=st.hands[seat];
+    if(!pile.length || !st.stock.length) return normal;
+    const hidden=morBelief(st,seat), base=morFutureValue(st,seat,own), end=st.stock.length<=6;
+    const samples=morPickSpread(hidden,8,313*own.length+73*st.stock.length+st.round);
+    if(!samples.length)return normal;
+    const pickup=xs=>morFutureValue(st,seat,[...own,...xs])-base;
+    let threshold=samples.reduce((v,c)=>v+pickup([c]),0)/samples.length;
+    threshold+=(st.sinceDraw||0)*(end?2.4:1.1);
+    let best=-1, score=threshold+(normal<0?0.4:1.6);
+    const choices=new Set([normal]);
+    for(let len=1;len<=Math.min(10,pile.length);len++) choices.add(pile.length-len);
+    if(pile.length>10) for(const extra of [14,18,23]) if(pile.length>=extra) choices.add(pile.length-extra);
+    for(const i of choices) if(i>=0){
+      const got=pile.slice(i);
+      const gain=pickup(got)-Math.max(0,got.length-1)*(end?1.3:0.48);
+      if(gain>score){score=gain;best=i;}
+    }
+    return best;
+  }
+  function morForecastDiscard(st,seat) {
+    const normal=chooseDiscard(st,seat), h=st.hands[seat];
+    if(h.length<2 || !normal) return normal;
+    const skip=st.noDiscard?.seat===seat?st.noDiscard.id:null;
+    const limit=st.stock.length>22?4:6, risk=st.stock.length<8?1.35:1.12;
+    const candidates=h.filter(c=>c!==skip||h.some(x=>x!==c&&twinKey(x)===twinKey(c)))
+      .map(c=>{
+        const rest=h.filter(x=>x!==c), control=danger(st,seat,c)*risk,
+          current=morFutureValue(st,seat,rest)-control;
+        return {c,rest,current};
+      }).sort((a,b)=>b.current-a.current);
+    const pool=morBelief(st,seat), samples=morPickSpread(pool,limit,197*st.stock.length+71*h.length+st.round);
+    if(!samples.length)return normal;
+    const short=candidates.slice(0,4), baseline=candidates.find(o=>o.c===normal);
+    if(baseline&&!short.includes(baseline))short.push(baseline);
+    const score=o=>o.current*0.65 +
+      0.35*samples.reduce((v,x)=>v+morFutureValue(st,seat,[...o.rest,x])-danger(st,seat,o.c)*risk,0)/samples.length;
+    let top=normal, best=baseline?score(baseline)+0.35:-Infinity;
+    for(const o of short){
+      const v=score(o);
+      if(v>best){top=o.c;best=v;}
+    }
+    return top;
+  }
+
+  function morExpert(s, seat, expert = false) {
+    if (s.phase !== 'play' || s.turn !== seat || s.step==='choice') return botTurnStrong(s,seat);
+    const team=teamOf(seat), other=1-team;
+    let st=s;
+    const go=(q,fn,...args)=>{try{return fn(q,seat,...args);}catch(e){if(!e.game)throw e;return null;}};
+    if (st.step==='draw') {
+      const i=expert ? morForecastDraw(st,seat) : chooseDraw(st,seat);
+      st=(i>=0&&go(st,takeDiscard,i)) || go(st,draw) || go(st,takeDiscard,st.discard.length-1) || s;
+      if (st===s) return s;
+    }
+    for(let repeat=0;repeat<3;repeat++){
+      const plans=morPlans(st,seat), skip=st.noDiscard?.seat===seat?st.noDiscard.id:null;
+      const apply=(start,p,finish)=>{
+        let q=start;
+        for(const a of p.acts){
+          if(!finish && q.hands[seat].length-a.ids.length<2) continue;
+          const next=a.t==='new'?go(q,meldNew,a.ids):go(q,addToMeld,a.id,a.ids);
+          if(next) q=next;
+          else if(finish) return null;
+        }
+        return q;
+      };
+      let continuous=null;
+      if (!st.melded) for(const p of plans){
+        if(p.rest.length>1 || (p.rest.length===1 && p.rest[0]===skip)) continue;
+        const took=st.morBy.filter(x=>x!=null).length;
+        const wantClose=p.ground>=CLOSE_MIN && took>0 &&
+          (morLeft(st)<0 || st.morBy.includes(team) || p.ground>ground(st,other)+50);
+        const mode=wantClose?'close':morLeft(st)>=0&&p.ground>=MOR_MIN?'mor':took&&p.ground>=CLOSE_MIN?'close':null;
+        if(!mode) continue;
+        const dec=go(st,declare,mode);
+        if(!dec) continue;
+        let q=apply(dec,p,true);
+        if(!q) continue;
+        if(q.hands[seat].length===1) q=go(q,discard,q.hands[seat][0]);
+        if(!q || q.hands[seat].length!==0) continue;
+        if(mode==='close'){
+          const closed=go(q,close);
+          if(closed && (!expert || closed.phase!=='over' || closed.winner===team)) return closed;
+        }
+        else if(q.step==='choice'){const taken=go(q,chooseMor); if(taken)return taken;}
+        else { continuous=go(q,takeMorNow); if(continuous) break; }
+      }
+      if (continuous){st=continuous;continue;}
+      st=apply(st,plans[0],false);
+      for (const m of st.melds.filter(x=>x.team===team)) {
+        for(const c of st.hands[seat].slice()){
+          if (swapOptions(m,c).length){st=go(st,swapWild,m.id,c)||st;break;}
+        }
+      }
+      break;
+    }
+    const c=expert ? morForecastDiscard(st,seat) : chooseDiscard(st,seat);
+    const next=(c&&go(st,discard,c)) || st.hands[seat].map(x=>go(st,discard,x)).find(Boolean);
+    return next && next.turn===seat && next.step==='choice' ? botTurnStrong(next,seat) : next || botTurnStrong(st,seat);
+  }
+
+  return { botTurnStrong, botTurnEasy: botTurn, botTurn: (st, seat, stronger = true) => stronger ? morExpert(st, seat, stronger === 'expert') : botTurnStrong(st, seat), declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
 })();
 
 
@@ -2484,6 +2727,505 @@ const Games = (() => {
     return L.slice().sort((a, b) => dumpScore(b) - dumpScore(a))[0];
   }
 
+  // Sample unknown cards, not the actual opponents' hands. Void suits and exposed
+  // card owners are hard constraints. The public hand sizes are the only counts used.
+  const BOT_DECK = SUITS.flatMap(s => Array.from({length: 13}, (_, i) => s + (i + 2)));
+  const B_RANK = Object.fromEntries(BOT_DECK.map(c => [c, +c.slice(1)]));
+  const B_SEATS = [0, 1, 2, 3];
+  function scenarioDealer(st, seat, ladderGame, expert = false) {
+    const mine = st.hands[seat];
+    const visible = new Set(mine), forced = {};
+    let played = 0;
+    if (ladderGame) {
+      for (const s of SUITS) {
+        const pair = st.ladder[s]; if (!pair) continue;
+        for (let r = pair[0]; r <= pair[1]; r++) { visible.add(s + r); played++; }
+      }
+    } else {
+      for (const pile of st.taken) for (const c of pile) { visible.add(c); played++; }
+      if (!st.trickDone) for (const {card} of st.trick) { visible.add(card); played++; }
+    }
+    if (st.reveal) forced[st.reveal] = st.dealer;
+    if (st.partner != null && st.handNo === 1) forced.H7 = st.owner;
+    if (st.doubled) {
+      if (st.doubled.K != null) forced.H13 = st.doubled.K;
+      Object.assign(forced, st.doubled.Q);
+    }
+    const counts = st.hands.map((h, i) => i === seat ? 0 : h.length);
+    const unknown = BOT_DECK.filter(c => !visible.has(c)).map(c => {
+      let permitted = B_SEATS.filter(i => counts[i] &&
+        (forced[c] == null || forced[c] === i) &&
+        (ladderGame ? !(expert && st.ladderNo?.[i]?.includes(c)) : !st.voids?.[i]?.[c[0]]));
+      return {c, permitted};
+    });
+    if (unknown.some(x => x.permitted.length === 0) ||
+        unknown.length !== counts.reduce((a,b) => a+b,0) || visible.size !== played + mine.length) return null;
+    return () => {
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const slots = counts.slice(), hands = [[], [], [], []]; hands[seat] = mine.slice();
+        const order = unknown.map(x => ({...x, tie: Math.random()}));
+        order.sort((a,b) => a.permitted.length - b.permitted.length || a.tie - b.tie);
+        let ok = true;
+        for (const {c, permitted} of order) {
+          const n = permitted.reduce((a,i) => a + slots[i], 0);
+          if (!n) { ok = false; break; }
+          let r = Math.floor(Math.random() * n);
+          for (const i of permitted) if ((r -= slots[i]) < 0) { hands[i].push(c); slots[i]--; break; }
+        }
+        if (ok) return hands;
+      }
+      return null;
+    };
+  }
+
+  function botBetter(a,b,led,trump) {
+    return a[0] === b[0] ? B_RANK[a] > B_RANK[b] :
+      a[0] === trump || (b[0] !== trump && a[0] === led);
+  }
+  const botMinBy = (cards, cost) => {
+    let best = cards[0], bv = Infinity;
+    for (const c of cards) { const v = cost(c); if (v < bv) { bv = v; best = c; } }
+    return best;
+  };
+  function botCandidates(L, fallback, limit, rankScore) {
+    if (L.length <= limit) return L;
+    const out = new Set([fallback]);
+    for (const s of SUITS) {
+      const group = L.filter(c => c[0] === s);
+      if (group.length) out.add(botMinBy(group, rankScore));
+    }
+    for (const c of L.slice().sort((a,b) => rankScore(a)-rankScore(b))) {
+      if (out.size >= limit) break;
+      out.add(c);
+    }
+    return [...out];
+  }
+  function botPenalty(st, c) {
+    let points = 0;
+    const type = st.contract;
+    if ((type === 'king' || type === 'complex') && c === 'H13') points += st.doubled?.K != null ? 150 : 75;
+    if ((type === 'queens' || type === 'complex') && B_RANK[c] === 12) points += st.doubled?.Q?.[c] != null ? 50 : 25;
+    if ((type === 'diamonds' || type === 'complex') && c[0] === 'D') points += 10;
+    return points;
+  }
+  function rolloutTrick(st, actor, move, drawn, penalties, trickCountOnly = false, expert = false) {
+    const H = drawn.map(h => h.slice()), T = st.tricks.slice(), P = (st.hs || [0,0,0,0]).slice();
+    const bar = {S:0,H:0,C:0,D:0};
+    const used = new Set(st.taken.flat());
+    function mark(c) {
+      used.add(c);
+      let k = 14;
+      while (k >= 2 && used.has(c[0] + k)) k--;
+      bar[c[0]] = k;
+    }
+    for (const c of used) mark(c);
+    for (const s of SUITS) if (!bar[s]) bar[s] = 14;
+    const inTrick = st.trickDone ? [] : st.trick.slice();
+    const voids = expert ? (st.voids || [{},{},{},{}]).map(v=>({...v})) : null;
+    const trump = penalties ? null : st.trump;
+    let highest = null, winner = null, led = null, turn = actor, first = true;
+    let left = H.reduce((a,h) => a+h.length,0);
+    for (const {card, seat} of inTrick) {
+      if (!led) led = card[0];
+      if (!highest || botBetter(card, highest, led, trump)) { highest = card; winner = seat; }
+      mark(card);
+    }
+    const basePen = st.contract === 'ltoosh' || st.contract === 'complex' ? 15 : 0;
+    while (left > 0 && H[turn].length) {
+      const h = H[turn], n = inTrick.length, follows = led ? h.filter(c => c[0] === led) : h;
+      const L = follows.length ? follows : h;
+      const cheap = c => B_RANK[c] + (c[0] === trump ? 18 : 0) + (B_RANK[c] >= bar[c[0]] ? 9 : 0);
+      let c;
+      if (first && move) { c = move; first = false; }
+      else if (L.length === 1) c = L[0];
+      else if (!penalties) {
+        if (!n) {
+          const p = (turn + 2) % 4, need = st.game === 'tarneeb41' && T[turn] >= st.bids[turn] && T[p] < st.bids[p];
+          c = botMinBy(L, x => {
+            const s = x[0], r = B_RANK[x], highs = r >= bar[s], len = h.filter(y => y[0] === s).length;
+            if (need) return r + (s === trump ? 12 : 0) + (highs ? 20 : 0);
+            let value=(highs ? -27 : r*0.8) + (s === trump ? 4 : 0) - len*1.8;
+            if(expert){
+              if(highs && s!==trump) for(const i of [((turn+1)%4),((turn+3)%4)]) if(voids[i][s]&&!voids[i][trump])value+=24;
+              if(s===trump&&len>=3&&highs)value-=14;
+              if(s!==trump&&len===1&&r<10&&h.some(x=>x[0]===trump))value-=6;
+              if(s!==trump&&voids[p][s]&&!voids[p][trump])value-=8-r*0.28;
+            }
+            return value;
+          });
+        } else {
+          const safePartner = teamOf(winner) === teamOf(turn) && (n === 3 || (B_RANK[highest] >= bar[highest[0]] &&
+            !(expert && highest[0]!==trump && !inTrick.some(x=>x.seat===(turn+1)%4) && voids[(turn+1)%4][led] && !voids[(turn+1)%4][trump])));
+          const alreadyMade = st.game === 'tarneeb41' && T[turn] >= st.bids[turn] &&
+            winner === (turn + 2) % 4 && T[winner] < st.bids[winner];
+          const win = L.filter(x => botBetter(x, highest, led, trump));
+          c = safePartner || alreadyMade || !win.length ? botMinBy(L, cheap) :
+            botMinBy(win, x => B_RANK[x] + (x[0] === trump && led !== trump ? 7 : 0)
+              - (n < 3 && B_RANK[x] >= bar[x[0]] ? 7 : 0));
+        }
+      } else if (!n) {
+        c = botMinBy(L, x => B_RANK[x] + (B_RANK[x] >= bar[x[0]] ? 14 : 0) + botPenalty(st,x)*0.38);
+      } else {
+        const losses = L.filter(x => !botBetter(x, highest, led, null));
+        const partnerWinning = st.partner && teamOf(turn) === teamOf(winner);
+        const danger = x => botPenalty(st,x)*0.65 + B_RANK[x] + (B_RANK[x] >= bar[x[0]] ? 6 : 0);
+        if (losses.length) c = botMinBy(losses, x => -danger(x) + (partnerWinning ? botPenalty(st,x) : 0));
+        else c = botMinBy(L, x => n === 3 ? -danger(x) : B_RANK[x] + botPenalty(st,x)*0.4);
+      }
+      if (!led) led = c[0];
+      if (!highest || botBetter(c, highest, led, trump)) { highest = c; winner = turn; }
+      if(expert && c[0]!==led)voids[turn][led]=true;
+      h.splice(h.indexOf(c), 1); left--; mark(c); inTrick.push({card:c,seat:turn});
+      if (inTrick.length < 4) { turn = (turn + 1) % 4; continue; }
+      const leader = inTrick[0].seat;
+      T[winner]++;
+      if (penalties) {
+        P[winner] -= basePen;
+        for (const {card} of inTrick) {
+          const pts = botPenalty(st,card);
+          P[winner] -= pts;
+          let d = null, reward = 0;
+          if (pts && card === 'H13' && (st.contract === 'king' || st.contract === 'complex')) { d = st.doubled?.K; reward=75; }
+          if (pts && B_RANK[card] === 12 && (st.contract === 'queens' || st.contract === 'complex')) { d = st.doubled?.Q?.[card]; reward=25; }
+          if (d != null && d !== winner) P[d] += reward;
+          else if (d != null && leader !== winner) P[leader] += reward;
+        }
+        if (st.contract === 'king' && used.has('H13')) break;
+        if (st.contract === 'queens' && SUITS.every(s => used.has(s+'12'))) break;
+        if (st.contract === 'diamonds' && BOT_DECK.every(c => c[0] !== 'D' || used.has(c))) break;
+      }
+      turn = winner; inTrick.length = 0; led = highest = winner = null;
+    }
+    if(expert&&!trickCountOnly)return expertTrickValue(st,actor,T,P);
+    const team = teamOf(actor), partner = (actor+2)%4;
+    if (penalties) {
+      return st.partner ? P[actor] + P[partner] - P[(actor+1)%4] - P[(actor+3)%4] :
+        P[actor] - 0.30 * Math.max(...P.filter((_,i) => i !== actor));
+    }
+    const ours = T[actor]+T[partner];
+    if (trickCountOnly) return ours;
+    if (st.game === 'tarneeb61') return tarneeb61Utility(st,team,ours);
+    const d = T.map((t,i) => (t >= st.bids[i] ? 1:-1)*t41val(st,i,st.bids[i]));
+    for (const i of B_SEATS) {
+      const p=(i+2)%4;
+      if (d[i]<0 && st.scores[p]>=30 && st.bids[i]>t41min(st,i) && d[p]>0) d[p]*=-1;
+    }
+    return d[actor]+d[partner]-d[(actor+1)%4]-d[(actor+3)%4] + (Math.min(T[actor],st.bids[actor])+Math.min(T[partner],st.bids[partner]))*0.65+ours*0.12;
+  }
+  function rolloutLadder(st, seat, move, drawn) {
+    const h = drawn.map(cards => cards.slice()), board = Object.fromEntries(SUITS.map(s => [s, st.ladder[s]?.slice() || null]));
+    const done = st.finished.slice(), value = st.hs.slice();
+    let turn = seat, idle = 0;
+    const legalHere = c => {
+      const s = c[0], r=B_RANK[c], b=board[s];
+      return b ? r === b[0]-1 || r === b[1]+1 : r===11;
+    };
+    for (let i = 0; i < 110 && idle < 4 && done.length < 3; i++) {
+      const a = h[turn];
+      const L = i === 0 ? [move] : a.filter(legalHere);
+      if (L.length) {
+        const c = botMinBy(L, x => {
+          const s=x[0], r=B_RANK[x], d=r>11 ? 1:-1;
+          return -a.filter(y => y[0]===s && (r === 11 || (B_RANK[y]-r)*d>0)).length
+            - (a.includes(s+(r+d)) ? 2 : 0);
+        });
+        a.splice(a.indexOf(c),1);
+        const s=c[0], r=B_RANK[c], b=board[s];
+        board[s]=b?[Math.min(r,b[0]),Math.max(r,b[1])]:[11,11];
+        if (!a.length) { value[turn] += [200,150,100,50][done.length]; done.push(turn); }
+        idle = 0;
+      } else idle++;
+      do { turn=(turn+1)%4; } while(done.includes(turn));
+    }
+    for (const i of B_SEATS) if (!done.includes(i)) value[i]+=50;
+    const p = (seat+2)%4;
+    return st.partner ? value[seat]+value[p]-value[(seat+1)%4]-value[(seat+3)%4] : value[seat]-0.25*Math.max(...value.filter((_,i)=>i!==seat));
+  }
+  function solveTarneeb61(st, seat, move, sampled) {
+    const H=sampled.map(h=>h.slice()), mine=teamOf(seat), trump=st.trump;
+    const current=st.trickDone ? [] : st.trick;
+    const prior=st.tricks[seat]+st.tricks[(seat+2)%4];
+    const left=H.reduce((a,h)=>a+h.length,0);
+    const led=current[0]?.card[0] || move[0];
+    let winner=seat, high=move;
+    for(const t of current) if(botBetter(t.card,high,led,trump)){high=t.card;winner=t.seat;}
+    H[seat].splice(H[seat].indexOf(move),1);
+    const search=(turn,n,led,hi,win,left,total,alpha,beta)=>{
+      if(!left) return total;
+      const h=H[turn], must=!!led&&h.some(c=>c[0]===led), max=teamOf(turn)===mine;
+      let best=max?-1:14;
+      for(let i=0;i<h.length;i++){
+        const c=h[i]; if(must&&c[0]!==led) continue;
+        h.splice(i,1);
+        const suit=led||c[0], takes=!hi||botBetter(c,hi,suit,trump), w=takes?turn:win, top=takes?c:hi;
+        const v=n===3 ? search(w,0,null,null,null,left-1,total+(teamOf(w)===mine?1:0),alpha,beta) :
+          search((turn+1)%4,n+1,suit,top,w,left-1,total,alpha,beta);
+        h.splice(i,0,c);
+        if(max){best=Math.max(best,v);alpha=Math.max(alpha,best);}
+        else {best=Math.min(best,v);beta=Math.min(beta,best);}
+        if(alpha>=beta) break;
+      }
+      return best;
+    };
+    const ours=current.length===3 ?
+      search(winner,0,null,null,null,left-1,prior+(teamOf(winner)===mine?1:0),-1,14) :
+      search((seat+1)%4,current.length+1,led,high,winner,left-1,prior,-1,14);
+    return tarneeb61Utility(st,mine,ours);
+  }
+  function tarneeb61Utility(st, team, ours) {
+    const mine=teamOf(st.bid.seat)===team, total=mine?ours:13-ours, made=total>=st.bid.val;
+    const v=made?(st.bid.val===13?26:total):-(st.bid.val===13?16:st.bid.val)-(total===0?16:13-total);
+    return (mine?v:-v)+ours*0.42;
+  }
+  function informedMove(st, seat, fallback, mode, L) {
+    if (L.length < 2 || !fallback) return fallback;
+    const gen = scenarioDealer(st, seat, mode === 'ladder');
+    if (!gen) return fallback;
+    const fresh = st.trickDone || !st.trick.length;
+    const order = c => {
+      if (mode === 'ladder') return 0;
+      const n = B_RANK[c];
+      if (mode === 'penalty') return fresh ? n + botPenalty(st,c)*0.7 : -n - botPenalty(st,c);
+      return fresh ? -n : n;
+    };
+    if (mode === 'ladder' && (!st.partner || st.hands[seat].length > 5)) return fallback;
+    if (mode === 'penalty' && ['king','queens'].includes(st.contract)) return fallback;
+    const pool = botCandidates(L,fallback,6,order), totals = pool.map(() => 0);
+    let worlds = 0;
+    const exact = st.game === 'tarneeb61' && st.hands[seat].length <= 3;
+    for (let i = 0; i < (exact ? 24 : mode === 'tarneeb' ? 14 : 12); i++) {
+      const hands = gen(); if (!hands) continue;
+      for (let j = 0; j < pool.length; j++) {
+        totals[j] += mode === 'ladder' ? rolloutLadder(st,seat,pool[j],hands) :
+          exact ? solveTarneeb61(st,seat,pool[j],hands) : rolloutTrick(st,seat,pool[j],hands,mode === 'penalty');
+      }
+      worlds++;
+    }
+    if (worlds < 3) return fallback;
+    const fi = pool.indexOf(fallback);
+    let best = fi, bv = totals[fi]/worlds;
+    const threshold = mode === 'tarneeb' ? 0.26 : mode === 'ladder' ? 17 : 3;
+    for (let i = 0; i < pool.length; i++) {
+      const score=totals[i]/worlds - (i === fi ? 0 : threshold);
+      if (score>bv) { best=i; bv=score; }
+    }
+    return pool[best];
+  }
+
+  function informedTrump(st, seat, fallback) {
+    const gen = scenarioDealer(st,seat,false), hand = st.hands[seat];
+    if (!gen) return fallback;
+    const options = SUITS.filter(s => s === fallback || hand.filter(c => c[0] === s).length >= 3);
+    if (options.length < 2) return fallback;
+    const sim = options.map(s => ({...st,trump:s})), scores = options.map(() => 0);
+    let count=0;
+    for (let n=0;n<24;n++) {
+      const hands=gen(); if(!hands) continue;
+      count++;
+      for(let i=0;i<options.length;i++){
+        const tricks=rolloutTrick(sim[i],seat,null,hands,false,true);
+        scores[i] += tricks + (tricks>=st.bid.val ? 2 : 0);
+      }
+    }
+    if (count<4) return fallback;
+    const i=options.indexOf(fallback);
+    const best=botMinBy(options,s=>-scores[options.indexOf(s)]);
+    return scores[options.indexOf(best)]-scores[i] > count*0.45 ? best : fallback;
+  }
+
+
+  // A noisy bid is evidence, not proof. Bias worlds gently towards plausible
+  // bidders and trump choices without ruling out bluffs or forced bids.
+  function expertWorldWeight(st,seat,hands) {
+    if (st.tricks.reduce((a,b)=>a+b,0)>6) return 1;
+    const t=st.trump;
+    if (st.game==='tarneeb61' && st.bid?.seat!==seat && st.bid) {
+      const h=hands[st.bid.seat], n=h.filter(c=>c[0]===t).length;
+      return Math.max(0.45,Math.min(1.6,0.65+n*0.16+(h.includes(t+'14')?0.14:0)));
+    }
+    if (st.game==='tarneeb41') {
+      let v=1;
+      for(const i of B_SEATS) if(i!==seat && st.bids[i]>=4) {
+        const winners=estTricks(hands[i],t)+st.tricks[i];
+        v*=Math.max(0.35,Math.min(1.2,1.14-0.11*Math.max(0,st.bids[i]-winners)));
+      }
+      return v;
+    }
+    return 1;
+  }
+  function expertTrickValue(st,seat,T,P) {
+    const p=(seat+2)%4, l=(seat+1)%4, r=(seat+3)%4, team=teamOf(seat);
+    if (st.game==='tarneeb61') return tarneeb61Utility(st,team,T[seat]+T[p]);
+    if (st.game==='tarneeb41'){
+      const made=T.map((n,i)=>n>=st.bids[i]);
+      const d=made.map((ok,i)=>(ok?1:-1)*t41val(st,i,st.bids[i]));
+      for(const i of B_SEATS) {
+        const mate=(i+2)%4;
+        if(!made[i]&&st.scores[mate]>=30&&st.bids[i]>t41min(st,i)&&d[mate]>0)d[mate]*=-1;
+      }
+      const s=st.scores.map((n,i)=>n+d[i]);
+      const reached=(a,b)=>(s[a]>=41&&s[b]>0)||(s[b]>=41&&s[a]>0);
+      return d[seat]+d[p]-d[l]-d[r] +
+        (reached(seat,p)?55:0)-(reached(l,r)?55:0)+
+        (Math.min(T[seat],st.bids[seat])+Math.min(T[p],st.bids[p]))*0.50;
+    }
+    if(st.partner) return P[seat]+P[p]-P[l]-P[r];
+    // Head-to-head score gap, not just absolute points in a four-player hand.
+    const scores=P.map((n,i)=>n+st.scores[i]);
+    return P[seat]-0.27*Math.max(...scores.filter((_,i)=>i!==seat));
+  }
+  function expertTrickSolve(st,seat,move,hands,penalty) {
+    if(st.game==='tarneeb61') return solveTarneeb61(st,seat,move,hands);
+    const h=hands.map(x=>x.slice()), trump=penalty?null:st.trump,
+      T=st.tricks.slice(), P=st.hs.slice(), team=teamOf(seat);
+    const types=st.contract, perTrick=types==='complex'||types==='ltoosh'?15:0;
+    const starts=st.trickDone?[]:st.trick.slice();
+    const effects=trick=>{
+      const top=trick.reduce((x,t)=>botBetter(t.card,x.card,trick[0].card[0],trump)?t:x);
+      const seat=top.seat, diff=[0,0,0,0], lead=trick[0].seat;
+      if(penalty){
+        diff[seat]-=perTrick;
+        for(const {card} of trick){
+          diff[seat]-=botPenalty(st,card);
+          const king=(types==='king'||types==='complex')&&card==='H13', q=(types==='queens'||types==='complex')&&B_RANK[card]===12;
+          const d=king?st.doubled?.K:q?st.doubled?.Q?.[card]:null;
+          if(d!=null) diff[d!==seat?d:lead!==seat?lead:seat]+=(d!==seat||lead!==seat)?(king?75:25):0;
+        }
+      }
+      return {seat,diff};
+    };
+    const individual=penalty&&!st.partner;
+    const value=(state,i)=>expertTrickValue(st,i,state.t,state.p);
+    const opposite=types==='king'?x=>x==='H13':types==='queens'?x=>B_RANK[x]===12:types==='diamonds'?x=>x[0]==='D':null;
+    const played=opposite ? st.taken.flat().filter(opposite).length : 0;
+    const goal=types==='king'?1:types==='queens'?4:13;
+    const solve=(a,trick,total,terminal,alpha,beta)=>{
+      if(total===0 || (opposite && terminal>=goal)) {
+        const state={t:T,p:P};
+        return individual ? B_SEATS.map(i=>value(state,i)) : value(state,seat);
+      }
+      const mine=h[a], led=trick[0]?.card[0], must=led&&mine.some(c=>c[0]===led);
+      const max=teamOf(a)===team;
+      let best=null, bv=max||individual?-Infinity:Infinity;
+      for(let i=0;i<mine.length;i++){
+        const c=mine[i];if(must&&c[0]!==led)continue;
+        mine.splice(i,1);
+        const nx=trick.concat({seat:a,card:c});
+        let v;
+        if(nx.length===4){
+          const e=effects(nx);
+          T[e.seat]++;for(const j of B_SEATS)P[j]+=e.diff[j];
+          v=solve(e.seat,[],total-1,terminal+(opposite?nx.filter(x=>opposite(x.card)).length:0),alpha,beta);
+          T[e.seat]--;for(const j of B_SEATS)P[j]-=e.diff[j];
+        } else v=solve((a+1)%4,nx,total-1,terminal,alpha,beta);
+        mine.splice(i,0,c);
+        const x=individual?v[a]:v;
+        if((max||individual)?x>bv:x<bv){best=v;bv=x;}
+        if(!individual){
+          if(max)alpha=Math.max(alpha,bv);
+          else beta=Math.min(beta,bv);
+          if(alpha>=beta)break;
+        }
+      }
+      return best;
+    };
+    const remaining=h.reduce((a,b)=>a+b.length,0);
+    h[seat].splice(h[seat].indexOf(move),1);
+    const chosen=starts.concat({seat,card:move});
+    let v;
+    if(chosen.length===4){
+      const e=effects(chosen);
+      T[e.seat]++;for(const j of B_SEATS)P[j]+=e.diff[j];
+      v=solve(e.seat,[],remaining-1,played+(opposite?chosen.filter(x=>opposite(x.card)).length:0),-Infinity,Infinity);
+    } else v=solve((seat+1)%4,chosen,remaining-1,played,-Infinity,Infinity);
+    return individual ? v[seat] : v;
+  }
+  function expertLadder(st, seat, move, hands, style) {
+    const h=hands.map(x=>x.slice()), board=Object.fromEntries(SUITS.map(s=>[s,st.ladder[s]?.slice()||null]));
+    const done=st.finished.slice(), value=st.hs.slice();
+    let a=seat,idle=0;
+    const gates=s=>board[s] ? [board[s][0]-1,board[s][1]+1].filter(n=>n>=2&&n<=14) : [11];
+    const legalFor=cards=>cards.filter(c=>gates(c[0]).includes(B_RANK[c]));
+    for(let i=0;i<104&&idle<4&&done.length<3;i++){
+      const my=h[a], rows=i===0?[move]:legalFor(my);
+      if(rows.length){
+        const c=botMinBy(rows,x=>{
+          const s=x[0],r=B_RANK[x], ld=board[s], dirs=ld ? (r<ld[0]?[-1]:[1]) : [-1,1];
+          let cost=0;
+          for(const d of dirs){
+            const n=r+d;
+            if(n<2||n>14) continue;
+            const owned=my.includes(s+n), beyond=my.filter(c=>c[0]===s&&(B_RANK[c]-r)*d>0).length;
+            if(owned) cost-=3.5+beyond*0.9;
+            else {
+              const later=st.partner?[(a+1)%4,(a+3)%4]:B_SEATS.filter(x=>x!==a);
+              const pressure=later.reduce((v,j)=>v+(h[j].length===1?2.5:h[j].length<=3&&h[j].length?0.9:0),0);
+              cost-=beyond*(style===0?1.15:1.65);
+              cost+=beyond===0 ? 2.5+pressure : pressure*0.35;
+            }
+          }
+          if(r===11 && !ld)cost+=my.length<5?0.5:1.3;
+          return cost;
+        });
+        my.splice(my.indexOf(c),1);
+        const s=c[0],r=B_RANK[c],b=board[s];
+        board[s]=b?[Math.min(b[0],r),Math.max(b[1],r)]:[11,11];
+        if(!my.length){value[a]+=[200,150,100,50][done.length];done.push(a);}
+        idle=0;
+      }else idle++;
+      do{a=(a+1)%4;}while(done.includes(a));
+    }
+    for(const i of B_SEATS)if(!done.includes(i))value[i]+=50;
+    return st.partner ? value[seat]+value[(seat+2)%4]-value[(seat+1)%4]-value[(seat+3)%4] :
+      value[seat]-0.26*Math.max(...value.filter((_,i)=>i!==seat));
+  }
+  function expertMove(st,seat,normal,mode,L) {
+    if(!normal||L.length<2)return normal;
+    const ladder=mode==='ladder', pen=mode==='penalty', late=st.hands[seat].length;
+    // Single-penalty contracts play differently from Complex. Keep Strong's
+    // opening on the contracts where the broader rollouts weren't reliable.
+    if(pen && (st.contract==='ltoosh' || (late>3 && (st.contract==='king' || (st.partner&&st.contract==='diamonds'))))) {
+      return informedMove(st,seat,normal,mode,L);
+    }
+    const dealer=scenarioDealer(st,seat,ladder,true);
+    if(!dealer)return informedMove(st,seat,normal,mode,L);
+    const fresh=st.trickDone||!st.trick.length;
+    const order=c=>{
+      const n=B_RANK[c];
+      if(ladder)return 0;
+      if(pen)return fresh?n+botPenalty(st,c)*0.65:-n-botPenalty(st,c);
+      return fresh?-n:n;
+    };
+    const pool=botCandidates(L,normal,8,order), sums=pool.map(()=>0), squares=pool.map(()=>0);
+    const exact=!ladder && late<=3;
+    const worlds=ladder?30:exact?28:24;
+    let total=0, count=0;
+    for(let i=0;i<worlds;i++){
+      const h=dealer();if(!h)continue;
+      const w=expertWorldWeight(st,seat,h);
+      const calc=c=>ladder ? expertLadder(st,seat,c,h,i%2) :
+        exact ? expertTrickSolve(st,seat,c,h,pen) :
+        rolloutTrick(st,seat,c,h,pen,false,true);
+      const normalScore=calc(normal);
+      for(let j=0;j<pool.length;j++)if(pool[j]!==normal){
+        const d=calc(pool[j])-normalScore;
+        sums[j]+=d*w;
+        squares[j]+=d*d*w;
+      }
+      total+=w;count++;
+    }
+    if(count<5) return informedMove(st,seat,normal,mode,L);
+    const margin=ladder?(late>6?11:7):pen?2.5:0.24;
+    let best=normal,bv=0;
+    for(let i=0;i<pool.length;i++){
+      if(pool[i]===normal)continue;
+      const effect=sums[i]/total, noise=Math.sqrt(Math.max(0,squares[i]/total-effect*effect)/count);
+      const v=effect-margin-noise*(ladder?0.6:0.36);
+      if(v>bv){best=pool[i];bv=v;}
+    }
+    return best;
+  }
+
   // ---------- Tarneeb 61 (team bidding) ----------
   const T61 = {
     id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 لـ 13', target: 61, teams: true,
@@ -2533,7 +3275,7 @@ const Games = (() => {
       if ((a >= T61.target || b >= T61.target) && a !== b) { st.phase = 'over'; st.winner = a > b ? 0 : 1; }
     },
     next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; },
-    bot(st, seat) {
+    bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         let best = 0, bs = null;
         for (const s of SUITS) { const e = estTricks(st.hands[seat], s); if (e > best) { best = e; bs = s; } }
@@ -2547,9 +3289,12 @@ const Games = (() => {
       if (st.phase === 'trump') {
         let best = -1, bs = 'S';
         for (const s of SUITS) { const e = estTricks(st.hands[seat], s) + st.hands[seat].filter(c => c[0] === s).length * 0.2; if (e > best) { best = e; bs = s; } }
-        return T61.chooseTrump(st, seat, bs);
+        return T61.chooseTrump(st, seat, stronger && !Games.easy ? informedTrump(st,seat,bs) : bs);
       }
-      if (st.phase === 'play') return T61.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
+      if (st.phase === 'play') {
+        const normal = Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat);
+        return T61.play(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'tarneeb',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'tarneeb',legal(st,seat)) : normal);
+      }
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين، كل اتنين متقابلين شركاء. اللعب عكس عقارب الساعة، وكل لاعب معه 13 ورقة.</p>
@@ -2612,7 +3357,7 @@ const Games = (() => {
       }
     },
     next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T41.startHand(st); return st; },
-    bot(st, seat) {
+    bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         const mn = t41min(st, seat), p = (seat + 2) % 4;
         let e = Math.round(estTricks(st.hands[seat], st.trump) - 0.15);
@@ -2622,7 +3367,10 @@ const Games = (() => {
         if (others.length === 3 && sum + e < need && need - sum - e <= 2 && st.scores[p] < 30) e = Math.min(13, need - sum);
         return T41.bid(st, seat, e);
       }
-      if (st.phase === 'play') return T41.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
+      if (st.phase === 'play') {
+        const normal = Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat);
+        return T41.play(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'tarneeb',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'tarneeb',legal(st,seat)) : normal);
+      }
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين متقابلين، بس الطلب والحساب لكل لاعب لحاله. اللعب عكس عقارب الساعة، و13 ورقة لكل لاعب.</p>
@@ -2647,7 +3395,7 @@ const Games = (() => {
         G.startHand(st); return st;
       },
       startHand(st) {
-        deal(st); st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = [];
+        deal(st); st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = []; st.ladderNo = [[],[],[],[]];
         if (st.owner == null) st.owner = st.hands.findIndex(h => h.includes('H7'));
         const left = contracts.filter((c, i) => !st.used.includes(i));
         if (new Set(left).size === 1) { G._begin(st, contracts.findIndex((c, i) => !st.used.includes(i))); }
@@ -2721,7 +3469,13 @@ const Games = (() => {
         const st = clone(s);
         if (st.phase !== 'trix' || st.turn !== seat) err('مش دورك');
         const L = G.trixLegal(st, seat);
-        if (id == null) { if (L.length) err('معك ورقة بتنلعب، لازم تلعبها'); log(st, st.names[seat] + ' باس'); }
+        if (id == null) {
+          if (L.length) err('معك ورقة بتنلعب، لازم تلعبها');
+          const gates=SUITS.flatMap(s => st.ladder[s] ? [st.ladder[s][0]-1,st.ladder[s][1]+1].filter(r=>r>=2&&r<=14).map(r=>s+r) : [s+'11']);
+          const seen=(st.ladderNo || (st.ladderNo=[[],[],[],[]]))[seat];
+          for(const c of gates)if(!seen.includes(c))seen.push(c);
+          log(st, st.names[seat] + ' باس');
+        }
         else {
           if (!L.includes(id)) err('هالورقة ما بتركب هلّق');
           const { s: su, r } = cr(id); st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
@@ -2754,7 +3508,7 @@ const Games = (() => {
         if (st.used.length === contracts.length) { st.kingdom++; st.used = []; st.owner = (st.owner + 1) % 4; }
         G.startHand(st); return st;
       },
-      bot(st, seat) {
+      bot(st, seat, stronger = true) {
         const h = st.hands[seat];
         if (st.phase === 'choose') {
           const left = contracts.map((c, i) => [c, i]).filter(([c, i]) => !st.used.includes(i));
@@ -2802,9 +3556,13 @@ const Games = (() => {
             return up + down + (r === 11 ? 0.5 : 0) - (r === 11 && mine.length <= 1 ? 1 : 0);
           };
           const f = Games.easy ? scoreEasy : score;
-          return G.trixPlay(st, seat, L.slice().sort((a, b) => f(b) - f(a))[0]);
+          const normal = L.slice().sort((a, b) => f(b) - f(a))[0];
+          return G.trixPlay(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'ladder',L) : stronger && !Games.easy ? informedMove(st,seat,normal,'ladder',L) : normal);
         }
-        if (st.phase === 'play') return G.play(st, seat, (Games.easy ? penaltyPlay(st, seat) : penaltyPlayStrong(st, seat)));
+        if (st.phase === 'play') {
+          const normal = Games.easy ? penaltyPlay(st, seat) : penaltyPlayStrong(st, seat);
+          return G.play(st,seat,stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'penalty',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'penalty',legal(st,seat)) : normal);
+        }
         return st;
       },
       rules: trixRules(contracts, partner)
@@ -3089,7 +3847,7 @@ const MorG = { id: 'mor', name: 'مور', sub: 'فريقين · 14 ورقة وم
   قبل ما تنزّل لازم تعلن «بدي المور» أو «بدي ضمّن». إذا أعلنت وما قدرت: −20.<br>
   المور: بتخلّص ورقك ومع فريقك 40 على الأرض. مستمر: بتكمّل فيه بنفس الدور. منقطع: بترمي آخر ورقة، بيبين ورقه معك وبتلعب فيه بدورك الجاي.<br>
   الضمان: 100 على الأرض وتخلّص ورقك. المورين +40 و−40 للخصم، مور واحد +20. مور منقطع ما انلعب: −20. خلصت السحبة ومعك المورين: +20. ما حدا أخد مور: الجولة بتنعاد. إذا خلصت السحبة، اللاعب اللي بعدها بيلعب دور أخير من الأرض بس.</p>`,
-  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s) => Mor.botTurn(st, s), next: st => Mor.nextRound(st) };
+  newGame: (n, b) => Mor.newGame(n, b), actor: st => (st.phase === 'play' ? st.turn : -1), bot: (st, s, stronger) => Mor.botTurn(st, s, stronger), next: st => Mor.nextRound(st) };
 const ALL = [MorG, ...Games.LIST];
 const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين وأكتر · أدوار سرّية', icon: '🎭', social: true, actor: () => -1,
   rules: `<p>كل واحد بياخد دور سرّي: مافيا، شعب، وإذا مفعّلين: طبيب ومحقق.<br>
@@ -3102,6 +3860,10 @@ const GG = id => ROOMG.find(g => g.id === id) || MorG;
 const gameIcon = (g, w = 30) => (g.icon ? `<span class="gemo" style="font-size:${w * 1.3}px">${g.icon}</span>` : fan(GICON[g.id] || GICON.mor, w));
 const gameOf = st => GG(st && st.game || 'mor');
 const saveKey = id => (id === 'mor' ? 'mor-local' : 'mor-local-' + id);
+const savedGame = id => {
+  const st = ls.get(saveKey(id));
+  return st && st.phase !== 'over' && Array.isArray(st.hands) && st.hands.length === 4 ? st : null;
+};
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
 window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s) };
 
@@ -3274,25 +4036,37 @@ function afterState() {
   }
   runBots();
 }
-let botKey = null;
+let botJob = null;
+function cancelBot() {
+  if (botJob) clearTimeout(botJob.timer);
+  botJob = null;
+}
 function runBots() {
   const st = ui.st;
-  if (!st || !st.bots || !isHost()) return;
+  if (!st || !st.bots || !isHost()) return cancelBot();
   const G = gameOf(st), a = G.actor(st);
-  if (a < 0 || !st.bots[a]) return;
-  const key = st.v + ':' + a; if (botKey === key) return; botKey = key;
-  setTimeout(async () => {
-    if (!ui.st || ui.st.v + ':' + G.actor(ui.st) !== key || ui.busy) { botKey = null; return; }
-    let n; try { n = G.bot(ui.st, a); } catch (e) { console.error(e); return; }
-    if (n === ui.st) return;
-    await commit(n);
-  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1500 : 700));
+  if (a < 0 || !st.bots[a]) return cancelBot();
+  const keyFor = state => JSON.stringify([ui.mode, ui.code, G.id, state.deal, state.v, a]);
+  const key = keyFor(st);
+  if (botJob && botJob.key === key) return;
+  cancelBot();
+  const job = { key, timer: setTimeout(async () => {
+    if (botJob !== job) return;
+    botJob = null;
+    const live = ui.st;
+    if (ui.busy || !live || !isHost() || gameOf(live) !== G ||
+        !live.bots?.[a] || G.actor(live) !== a || keyFor(live) !== key) return;
+    let n; try { n = G.bot(live, a, ui.mode === 'local' && prof.botLevel === 'expert' ? 'expert' : ui.mode !== 'local' || prof.botLevel !== 'normal'); } catch (e) { console.error(e); return; }
+    if (n !== live) await commit(n);
+  }, G.id === 'mor' ? 1100 : (st.trickDone ? 1500 : 700)) };
+  botJob = job;
 }
 
 // ---------- backends ----------
 function applyRoom(room) {
   ui.room = room;
   if (room.phase === 'lobby') {
+    cancelBot();
     if (ui.st) { ui.st = null; prevSt = null; ui.order = {}; }
     if (ui.view === 'game') { ui.view = 'room'; ui.confirmExit = false; }
     return render();
@@ -3661,6 +4435,7 @@ async function joinRoom(mode, key) {
   key = (key || '').trim(); if (mode === 'fb') key = key.toUpperCase();
   unsub.forEach(u => u()); unsub = [];
   if (mode === 'fb' && fb.uid) uid = fb.uid;
+  cancelBot();
   Object.assign(ui, { mode, code: key, st: null, room: null, players: [], chat: [], unread: 0, pop: null });
   prevSt = null;
   try { await B().open(key, n); } catch (e) { ui.mode = null; ui.code = null; return toast(e.message || 'ما قدرت أدخل'); }
@@ -3696,6 +4471,7 @@ async function backToRoom() {
   try { await B().meta({ phase: 'lobby' }); } catch (e) { toast('ما قدرت أرجع للغرفة'); }
 }
 function leave() {
+  cancelBot();
   if (vc.on) voiceLeave();
   if (ui.mode === 'lan' || ui.mode === 'fb') B().leave();
   unsub.forEach(u => u()); unsub = [];
@@ -3703,22 +4479,32 @@ function leave() {
   if (fb.uid) uid = fb.uid;
   prevSt = null; ls.set('mor-room', null); render();
 }
-function startLocal(gid, kind, resume) {
-  const G = GG(gid); prof.lastGame = G.id; saveProf();
-  const saved = ls.get(saveKey(G.id));
-  if (resume && saved) ui.st = saved;
-  else {
-    let names, bots, avs;
-    if (kind === 'solo') { names = [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣']; bots = [false, true, true, true]; avs = [prof.av, 'bot', 'bot', 'bot']; }
-    else {
-      names = [0, 1, 2, 3].map(i => (document.getElementById('ln' + i)?.value || '').trim() || 'لاعب ' + (i + 1));
-      bots = [0, 1, 2, 3].map(i => !!(ui.localCfg && ui.localCfg[i]));
-      if (bots.every(Boolean)) return toast('لازم لاعب واحد على الأقل مش بوت');
-      avs = bots.map((b, i) => (b ? 'bot' : i + '|A'));
-    }
-    ui.st = G.newGame(names, bots); ui.st.deal = Date.now(); ui.st.avs = avs; ls.set(saveKey(G.id), ui.st);
+function localSetup(kind) {
+  if (kind === 'solo') return { names: [myName() || 'أنا', 'بوت ١', 'بوت ٢', 'بوت ٣'], bots: [false, true, true, true], avs: [prof.av, 'bot', 'bot', 'bot'] };
+  if (ui.localCfg.every(Boolean)) { toast('لازم لاعب واحد على الأقل مش بوت'); return null; }
+  const bots = ui.localCfg.slice(), drafts = ui.passNames = [0, 1, 2, 3].map(i => document.getElementById('ln' + i)?.value ?? '');
+  return { names: drafts.map((name, i) => name.trim() || 'لاعب ' + (i + 1)), bots, avs: bots.map((b, i) => b ? 'bot' : i + '|A') };
+}
+function requestLocal(gid, kind) {
+  const setup = localSetup(kind);
+  if (!setup) return;
+  if (savedGame(gid)) {
+    ui.pop = { k: 'replaceLocal', g: gid, kind, setup };
+    return render();
   }
-  ui.order = {}; ui.pop = null; prevSt = null;
+  startLocal(gid, setup);
+}
+function startLocal(gid, setup) {
+  const G = GG(gid);
+  if (setup) {
+    ui.st = G.newGame(setup.names, setup.bots); ui.st.deal = Date.now(); ui.st.avs = setup.avs; ls.set(saveKey(G.id), ui.st);
+  } else {
+    const st = savedGame(G.id);
+    if (!st) return toast('ما في لعبة محفوظة');
+    ui.st = st;
+  }
+  prof.lastGame = G.id; saveProf(); cancelBot();
+  ui.order = {}; ui.sel.clear(); ui.armed = null; ui.sheet = null; ui.dblSel = []; ui.pop = null; prevSt = null;
   const hs = humans(ui.st), a = G.actor(ui.st);
   ui.mode = 'local'; ui.view = 'game'; ui.viewer = hs.includes(a) ? a : hs[0]; ui.hidden = hs.length > 1;
   afterState(); render();
@@ -3915,26 +4701,32 @@ function onboarding() {
 }
 function homeTab() {
   const last = ls.get('mor-room');
-  const saved = ALL.filter(g => { const s = ls.get(saveKey(g.id)); return s && s.phase !== 'over'; });
+  const saved = ALL.filter(g => savedGame(g.id));
   const canCreate = online() || native;
   return `<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
   ${meBar()}
+  ${saved.length ? `<section class="card saved-games"><h2>كمّل لعبك</h2><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></section>` : ''}
   <button class="big-act main" data-a="newRoom" ${canCreate ? '' : 'disabled'}><span class="bi">${ICON.plus}</span><div><b>إنشاء غرفة</b><span>${canCreate ? 'افتح طاولة وادعي رفقاتك' : 'بدها إنترنت أو التطبيق على الواي فاي'}</span></div></button>
   <button class="big-act" data-a="joinPop"><span class="bi">${ICON.key}</span><div><b>دخول برمز</b><span>عندك كود غرفة من صاحبك؟</span></div></button>
   <button class="big-act" data-a="tab" data-t="solo"><span class="bi">${ICON.bot}</span><div><b>لعب ضد الكمبيوتر</b><span>تدرّب مع بوتات قوية</span></div></button>
   ${last && last.mode ? `<div class="row" style="justify-content:center"><button class="chip" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}
-  ${saved.length ? `<div class="muted" style="margin:10px 4px 4px">ألعاب محفوظة</div><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">كمّل ${esc(g.name)}</button>`).join('')}</div>` : ''}
+  <button class="big-act" data-a="passPop"><span class="bi">${ICON.users}</span><div><b>على جوال واحد</b><span>العبوا ومرّروا الجوال بينكم، بدون إنترنت</span></div></button>
   ${!native && isServed ? `<button class="btn alt wide" data-a="joinHere" style="margin-top:8px">ادخل غرفة هالمضيف</button>` : ''}`;
 }
 function gameGrid(action, selected) {
   return `<div class="glist">${(action === 'setGame' ? ROOMG : ALL).map(g => {
-    const saved = action === 'soloPick' && (s => s && s.phase !== 'over')(ls.get(saveKey(g.id)));
-    return `<button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}"><span class="info" data-a="rules" data-g="${g.id}" aria-label="القوانين">؟</span>${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button>`;
+    const saved = action === 'soloPick' && savedGame(g.id);
+    return `<div class="gentry"><button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}">${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button><button class="info" data-a="rules" data-g="${g.id}" aria-label="قوانين ${esc(g.name)}"><span aria-hidden="true">؟</span></button></div>`;
   }).join('')}</div>`;
+}
+function botLevelButtons() {
+  const mode = ['normal','expert'].includes(prof.botLevel) ? prof.botLevel : 'hard';
+  return `<div class="seg" role="group" aria-label="قوّة البوتات للعب المحلّي">${[['normal','عادي'], ['hard','قوي'], ['expert','خبير']].map(([v,label]) => `<button class="${mode === v ? 'on' : ''}" data-a="setP" data-k="botLevel" data-v="${v}" aria-pressed="${mode === v}">${label}</button>`).join('')}</div>`;
 }
 function soloTab() {
   return `<div class="hdr"><button class="ic" data-a="tab" data-t="home" aria-label="رجوع">${ICON.back}</button><h1>لعب ضد الكمبيوتر</h1></div>
   <div class="muted">اختار اللعبة. بالألعاب الشراكة البوت شريكك.</div>
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}</div>
   ${gameGrid('soloPick')}
   <div class="card"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال لبعض، وفيك تخلّي بعض الكراسي بوت.</div><div class="acts"><button class="btn alt sm" data-a="passPop">رتّب اللعبة</button></div></div>`;
 }
@@ -3967,13 +4759,14 @@ function meTab() {
   </div>
   ${online() ? `<div class="card"><h2>استرجاع الحساب</h2>${prof.email ? `<div class="muted">حسابك مربوط بـ <b dir="ltr">${esc(prof.email)}</b>. إذا غيّرت الجوال، ادخل بنفس الإيميل.</div><div class="acts"><button class="btn alt sm" data-a="emailPop" data-m="rec">دخول بحساب تاني</button></div>`
     : `<div class="muted">اربط حسابك بإيميل (اختياري) لترجّع أصدقاءك وترتيبك إذا غيّرت الجوال.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط إيميل</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">عندي حساب</button></div>`}</div>` : ''}
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">بتطبّق على اللعب ضد الكمبيوتر وعلى جوال واحد.</p></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
   <div class="card"><h2>شكل الورق</h2><div class="tiles">${CSTY.map(tileCard).join('')}</div></div>
   <div class="card"><h2>ظهر الورق</h2><div class="tiles">${BACKS.map(tileBack).join('')}</div></div>
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">طولي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">عرضي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.8</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.9</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -3994,11 +4787,14 @@ function pops() {
     <div class="muted" style="margin-top:12px">شكل الورق</div><div class="resume" style="margin-top:6px">${CSTY.map(c => `<button class="chip ${prof.cards === c[0] ? 'on' : ''}" data-a="setP" data-k="cards" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
     <div class="acts">${native ? `<button class="btn alt sm" data-a="rotate">${ICON.rot} ${ui.orient === 'portrait' ? 'خلّيها عرضي' : 'خلّيها طولي'}</button>` : ''}<button class="btn alt sm" data-a="rules" data-g="${G.id}">${ICON.info} القوانين</button></div>`); }
   if (p.k === 'rules') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="rules">${G.rules}</div>`); }
-  if (p.k === 'soloStart') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="muted">عندك لعبة محفوظة.</div><div class="acts"><button class="btn" data-a="soloGo" data-g="${G.id}" data-r="1">كمّل المحفوظة</button><button class="btn alt" data-a="soloGo" data-g="${G.id}">لعبة جديدة</button></div>`); }
+  if (p.k === 'replaceLocal') {
+    const G = GG(p.g);
+    return sheet(`${sheetHead(esc(G.name), 'cancelLocal')}<p class="muted">عندك لعبة محفوظة. إذا بلّشت لعبة جديدة رح تنمسح المحفوظة لهاللعبة بس.</p><div class="acts"><button class="btn" data-a="resume" data-g="${G.id}">كمّل المحفوظة</button><button class="btn red" data-a="replaceLocal">استبدلها بلعبة جديدة</button><button class="btn alt" data-a="cancelLocal">إلغاء</button></div>`, 'cancelLocal');
+  }
   if (p.k === 'pass') {
     const cfg = ui.localCfg || (ui.localCfg = [false, false, false, false]), G = GG(p.g || prof.lastGame || 'mor');
     return sheet(`${sheetHead('على جوال واحد')}<div class="resume">${ALL.map(g => `<button class="chip ${g.id === G.id ? 'on' : ''}" data-a="passGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div>
-      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}
+      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" aria-label="اسم اللاعب ${i + 1}" maxlength="14" value="${esc(ui.passNames?.[i] || '')}"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}" aria-pressed="${!!cfg[i]}" aria-label="بوت للمقعد ${i + 1}">بوت</button></div>`).join('')}
       <div class="acts"><button class="btn wide" data-a="local" data-g="${G.id}">ابدأ</button></div>`);
   }
   if (p.k === 'gamePick') return sheet(`${sheetHead('اختار اللعبة')}${gameGrid('setGame', ui.room && ui.room.game)}`);
@@ -4082,7 +4878,7 @@ function game() {
   const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
   const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
-  const hand = me >= 0 ? handOrder(me, st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
@@ -4130,7 +4926,7 @@ function endActs(st, can) {
 function overlays(me) {
   const st = ui.st; let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play') h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play' && !st.bots[st.turn]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
     h += `<div class="ov cen"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
   } else if (ui.sheet) {
@@ -4184,7 +4980,7 @@ function dblFor(st, s) {
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 ? Games.sortIds(st.hands[me]) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
@@ -4269,7 +5065,7 @@ function trickTable() {
 function overlays2(me) {
   const st = ui.st, G = gameOf(st); let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0) h += `<div class="ov cen"><div class="box" style="text-align:center"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'handEnd' || st.phase === 'over') {
     const S = st.summary || { rows: [], notes: [] };
     const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;
@@ -4456,13 +5252,13 @@ function layoutHand() {
 }
 let drag = null;
 document.addEventListener('pointerdown', e => {
-  const c = e.target.closest('#hand .c'); if (!c) return;
+  const c = e.target.closest('#hand .c'); if (!c || drag || ui.hidden || e.button !== 0) return;
   const el = document.getElementById('hand');
-  drag = { id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
+  drag = { pointerId: e.pointerId, id: c.dataset.id, el: c, sx: e.clientX, sy: e.clientY, moved: false, ox: parseFloat(c.style.left), oy: parseFloat(c.style.top), hand: el };
   c.setPointerCapture && c.setPointerCapture(e.pointerId);
 });
 document.addEventListener('pointermove', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId || !drag.el.isConnected) return;
   const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
   if (!drag.moved && Math.hypot(dx, dy) < 8) return;
   drag.moved = true; drag.el.classList.add('drag');
@@ -4470,8 +5266,9 @@ document.addEventListener('pointermove', e => {
   drag.el.style.top = drag.oy + dy + 'px';
 });
 document.addEventListener('pointerup', e => {
-  if (!drag) return;
+  if (!drag || drag.pointerId !== e.pointerId) return;
   const d = drag; drag = null;
+  if (!d.el.isConnected || !ui.st || ui.hidden) return;
   const tg = ui.st && gameOf(ui.st).id !== 'mor';
   if (tg) {
     if (d.moved) { if (d.sy - e.clientY > 70) return tryPlay(d.id); return render(); }
@@ -4485,7 +5282,7 @@ document.addEventListener('pointerup', e => {
   const from = order.indexOf(d.id); order.splice(from, 1); order.splice(best, 0, d.id);
   render();
 });
-document.addEventListener('pointercancel', () => { if (drag) { drag = null; render(); } });
+document.addEventListener('pointercancel', e => { if (drag?.pointerId === e.pointerId) { drag = null; render(); } });
 
 function tryPlay(id) {
   const st = ui.st, G = gameOf(st), me = mySeat();
@@ -4548,14 +5345,15 @@ $app.addEventListener('click', e => {
       joinGo: () => joinAny(document.getElementById('jcode').value),
       joinHere: () => joinRoom('lan', location.hostname),
       rejoin: () => { const r = ls.get('mor-room'); if (r) joinRoom(r.mode, r.key); },
-      resume: () => startLocal(g, 'solo', true),
-      soloPick: () => { const s = ls.get(saveKey(g)); if (s && s.phase !== 'over') { ui.pop = { k: 'soloStart', g }; render(); } else startLocal(g, 'solo'); },
-      soloGo: () => startLocal(g, 'solo', !!t.dataset.r),
+      resume: () => startLocal(g),
+      soloPick: () => requestLocal(g, 'solo'),
+      replaceLocal: () => { const p = ui.pop; if (p?.k === 'replaceLocal') startLocal(p.g, p.setup); },
+      cancelLocal: () => { const p = ui.pop; ui.pop = p?.kind === 'pass' ? { k: 'pass', g: p.g } : null; render(); },
       rules: () => { e.stopPropagation(); ui.pop = { k: 'rules', g }; render(); },
-      passPop: () => { ui.localCfg = [false, false, false, false]; ui.pop = { k: 'pass', g: prof.lastGame }; render(); },
+      passPop: () => { ui.localCfg = [false, false, false, false]; ui.passNames = []; ui.pop = { k: 'pass', g: prof.lastGame }; render(); },
       passGame: () => { ui.pop.g = g; render(); },
       cfgBot: () => { ui.localCfg[+t.dataset.s] = !ui.localCfg[+t.dataset.s]; render(); },
-      local: () => startLocal(g, 'pass'),
+      local: () => requestLocal(g, 'pass'),
       // onboarding and profile
       obAv: () => { ui.obAv = t.dataset.v; render(); },
       obCol: () => { const [, gl] = (ui.obAv || prof.av).split('|'); ui.obAv = t.dataset.v + '|' + gl; render(); },
@@ -4582,7 +5380,7 @@ $app.addEventListener('click', e => {
       // room
       copyCode: () => copyText(ui.code, 'انسخ الكود: ' + ui.code),
       gamePick: () => { ui.pop = { k: 'gamePick' }; render(); }, setGame: () => setRoomGame(g),
-      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave: () => { const local = ui.mode === 'local'; if (local) { Object.assign(ui, { view: 'home', tab: 'home', mode: null, st: null, confirmExit: false }); prevSt = null; return render(); } leave(); },
+      exit: () => { ui.confirmExit = true; render(); }, stay: () => { ui.confirmExit = false; render(); }, leave: () => { const local = ui.mode === 'local'; if (local) { cancelBot(); Object.assign(ui, { view: 'home', tab: 'home', mode: null, st: null, confirmExit: false }); prevSt = null; return render(); } leave(); },
       start: () => startOnline(false), startBots: () => startOnline(true), sit: () => sit(+t.dataset.s),
       backRoom: backToRoom,
       // Mor

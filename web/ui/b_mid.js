@@ -50,25 +50,37 @@ function afterState() {
   }
   runBots();
 }
-let botKey = null;
+let botJob = null;
+function cancelBot() {
+  if (botJob) clearTimeout(botJob.timer);
+  botJob = null;
+}
 function runBots() {
   const st = ui.st;
-  if (!st || !st.bots || !isHost()) return;
+  if (!st || !st.bots || !isHost()) return cancelBot();
   const G = gameOf(st), a = G.actor(st);
-  if (a < 0 || !st.bots[a]) return;
-  const key = st.v + ':' + a; if (botKey === key) return; botKey = key;
-  setTimeout(async () => {
-    if (!ui.st || ui.st.v + ':' + G.actor(ui.st) !== key || ui.busy) { botKey = null; return; }
-    let n; try { n = G.bot(ui.st, a); } catch (e) { console.error(e); return; }
-    if (n === ui.st) return;
-    await commit(n);
-  }, G.id === 'mor' ? 1100 : (ui.st.trickDone ? 1500 : 700));
+  if (a < 0 || !st.bots[a]) return cancelBot();
+  const keyFor = state => JSON.stringify([ui.mode, ui.code, G.id, state.deal, state.v, a]);
+  const key = keyFor(st);
+  if (botJob && botJob.key === key) return;
+  cancelBot();
+  const job = { key, timer: setTimeout(async () => {
+    if (botJob !== job) return;
+    botJob = null;
+    const live = ui.st;
+    if (ui.busy || !live || !isHost() || gameOf(live) !== G ||
+        !live.bots?.[a] || G.actor(live) !== a || keyFor(live) !== key) return;
+    let n; try { n = G.bot(live, a, ui.mode === 'local' && prof.botLevel === 'expert' ? 'expert' : ui.mode !== 'local' || prof.botLevel !== 'normal'); } catch (e) { console.error(e); return; }
+    if (n !== live) await commit(n);
+  }, G.id === 'mor' ? 1100 : (st.trickDone ? 1500 : 700)) };
+  botJob = job;
 }
 
 // ---------- backends ----------
 function applyRoom(room) {
   ui.room = room;
   if (room.phase === 'lobby') {
+    cancelBot();
     if (ui.st) { ui.st = null; prevSt = null; ui.order = {}; }
     if (ui.view === 'game') { ui.view = 'room'; ui.confirmExit = false; }
     return render();

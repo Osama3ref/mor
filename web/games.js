@@ -244,6 +244,505 @@ const Games = (() => {
     return L.slice().sort((a, b) => dumpScore(b) - dumpScore(a))[0];
   }
 
+  // Sample unknown cards, not the actual opponents' hands. Void suits and exposed
+  // card owners are hard constraints. The public hand sizes are the only counts used.
+  const BOT_DECK = SUITS.flatMap(s => Array.from({length: 13}, (_, i) => s + (i + 2)));
+  const B_RANK = Object.fromEntries(BOT_DECK.map(c => [c, +c.slice(1)]));
+  const B_SEATS = [0, 1, 2, 3];
+  function scenarioDealer(st, seat, ladderGame, expert = false) {
+    const mine = st.hands[seat];
+    const visible = new Set(mine), forced = {};
+    let played = 0;
+    if (ladderGame) {
+      for (const s of SUITS) {
+        const pair = st.ladder[s]; if (!pair) continue;
+        for (let r = pair[0]; r <= pair[1]; r++) { visible.add(s + r); played++; }
+      }
+    } else {
+      for (const pile of st.taken) for (const c of pile) { visible.add(c); played++; }
+      if (!st.trickDone) for (const {card} of st.trick) { visible.add(card); played++; }
+    }
+    if (st.reveal) forced[st.reveal] = st.dealer;
+    if (st.partner != null && st.handNo === 1) forced.H7 = st.owner;
+    if (st.doubled) {
+      if (st.doubled.K != null) forced.H13 = st.doubled.K;
+      Object.assign(forced, st.doubled.Q);
+    }
+    const counts = st.hands.map((h, i) => i === seat ? 0 : h.length);
+    const unknown = BOT_DECK.filter(c => !visible.has(c)).map(c => {
+      let permitted = B_SEATS.filter(i => counts[i] &&
+        (forced[c] == null || forced[c] === i) &&
+        (ladderGame ? !(expert && st.ladderNo?.[i]?.includes(c)) : !st.voids?.[i]?.[c[0]]));
+      return {c, permitted};
+    });
+    if (unknown.some(x => x.permitted.length === 0) ||
+        unknown.length !== counts.reduce((a,b) => a+b,0) || visible.size !== played + mine.length) return null;
+    return () => {
+      for (let attempt = 0; attempt < 12; attempt++) {
+        const slots = counts.slice(), hands = [[], [], [], []]; hands[seat] = mine.slice();
+        const order = unknown.map(x => ({...x, tie: Math.random()}));
+        order.sort((a,b) => a.permitted.length - b.permitted.length || a.tie - b.tie);
+        let ok = true;
+        for (const {c, permitted} of order) {
+          const n = permitted.reduce((a,i) => a + slots[i], 0);
+          if (!n) { ok = false; break; }
+          let r = Math.floor(Math.random() * n);
+          for (const i of permitted) if ((r -= slots[i]) < 0) { hands[i].push(c); slots[i]--; break; }
+        }
+        if (ok) return hands;
+      }
+      return null;
+    };
+  }
+
+  function botBetter(a,b,led,trump) {
+    return a[0] === b[0] ? B_RANK[a] > B_RANK[b] :
+      a[0] === trump || (b[0] !== trump && a[0] === led);
+  }
+  const botMinBy = (cards, cost) => {
+    let best = cards[0], bv = Infinity;
+    for (const c of cards) { const v = cost(c); if (v < bv) { bv = v; best = c; } }
+    return best;
+  };
+  function botCandidates(L, fallback, limit, rankScore) {
+    if (L.length <= limit) return L;
+    const out = new Set([fallback]);
+    for (const s of SUITS) {
+      const group = L.filter(c => c[0] === s);
+      if (group.length) out.add(botMinBy(group, rankScore));
+    }
+    for (const c of L.slice().sort((a,b) => rankScore(a)-rankScore(b))) {
+      if (out.size >= limit) break;
+      out.add(c);
+    }
+    return [...out];
+  }
+  function botPenalty(st, c) {
+    let points = 0;
+    const type = st.contract;
+    if ((type === 'king' || type === 'complex') && c === 'H13') points += st.doubled?.K != null ? 150 : 75;
+    if ((type === 'queens' || type === 'complex') && B_RANK[c] === 12) points += st.doubled?.Q?.[c] != null ? 50 : 25;
+    if ((type === 'diamonds' || type === 'complex') && c[0] === 'D') points += 10;
+    return points;
+  }
+  function rolloutTrick(st, actor, move, drawn, penalties, trickCountOnly = false, expert = false) {
+    const H = drawn.map(h => h.slice()), T = st.tricks.slice(), P = (st.hs || [0,0,0,0]).slice();
+    const bar = {S:0,H:0,C:0,D:0};
+    const used = new Set(st.taken.flat());
+    function mark(c) {
+      used.add(c);
+      let k = 14;
+      while (k >= 2 && used.has(c[0] + k)) k--;
+      bar[c[0]] = k;
+    }
+    for (const c of used) mark(c);
+    for (const s of SUITS) if (!bar[s]) bar[s] = 14;
+    const inTrick = st.trickDone ? [] : st.trick.slice();
+    const voids = expert ? (st.voids || [{},{},{},{}]).map(v=>({...v})) : null;
+    const trump = penalties ? null : st.trump;
+    let highest = null, winner = null, led = null, turn = actor, first = true;
+    let left = H.reduce((a,h) => a+h.length,0);
+    for (const {card, seat} of inTrick) {
+      if (!led) led = card[0];
+      if (!highest || botBetter(card, highest, led, trump)) { highest = card; winner = seat; }
+      mark(card);
+    }
+    const basePen = st.contract === 'ltoosh' || st.contract === 'complex' ? 15 : 0;
+    while (left > 0 && H[turn].length) {
+      const h = H[turn], n = inTrick.length, follows = led ? h.filter(c => c[0] === led) : h;
+      const L = follows.length ? follows : h;
+      const cheap = c => B_RANK[c] + (c[0] === trump ? 18 : 0) + (B_RANK[c] >= bar[c[0]] ? 9 : 0);
+      let c;
+      if (first && move) { c = move; first = false; }
+      else if (L.length === 1) c = L[0];
+      else if (!penalties) {
+        if (!n) {
+          const p = (turn + 2) % 4, need = st.game === 'tarneeb41' && T[turn] >= st.bids[turn] && T[p] < st.bids[p];
+          c = botMinBy(L, x => {
+            const s = x[0], r = B_RANK[x], highs = r >= bar[s], len = h.filter(y => y[0] === s).length;
+            if (need) return r + (s === trump ? 12 : 0) + (highs ? 20 : 0);
+            let value=(highs ? -27 : r*0.8) + (s === trump ? 4 : 0) - len*1.8;
+            if(expert){
+              if(highs && s!==trump) for(const i of [((turn+1)%4),((turn+3)%4)]) if(voids[i][s]&&!voids[i][trump])value+=24;
+              if(s===trump&&len>=3&&highs)value-=14;
+              if(s!==trump&&len===1&&r<10&&h.some(x=>x[0]===trump))value-=6;
+              if(s!==trump&&voids[p][s]&&!voids[p][trump])value-=8-r*0.28;
+            }
+            return value;
+          });
+        } else {
+          const safePartner = teamOf(winner) === teamOf(turn) && (n === 3 || (B_RANK[highest] >= bar[highest[0]] &&
+            !(expert && highest[0]!==trump && !inTrick.some(x=>x.seat===(turn+1)%4) && voids[(turn+1)%4][led] && !voids[(turn+1)%4][trump])));
+          const alreadyMade = st.game === 'tarneeb41' && T[turn] >= st.bids[turn] &&
+            winner === (turn + 2) % 4 && T[winner] < st.bids[winner];
+          const win = L.filter(x => botBetter(x, highest, led, trump));
+          c = safePartner || alreadyMade || !win.length ? botMinBy(L, cheap) :
+            botMinBy(win, x => B_RANK[x] + (x[0] === trump && led !== trump ? 7 : 0)
+              - (n < 3 && B_RANK[x] >= bar[x[0]] ? 7 : 0));
+        }
+      } else if (!n) {
+        c = botMinBy(L, x => B_RANK[x] + (B_RANK[x] >= bar[x[0]] ? 14 : 0) + botPenalty(st,x)*0.38);
+      } else {
+        const losses = L.filter(x => !botBetter(x, highest, led, null));
+        const partnerWinning = st.partner && teamOf(turn) === teamOf(winner);
+        const danger = x => botPenalty(st,x)*0.65 + B_RANK[x] + (B_RANK[x] >= bar[x[0]] ? 6 : 0);
+        if (losses.length) c = botMinBy(losses, x => -danger(x) + (partnerWinning ? botPenalty(st,x) : 0));
+        else c = botMinBy(L, x => n === 3 ? -danger(x) : B_RANK[x] + botPenalty(st,x)*0.4);
+      }
+      if (!led) led = c[0];
+      if (!highest || botBetter(c, highest, led, trump)) { highest = c; winner = turn; }
+      if(expert && c[0]!==led)voids[turn][led]=true;
+      h.splice(h.indexOf(c), 1); left--; mark(c); inTrick.push({card:c,seat:turn});
+      if (inTrick.length < 4) { turn = (turn + 1) % 4; continue; }
+      const leader = inTrick[0].seat;
+      T[winner]++;
+      if (penalties) {
+        P[winner] -= basePen;
+        for (const {card} of inTrick) {
+          const pts = botPenalty(st,card);
+          P[winner] -= pts;
+          let d = null, reward = 0;
+          if (pts && card === 'H13' && (st.contract === 'king' || st.contract === 'complex')) { d = st.doubled?.K; reward=75; }
+          if (pts && B_RANK[card] === 12 && (st.contract === 'queens' || st.contract === 'complex')) { d = st.doubled?.Q?.[card]; reward=25; }
+          if (d != null && d !== winner) P[d] += reward;
+          else if (d != null && leader !== winner) P[leader] += reward;
+        }
+        if (st.contract === 'king' && used.has('H13')) break;
+        if (st.contract === 'queens' && SUITS.every(s => used.has(s+'12'))) break;
+        if (st.contract === 'diamonds' && BOT_DECK.every(c => c[0] !== 'D' || used.has(c))) break;
+      }
+      turn = winner; inTrick.length = 0; led = highest = winner = null;
+    }
+    if(expert&&!trickCountOnly)return expertTrickValue(st,actor,T,P);
+    const team = teamOf(actor), partner = (actor+2)%4;
+    if (penalties) {
+      return st.partner ? P[actor] + P[partner] - P[(actor+1)%4] - P[(actor+3)%4] :
+        P[actor] - 0.30 * Math.max(...P.filter((_,i) => i !== actor));
+    }
+    const ours = T[actor]+T[partner];
+    if (trickCountOnly) return ours;
+    if (st.game === 'tarneeb61') return tarneeb61Utility(st,team,ours);
+    const d = T.map((t,i) => (t >= st.bids[i] ? 1:-1)*t41val(st,i,st.bids[i]));
+    for (const i of B_SEATS) {
+      const p=(i+2)%4;
+      if (d[i]<0 && st.scores[p]>=30 && st.bids[i]>t41min(st,i) && d[p]>0) d[p]*=-1;
+    }
+    return d[actor]+d[partner]-d[(actor+1)%4]-d[(actor+3)%4] + (Math.min(T[actor],st.bids[actor])+Math.min(T[partner],st.bids[partner]))*0.65+ours*0.12;
+  }
+  function rolloutLadder(st, seat, move, drawn) {
+    const h = drawn.map(cards => cards.slice()), board = Object.fromEntries(SUITS.map(s => [s, st.ladder[s]?.slice() || null]));
+    const done = st.finished.slice(), value = st.hs.slice();
+    let turn = seat, idle = 0;
+    const legalHere = c => {
+      const s = c[0], r=B_RANK[c], b=board[s];
+      return b ? r === b[0]-1 || r === b[1]+1 : r===11;
+    };
+    for (let i = 0; i < 110 && idle < 4 && done.length < 3; i++) {
+      const a = h[turn];
+      const L = i === 0 ? [move] : a.filter(legalHere);
+      if (L.length) {
+        const c = botMinBy(L, x => {
+          const s=x[0], r=B_RANK[x], d=r>11 ? 1:-1;
+          return -a.filter(y => y[0]===s && (r === 11 || (B_RANK[y]-r)*d>0)).length
+            - (a.includes(s+(r+d)) ? 2 : 0);
+        });
+        a.splice(a.indexOf(c),1);
+        const s=c[0], r=B_RANK[c], b=board[s];
+        board[s]=b?[Math.min(r,b[0]),Math.max(r,b[1])]:[11,11];
+        if (!a.length) { value[turn] += [200,150,100,50][done.length]; done.push(turn); }
+        idle = 0;
+      } else idle++;
+      do { turn=(turn+1)%4; } while(done.includes(turn));
+    }
+    for (const i of B_SEATS) if (!done.includes(i)) value[i]+=50;
+    const p = (seat+2)%4;
+    return st.partner ? value[seat]+value[p]-value[(seat+1)%4]-value[(seat+3)%4] : value[seat]-0.25*Math.max(...value.filter((_,i)=>i!==seat));
+  }
+  function solveTarneeb61(st, seat, move, sampled) {
+    const H=sampled.map(h=>h.slice()), mine=teamOf(seat), trump=st.trump;
+    const current=st.trickDone ? [] : st.trick;
+    const prior=st.tricks[seat]+st.tricks[(seat+2)%4];
+    const left=H.reduce((a,h)=>a+h.length,0);
+    const led=current[0]?.card[0] || move[0];
+    let winner=seat, high=move;
+    for(const t of current) if(botBetter(t.card,high,led,trump)){high=t.card;winner=t.seat;}
+    H[seat].splice(H[seat].indexOf(move),1);
+    const search=(turn,n,led,hi,win,left,total,alpha,beta)=>{
+      if(!left) return total;
+      const h=H[turn], must=!!led&&h.some(c=>c[0]===led), max=teamOf(turn)===mine;
+      let best=max?-1:14;
+      for(let i=0;i<h.length;i++){
+        const c=h[i]; if(must&&c[0]!==led) continue;
+        h.splice(i,1);
+        const suit=led||c[0], takes=!hi||botBetter(c,hi,suit,trump), w=takes?turn:win, top=takes?c:hi;
+        const v=n===3 ? search(w,0,null,null,null,left-1,total+(teamOf(w)===mine?1:0),alpha,beta) :
+          search((turn+1)%4,n+1,suit,top,w,left-1,total,alpha,beta);
+        h.splice(i,0,c);
+        if(max){best=Math.max(best,v);alpha=Math.max(alpha,best);}
+        else {best=Math.min(best,v);beta=Math.min(beta,best);}
+        if(alpha>=beta) break;
+      }
+      return best;
+    };
+    const ours=current.length===3 ?
+      search(winner,0,null,null,null,left-1,prior+(teamOf(winner)===mine?1:0),-1,14) :
+      search((seat+1)%4,current.length+1,led,high,winner,left-1,prior,-1,14);
+    return tarneeb61Utility(st,mine,ours);
+  }
+  function tarneeb61Utility(st, team, ours) {
+    const mine=teamOf(st.bid.seat)===team, total=mine?ours:13-ours, made=total>=st.bid.val;
+    const v=made?(st.bid.val===13?26:total):-(st.bid.val===13?16:st.bid.val)-(total===0?16:13-total);
+    return (mine?v:-v)+ours*0.42;
+  }
+  function informedMove(st, seat, fallback, mode, L) {
+    if (L.length < 2 || !fallback) return fallback;
+    const gen = scenarioDealer(st, seat, mode === 'ladder');
+    if (!gen) return fallback;
+    const fresh = st.trickDone || !st.trick.length;
+    const order = c => {
+      if (mode === 'ladder') return 0;
+      const n = B_RANK[c];
+      if (mode === 'penalty') return fresh ? n + botPenalty(st,c)*0.7 : -n - botPenalty(st,c);
+      return fresh ? -n : n;
+    };
+    if (mode === 'ladder' && (!st.partner || st.hands[seat].length > 5)) return fallback;
+    if (mode === 'penalty' && ['king','queens'].includes(st.contract)) return fallback;
+    const pool = botCandidates(L,fallback,6,order), totals = pool.map(() => 0);
+    let worlds = 0;
+    const exact = st.game === 'tarneeb61' && st.hands[seat].length <= 3;
+    for (let i = 0; i < (exact ? 24 : mode === 'tarneeb' ? 14 : 12); i++) {
+      const hands = gen(); if (!hands) continue;
+      for (let j = 0; j < pool.length; j++) {
+        totals[j] += mode === 'ladder' ? rolloutLadder(st,seat,pool[j],hands) :
+          exact ? solveTarneeb61(st,seat,pool[j],hands) : rolloutTrick(st,seat,pool[j],hands,mode === 'penalty');
+      }
+      worlds++;
+    }
+    if (worlds < 3) return fallback;
+    const fi = pool.indexOf(fallback);
+    let best = fi, bv = totals[fi]/worlds;
+    const threshold = mode === 'tarneeb' ? 0.26 : mode === 'ladder' ? 17 : 3;
+    for (let i = 0; i < pool.length; i++) {
+      const score=totals[i]/worlds - (i === fi ? 0 : threshold);
+      if (score>bv) { best=i; bv=score; }
+    }
+    return pool[best];
+  }
+
+  function informedTrump(st, seat, fallback) {
+    const gen = scenarioDealer(st,seat,false), hand = st.hands[seat];
+    if (!gen) return fallback;
+    const options = SUITS.filter(s => s === fallback || hand.filter(c => c[0] === s).length >= 3);
+    if (options.length < 2) return fallback;
+    const sim = options.map(s => ({...st,trump:s})), scores = options.map(() => 0);
+    let count=0;
+    for (let n=0;n<24;n++) {
+      const hands=gen(); if(!hands) continue;
+      count++;
+      for(let i=0;i<options.length;i++){
+        const tricks=rolloutTrick(sim[i],seat,null,hands,false,true);
+        scores[i] += tricks + (tricks>=st.bid.val ? 2 : 0);
+      }
+    }
+    if (count<4) return fallback;
+    const i=options.indexOf(fallback);
+    const best=botMinBy(options,s=>-scores[options.indexOf(s)]);
+    return scores[options.indexOf(best)]-scores[i] > count*0.45 ? best : fallback;
+  }
+
+
+  // A noisy bid is evidence, not proof. Bias worlds gently towards plausible
+  // bidders and trump choices without ruling out bluffs or forced bids.
+  function expertWorldWeight(st,seat,hands) {
+    if (st.tricks.reduce((a,b)=>a+b,0)>6) return 1;
+    const t=st.trump;
+    if (st.game==='tarneeb61' && st.bid?.seat!==seat && st.bid) {
+      const h=hands[st.bid.seat], n=h.filter(c=>c[0]===t).length;
+      return Math.max(0.45,Math.min(1.6,0.65+n*0.16+(h.includes(t+'14')?0.14:0)));
+    }
+    if (st.game==='tarneeb41') {
+      let v=1;
+      for(const i of B_SEATS) if(i!==seat && st.bids[i]>=4) {
+        const winners=estTricks(hands[i],t)+st.tricks[i];
+        v*=Math.max(0.35,Math.min(1.2,1.14-0.11*Math.max(0,st.bids[i]-winners)));
+      }
+      return v;
+    }
+    return 1;
+  }
+  function expertTrickValue(st,seat,T,P) {
+    const p=(seat+2)%4, l=(seat+1)%4, r=(seat+3)%4, team=teamOf(seat);
+    if (st.game==='tarneeb61') return tarneeb61Utility(st,team,T[seat]+T[p]);
+    if (st.game==='tarneeb41'){
+      const made=T.map((n,i)=>n>=st.bids[i]);
+      const d=made.map((ok,i)=>(ok?1:-1)*t41val(st,i,st.bids[i]));
+      for(const i of B_SEATS) {
+        const mate=(i+2)%4;
+        if(!made[i]&&st.scores[mate]>=30&&st.bids[i]>t41min(st,i)&&d[mate]>0)d[mate]*=-1;
+      }
+      const s=st.scores.map((n,i)=>n+d[i]);
+      const reached=(a,b)=>(s[a]>=41&&s[b]>0)||(s[b]>=41&&s[a]>0);
+      return d[seat]+d[p]-d[l]-d[r] +
+        (reached(seat,p)?55:0)-(reached(l,r)?55:0)+
+        (Math.min(T[seat],st.bids[seat])+Math.min(T[p],st.bids[p]))*0.50;
+    }
+    if(st.partner) return P[seat]+P[p]-P[l]-P[r];
+    // Head-to-head score gap, not just absolute points in a four-player hand.
+    const scores=P.map((n,i)=>n+st.scores[i]);
+    return P[seat]-0.27*Math.max(...scores.filter((_,i)=>i!==seat));
+  }
+  function expertTrickSolve(st,seat,move,hands,penalty) {
+    if(st.game==='tarneeb61') return solveTarneeb61(st,seat,move,hands);
+    const h=hands.map(x=>x.slice()), trump=penalty?null:st.trump,
+      T=st.tricks.slice(), P=st.hs.slice(), team=teamOf(seat);
+    const types=st.contract, perTrick=types==='complex'||types==='ltoosh'?15:0;
+    const starts=st.trickDone?[]:st.trick.slice();
+    const effects=trick=>{
+      const top=trick.reduce((x,t)=>botBetter(t.card,x.card,trick[0].card[0],trump)?t:x);
+      const seat=top.seat, diff=[0,0,0,0], lead=trick[0].seat;
+      if(penalty){
+        diff[seat]-=perTrick;
+        for(const {card} of trick){
+          diff[seat]-=botPenalty(st,card);
+          const king=(types==='king'||types==='complex')&&card==='H13', q=(types==='queens'||types==='complex')&&B_RANK[card]===12;
+          const d=king?st.doubled?.K:q?st.doubled?.Q?.[card]:null;
+          if(d!=null) diff[d!==seat?d:lead!==seat?lead:seat]+=(d!==seat||lead!==seat)?(king?75:25):0;
+        }
+      }
+      return {seat,diff};
+    };
+    const individual=penalty&&!st.partner;
+    const value=(state,i)=>expertTrickValue(st,i,state.t,state.p);
+    const opposite=types==='king'?x=>x==='H13':types==='queens'?x=>B_RANK[x]===12:types==='diamonds'?x=>x[0]==='D':null;
+    const played=opposite ? st.taken.flat().filter(opposite).length : 0;
+    const goal=types==='king'?1:types==='queens'?4:13;
+    const solve=(a,trick,total,terminal,alpha,beta)=>{
+      if(total===0 || (opposite && terminal>=goal)) {
+        const state={t:T,p:P};
+        return individual ? B_SEATS.map(i=>value(state,i)) : value(state,seat);
+      }
+      const mine=h[a], led=trick[0]?.card[0], must=led&&mine.some(c=>c[0]===led);
+      const max=teamOf(a)===team;
+      let best=null, bv=max||individual?-Infinity:Infinity;
+      for(let i=0;i<mine.length;i++){
+        const c=mine[i];if(must&&c[0]!==led)continue;
+        mine.splice(i,1);
+        const nx=trick.concat({seat:a,card:c});
+        let v;
+        if(nx.length===4){
+          const e=effects(nx);
+          T[e.seat]++;for(const j of B_SEATS)P[j]+=e.diff[j];
+          v=solve(e.seat,[],total-1,terminal+(opposite?nx.filter(x=>opposite(x.card)).length:0),alpha,beta);
+          T[e.seat]--;for(const j of B_SEATS)P[j]-=e.diff[j];
+        } else v=solve((a+1)%4,nx,total-1,terminal,alpha,beta);
+        mine.splice(i,0,c);
+        const x=individual?v[a]:v;
+        if((max||individual)?x>bv:x<bv){best=v;bv=x;}
+        if(!individual){
+          if(max)alpha=Math.max(alpha,bv);
+          else beta=Math.min(beta,bv);
+          if(alpha>=beta)break;
+        }
+      }
+      return best;
+    };
+    const remaining=h.reduce((a,b)=>a+b.length,0);
+    h[seat].splice(h[seat].indexOf(move),1);
+    const chosen=starts.concat({seat,card:move});
+    let v;
+    if(chosen.length===4){
+      const e=effects(chosen);
+      T[e.seat]++;for(const j of B_SEATS)P[j]+=e.diff[j];
+      v=solve(e.seat,[],remaining-1,played+(opposite?chosen.filter(x=>opposite(x.card)).length:0),-Infinity,Infinity);
+    } else v=solve((seat+1)%4,chosen,remaining-1,played,-Infinity,Infinity);
+    return individual ? v[seat] : v;
+  }
+  function expertLadder(st, seat, move, hands, style) {
+    const h=hands.map(x=>x.slice()), board=Object.fromEntries(SUITS.map(s=>[s,st.ladder[s]?.slice()||null]));
+    const done=st.finished.slice(), value=st.hs.slice();
+    let a=seat,idle=0;
+    const gates=s=>board[s] ? [board[s][0]-1,board[s][1]+1].filter(n=>n>=2&&n<=14) : [11];
+    const legalFor=cards=>cards.filter(c=>gates(c[0]).includes(B_RANK[c]));
+    for(let i=0;i<104&&idle<4&&done.length<3;i++){
+      const my=h[a], rows=i===0?[move]:legalFor(my);
+      if(rows.length){
+        const c=botMinBy(rows,x=>{
+          const s=x[0],r=B_RANK[x], ld=board[s], dirs=ld ? (r<ld[0]?[-1]:[1]) : [-1,1];
+          let cost=0;
+          for(const d of dirs){
+            const n=r+d;
+            if(n<2||n>14) continue;
+            const owned=my.includes(s+n), beyond=my.filter(c=>c[0]===s&&(B_RANK[c]-r)*d>0).length;
+            if(owned) cost-=3.5+beyond*0.9;
+            else {
+              const later=st.partner?[(a+1)%4,(a+3)%4]:B_SEATS.filter(x=>x!==a);
+              const pressure=later.reduce((v,j)=>v+(h[j].length===1?2.5:h[j].length<=3&&h[j].length?0.9:0),0);
+              cost-=beyond*(style===0?1.15:1.65);
+              cost+=beyond===0 ? 2.5+pressure : pressure*0.35;
+            }
+          }
+          if(r===11 && !ld)cost+=my.length<5?0.5:1.3;
+          return cost;
+        });
+        my.splice(my.indexOf(c),1);
+        const s=c[0],r=B_RANK[c],b=board[s];
+        board[s]=b?[Math.min(b[0],r),Math.max(b[1],r)]:[11,11];
+        if(!my.length){value[a]+=[200,150,100,50][done.length];done.push(a);}
+        idle=0;
+      }else idle++;
+      do{a=(a+1)%4;}while(done.includes(a));
+    }
+    for(const i of B_SEATS)if(!done.includes(i))value[i]+=50;
+    return st.partner ? value[seat]+value[(seat+2)%4]-value[(seat+1)%4]-value[(seat+3)%4] :
+      value[seat]-0.26*Math.max(...value.filter((_,i)=>i!==seat));
+  }
+  function expertMove(st,seat,normal,mode,L) {
+    if(!normal||L.length<2)return normal;
+    const ladder=mode==='ladder', pen=mode==='penalty', late=st.hands[seat].length;
+    // Single-penalty contracts play differently from Complex. Keep Strong's
+    // opening on the contracts where the broader rollouts weren't reliable.
+    if(pen && (st.contract==='ltoosh' || (late>3 && (st.contract==='king' || (st.partner&&st.contract==='diamonds'))))) {
+      return informedMove(st,seat,normal,mode,L);
+    }
+    const dealer=scenarioDealer(st,seat,ladder,true);
+    if(!dealer)return informedMove(st,seat,normal,mode,L);
+    const fresh=st.trickDone||!st.trick.length;
+    const order=c=>{
+      const n=B_RANK[c];
+      if(ladder)return 0;
+      if(pen)return fresh?n+botPenalty(st,c)*0.65:-n-botPenalty(st,c);
+      return fresh?-n:n;
+    };
+    const pool=botCandidates(L,normal,8,order), sums=pool.map(()=>0), squares=pool.map(()=>0);
+    const exact=!ladder && late<=3;
+    const worlds=ladder?30:exact?28:24;
+    let total=0, count=0;
+    for(let i=0;i<worlds;i++){
+      const h=dealer();if(!h)continue;
+      const w=expertWorldWeight(st,seat,h);
+      const calc=c=>ladder ? expertLadder(st,seat,c,h,i%2) :
+        exact ? expertTrickSolve(st,seat,c,h,pen) :
+        rolloutTrick(st,seat,c,h,pen,false,true);
+      const normalScore=calc(normal);
+      for(let j=0;j<pool.length;j++)if(pool[j]!==normal){
+        const d=calc(pool[j])-normalScore;
+        sums[j]+=d*w;
+        squares[j]+=d*d*w;
+      }
+      total+=w;count++;
+    }
+    if(count<5) return informedMove(st,seat,normal,mode,L);
+    const margin=ladder?(late>6?11:7):pen?2.5:0.24;
+    let best=normal,bv=0;
+    for(let i=0;i<pool.length;i++){
+      if(pool[i]===normal)continue;
+      const effect=sums[i]/total, noise=Math.sqrt(Math.max(0,squares[i]/total-effect*effect)/count);
+      const v=effect-margin-noise*(ladder?0.6:0.36);
+      if(v>bv){best=pool[i];bv=v;}
+    }
+    return best;
+  }
+
   // ---------- Tarneeb 61 (team bidding) ----------
   const T61 = {
     id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 لـ 13', target: 61, teams: true,
@@ -293,7 +792,7 @@ const Games = (() => {
       if ((a >= T61.target || b >= T61.target) && a !== b) { st.phase = 'over'; st.winner = a > b ? 0 : 1; }
     },
     next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; },
-    bot(st, seat) {
+    bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         let best = 0, bs = null;
         for (const s of SUITS) { const e = estTricks(st.hands[seat], s); if (e > best) { best = e; bs = s; } }
@@ -307,9 +806,12 @@ const Games = (() => {
       if (st.phase === 'trump') {
         let best = -1, bs = 'S';
         for (const s of SUITS) { const e = estTricks(st.hands[seat], s) + st.hands[seat].filter(c => c[0] === s).length * 0.2; if (e > best) { best = e; bs = s; } }
-        return T61.chooseTrump(st, seat, bs);
+        return T61.chooseTrump(st, seat, stronger && !Games.easy ? informedTrump(st,seat,bs) : bs);
       }
-      if (st.phase === 'play') return T61.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
+      if (st.phase === 'play') {
+        const normal = Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat);
+        return T61.play(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'tarneeb',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'tarneeb',legal(st,seat)) : normal);
+      }
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين، كل اتنين متقابلين شركاء. اللعب عكس عقارب الساعة، وكل لاعب معه 13 ورقة.</p>
@@ -372,7 +874,7 @@ const Games = (() => {
       }
     },
     next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T41.startHand(st); return st; },
-    bot(st, seat) {
+    bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         const mn = t41min(st, seat), p = (seat + 2) % 4;
         let e = Math.round(estTricks(st.hands[seat], st.trump) - 0.15);
@@ -382,7 +884,10 @@ const Games = (() => {
         if (others.length === 3 && sum + e < need && need - sum - e <= 2 && st.scores[p] < 30) e = Math.min(13, need - sum);
         return T41.bid(st, seat, e);
       }
-      if (st.phase === 'play') return T41.play(st, seat, (Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat)));
+      if (st.phase === 'play') {
+        const normal = Games.easy ? trickPlayBot(st, seat, true) : tarneebPlay(st, seat);
+        return T41.play(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'tarneeb',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'tarneeb',legal(st,seat)) : normal);
+      }
       return st;
     },
     rules: `<p><b>اللاعبين:</b> أربعة بفريقين متقابلين، بس الطلب والحساب لكل لاعب لحاله. اللعب عكس عقارب الساعة، و13 ورقة لكل لاعب.</p>
@@ -407,7 +912,7 @@ const Games = (() => {
         G.startHand(st); return st;
       },
       startHand(st) {
-        deal(st); st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = [];
+        deal(st); st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = []; st.ladderNo = [[],[],[],[]];
         if (st.owner == null) st.owner = st.hands.findIndex(h => h.includes('H7'));
         const left = contracts.filter((c, i) => !st.used.includes(i));
         if (new Set(left).size === 1) { G._begin(st, contracts.findIndex((c, i) => !st.used.includes(i))); }
@@ -481,7 +986,13 @@ const Games = (() => {
         const st = clone(s);
         if (st.phase !== 'trix' || st.turn !== seat) err('مش دورك');
         const L = G.trixLegal(st, seat);
-        if (id == null) { if (L.length) err('معك ورقة بتنلعب، لازم تلعبها'); log(st, st.names[seat] + ' باس'); }
+        if (id == null) {
+          if (L.length) err('معك ورقة بتنلعب، لازم تلعبها');
+          const gates=SUITS.flatMap(s => st.ladder[s] ? [st.ladder[s][0]-1,st.ladder[s][1]+1].filter(r=>r>=2&&r<=14).map(r=>s+r) : [s+'11']);
+          const seen=(st.ladderNo || (st.ladderNo=[[],[],[],[]]))[seat];
+          for(const c of gates)if(!seen.includes(c))seen.push(c);
+          log(st, st.names[seat] + ' باس');
+        }
         else {
           if (!L.includes(id)) err('هالورقة ما بتركب هلّق');
           const { s: su, r } = cr(id); st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
@@ -514,7 +1025,7 @@ const Games = (() => {
         if (st.used.length === contracts.length) { st.kingdom++; st.used = []; st.owner = (st.owner + 1) % 4; }
         G.startHand(st); return st;
       },
-      bot(st, seat) {
+      bot(st, seat, stronger = true) {
         const h = st.hands[seat];
         if (st.phase === 'choose') {
           const left = contracts.map((c, i) => [c, i]).filter(([c, i]) => !st.used.includes(i));
@@ -562,9 +1073,13 @@ const Games = (() => {
             return up + down + (r === 11 ? 0.5 : 0) - (r === 11 && mine.length <= 1 ? 1 : 0);
           };
           const f = Games.easy ? scoreEasy : score;
-          return G.trixPlay(st, seat, L.slice().sort((a, b) => f(b) - f(a))[0]);
+          const normal = L.slice().sort((a, b) => f(b) - f(a))[0];
+          return G.trixPlay(st, seat, stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'ladder',L) : stronger && !Games.easy ? informedMove(st,seat,normal,'ladder',L) : normal);
         }
-        if (st.phase === 'play') return G.play(st, seat, (Games.easy ? penaltyPlay(st, seat) : penaltyPlayStrong(st, seat)));
+        if (st.phase === 'play') {
+          const normal = Games.easy ? penaltyPlay(st, seat) : penaltyPlayStrong(st, seat);
+          return G.play(st,seat,stronger === 'expert' && !Games.easy ? expertMove(st,seat,normal,'penalty',legal(st,seat)) : stronger && !Games.easy ? informedMove(st,seat,normal,'penalty',legal(st,seat)) : normal);
+        }
         return st;
       },
       rules: trixRules(contracts, partner)

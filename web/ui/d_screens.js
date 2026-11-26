@@ -26,26 +26,32 @@ function onboarding() {
 }
 function homeTab() {
   const last = ls.get('mor-room');
-  const saved = ALL.filter(g => { const s = ls.get(saveKey(g.id)); return s && s.phase !== 'over'; });
+  const saved = ALL.filter(g => savedGame(g.id));
   const canCreate = online() || native;
   return `<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
   ${meBar()}
+  ${saved.length ? `<section class="card saved-games"><h2>كمّل لعبك</h2><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></section>` : ''}
   <button class="big-act main" data-a="newRoom" ${canCreate ? '' : 'disabled'}><span class="bi">${ICON.plus}</span><div><b>إنشاء غرفة</b><span>${canCreate ? 'افتح طاولة وادعي رفقاتك' : 'بدها إنترنت أو التطبيق على الواي فاي'}</span></div></button>
   <button class="big-act" data-a="joinPop"><span class="bi">${ICON.key}</span><div><b>دخول برمز</b><span>عندك كود غرفة من صاحبك؟</span></div></button>
   <button class="big-act" data-a="tab" data-t="solo"><span class="bi">${ICON.bot}</span><div><b>لعب ضد الكمبيوتر</b><span>تدرّب مع بوتات قوية</span></div></button>
   ${last && last.mode ? `<div class="row" style="justify-content:center"><button class="chip" data-a="rejoin">ارجع للغرفة ${esc(last.key)}</button></div>` : ''}
-  ${saved.length ? `<div class="muted" style="margin:10px 4px 4px">ألعاب محفوظة</div><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">كمّل ${esc(g.name)}</button>`).join('')}</div>` : ''}
+  <button class="big-act" data-a="passPop"><span class="bi">${ICON.users}</span><div><b>على جوال واحد</b><span>العبوا ومرّروا الجوال بينكم، بدون إنترنت</span></div></button>
   ${!native && isServed ? `<button class="btn alt wide" data-a="joinHere" style="margin-top:8px">ادخل غرفة هالمضيف</button>` : ''}`;
 }
 function gameGrid(action, selected) {
   return `<div class="glist">${(action === 'setGame' ? ROOMG : ALL).map(g => {
-    const saved = action === 'soloPick' && (s => s && s.phase !== 'over')(ls.get(saveKey(g.id)));
-    return `<button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}"><span class="info" data-a="rules" data-g="${g.id}" aria-label="القوانين">؟</span>${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button>`;
+    const saved = action === 'soloPick' && savedGame(g.id);
+    return `<div class="gentry"><button class="gcard ${selected === g.id ? 'on' : ''}" data-a="${action}" data-g="${g.id}">${saved ? '<span class="saved" aria-label="محفوظة"></span>' : ''}${gameIcon(g, 30)}<b>${esc(g.name)}</b><span class="muted">${esc(g.sub)}</span></button><button class="info" data-a="rules" data-g="${g.id}" aria-label="قوانين ${esc(g.name)}"><span aria-hidden="true">؟</span></button></div>`;
   }).join('')}</div>`;
+}
+function botLevelButtons() {
+  const mode = ['normal','expert'].includes(prof.botLevel) ? prof.botLevel : 'hard';
+  return `<div class="seg" role="group" aria-label="قوّة البوتات للعب المحلّي">${[['normal','عادي'], ['hard','قوي'], ['expert','خبير']].map(([v,label]) => `<button class="${mode === v ? 'on' : ''}" data-a="setP" data-k="botLevel" data-v="${v}" aria-pressed="${mode === v}">${label}</button>`).join('')}</div>`;
 }
 function soloTab() {
   return `<div class="hdr"><button class="ic" data-a="tab" data-t="home" aria-label="رجوع">${ICON.back}</button><h1>لعب ضد الكمبيوتر</h1></div>
   <div class="muted">اختار اللعبة. بالألعاب الشراكة البوت شريكك.</div>
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}</div>
   ${gameGrid('soloPick')}
   <div class="card"><h2>على جوال واحد</h2><div class="muted">بتمرّروا الجوال لبعض، وفيك تخلّي بعض الكراسي بوت.</div><div class="acts"><button class="btn alt sm" data-a="passPop">رتّب اللعبة</button></div></div>`;
 }
@@ -78,13 +84,14 @@ function meTab() {
   </div>
   ${online() ? `<div class="card"><h2>استرجاع الحساب</h2>${prof.email ? `<div class="muted">حسابك مربوط بـ <b dir="ltr">${esc(prof.email)}</b>. إذا غيّرت الجوال، ادخل بنفس الإيميل.</div><div class="acts"><button class="btn alt sm" data-a="emailPop" data-m="rec">دخول بحساب تاني</button></div>`
     : `<div class="muted">اربط حسابك بإيميل (اختياري) لترجّع أصدقاءك وترتيبك إذا غيّرت الجوال.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط إيميل</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">عندي حساب</button></div>`}</div>` : ''}
+  <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">بتطبّق على اللعب ضد الكمبيوتر وعلى جوال واحد.</p></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
   <div class="card"><h2>شكل الورق</h2><div class="tiles">${CSTY.map(tileCard).join('')}</div></div>
   <div class="card"><h2>ظهر الورق</h2><div class="tiles">${BACKS.map(tileBack).join('')}</div></div>
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">طولي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">عرضي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.8</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.9</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -105,11 +112,14 @@ function pops() {
     <div class="muted" style="margin-top:12px">شكل الورق</div><div class="resume" style="margin-top:6px">${CSTY.map(c => `<button class="chip ${prof.cards === c[0] ? 'on' : ''}" data-a="setP" data-k="cards" data-v="${c[0]}">${c[1]}</button>`).join('')}</div>
     <div class="acts">${native ? `<button class="btn alt sm" data-a="rotate">${ICON.rot} ${ui.orient === 'portrait' ? 'خلّيها عرضي' : 'خلّيها طولي'}</button>` : ''}<button class="btn alt sm" data-a="rules" data-g="${G.id}">${ICON.info} القوانين</button></div>`); }
   if (p.k === 'rules') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="rules">${G.rules}</div>`); }
-  if (p.k === 'soloStart') { const G = GG(p.g); return sheet(`${sheetHead(esc(G.name))}<div class="muted">عندك لعبة محفوظة.</div><div class="acts"><button class="btn" data-a="soloGo" data-g="${G.id}" data-r="1">كمّل المحفوظة</button><button class="btn alt" data-a="soloGo" data-g="${G.id}">لعبة جديدة</button></div>`); }
+  if (p.k === 'replaceLocal') {
+    const G = GG(p.g);
+    return sheet(`${sheetHead(esc(G.name), 'cancelLocal')}<p class="muted">عندك لعبة محفوظة. إذا بلّشت لعبة جديدة رح تنمسح المحفوظة لهاللعبة بس.</p><div class="acts"><button class="btn" data-a="resume" data-g="${G.id}">كمّل المحفوظة</button><button class="btn red" data-a="replaceLocal">استبدلها بلعبة جديدة</button><button class="btn alt" data-a="cancelLocal">إلغاء</button></div>`, 'cancelLocal');
+  }
   if (p.k === 'pass') {
     const cfg = ui.localCfg || (ui.localCfg = [false, false, false, false]), G = GG(p.g || prof.lastGame || 'mor');
     return sheet(`${sheetHead('على جوال واحد')}<div class="resume">${ALL.map(g => `<button class="chip ${g.id === G.id ? 'on' : ''}" data-a="passGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div>
-      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" maxlength="14"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}">بوت</button></div>`).join('')}
+      ${[0, 1, 2, 3].map(i => `<div class="row" style="margin-top:8px"><input id="ln${i}" class="grow" placeholder="${G.teams ? TEAM[i % 2] + ': ' : ''}لاعب ${i + 1}" aria-label="اسم اللاعب ${i + 1}" maxlength="14" value="${esc(ui.passNames?.[i] || '')}"><button class="chip ${cfg[i] ? 'on' : ''}" data-a="cfgBot" data-s="${i}" aria-pressed="${!!cfg[i]}" aria-label="بوت للمقعد ${i + 1}">بوت</button></div>`).join('')}
       <div class="acts"><button class="btn wide" data-a="local" data-g="${G.id}">ابدأ</button></div>`);
   }
   if (p.k === 'gamePick') return sheet(`${sheetHead('اختار اللعبة')}${gameGrid('setGame', ui.room && ui.room.game)}`);
