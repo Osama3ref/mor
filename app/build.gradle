@@ -12,7 +12,7 @@ android {
     signingConfigs {
         stable {
             def ks = System.getenv('KS_FILE')
-            if (ks) { storeFile file(ks); storePassword System.getenv('KS_PASS'); keyAlias 'sahra'; keyPassword System.getenv('KS_PASS') }
+            if (ks) { storeFile file(ks); storePassword System.getenv('KS_PASS').trim(); keyAlias 'sahra'; keyPassword System.getenv('KS_PASS').trim() }
         }
     }
     buildTypes { release { minifyEnabled false; signingConfig System.getenv('KS_FILE') ? signingConfigs.stable : signingConfigs.debug } }

@@ -17,7 +17,7 @@ jobs:
       - name: Stable signing key (if the KEYSTORE_B64 secret is set)
         env: { KS_B64: '${{ secrets.KEYSTORE_B64 }}' }
         run: |
-          if [ -n "$KS_B64" ]; then echo "$KS_B64" | base64 -d > $RUNNER_TEMP/sahra.jks; echo "KS_FILE=$RUNNER_TEMP/sahra.jks" >> $GITHUB_ENV; fi
+          if [ -n "$KS_B64" ]; then printf '%s' "$KS_B64" | tr -cd 'A-Za-z0-9+/=' | base64 -d > $RUNNER_TEMP/sahra.jks; ls -l $RUNNER_TEMP/sahra.jks; echo "KS_FILE=$RUNNER_TEMP/sahra.jks" >> $GITHUB_ENV; fi
       - run: gradle assembleRelease --no-daemon
         env: { KS_PASS: '${{ secrets.KEYSTORE_PASS }}' }
       - run: cp app/build/outputs/apk/release/app-release.apk Mor.apk
