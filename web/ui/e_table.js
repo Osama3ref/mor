@@ -124,7 +124,7 @@ function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
   const front = me >= 0 && !ui.hidden ? frontCards(st, me) : [];
-  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]).filter(c => !front.includes(c)) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]).filter(c => !front.includes(c)).reverse() : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
@@ -136,7 +136,7 @@ function trickTable() {
   // per-seat score cross in the corner, laid out like the table
   const seatScore = s => st.scores[s] + liveHs(st, s);
   const ctrLabel = G.trixFamily && st.contract ? `${(st.kingdom || 0) + 1} · ${Games.CN[st.contract]}` : st.game === 'tarneeb41' ? 'طرنيب 41' : st.game === 'tarneeb61' ? 'طرنيب 61' : '';
-  const scross = st.game === 'tarneeb61' ? '' : `<div class="scross" aria-label="النقاط"><b class="t">${seatScore(P)}</b><b class="l">${seatScore(L)}</b><b class="r">${seatScore(R)}</b><b class="m">${seatScore(base)}</b></div>${ctrLabel ? `<div class="sclabel">${esc(ctrLabel)}</div>` : ''}`;
+  const scross = st.game === 'tarneeb61' || (st.partner && st.game !== 'tarneeb41') ? (ctrLabel ? `<div class="sclabel" style="top:calc(56px + env(safe-area-inset-top))">${esc(ctrLabel)}</div>` : '') : `<div class="scross" aria-label="النقاط"><b class="t">${seatScore(P)}</b><b class="l">${seatScore(L)}</b><b class="r">${seatScore(R)}</b><b class="m">${seatScore(base)}</b></div>${ctrLabel ? `<div class="sclabel">${esc(ctrLabel)}</div>` : ''}`;
   // info chips
   const chips = [];
   if (st.trump) chips.push(`<span class="ichip">الطرنيب <b class="${'HD'.includes(st.trump) ? 'red' : ''}">${SUIT[st.trump]}</b> ${Games.SN[st.trump]}</span>`);
@@ -208,7 +208,7 @@ function trickTable() {
   <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
   <div class="bar"><div class="status">${tmrBadge(me)}${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
   ${front.length ? `<div class="myfront" aria-label="أوراقك المكشوفة على الطاولة">${front.map(id => `<button data-a="frontPlay" data-c="${id}" class="${ui.armed === id ? 'armed' : ''}">${cardHTML(id, legalSet && !legalSet.includes(id) ? 'dim' : '')}</button>`).join('')}</div>` : ''}
-  <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اضغط مرتين على الورقة أو اسحبها إلى الأعلى لتلعبها</div>' : ''}</div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (ui.prePlay === id ? 'pre ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اضغط مرتين على الورقة أو اسحبها إلى الأعلى لتلعبها</div>' : ''}</div>
   </div>${overlays2(me)}`;
 }
 function overlays2(me) {
@@ -216,7 +216,12 @@ function overlays2(me) {
   if (ui.confirmExit) h += exitBox();
   else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجهاز"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجهاز، ولا ينظر أحد.</p><button class="btn" data-a="reveal">أظهر أوراقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'handEnd' || st.phase === 'over') {
-    const S = st.summary || { rows: [], notes: [] };
+    let S = st.summary || { rows: [], notes: [] };
+    // partnership trix games: show one total per team instead of every player
+    if (S.kind === 'players' && st.partner && st.game !== 'tarneeb41') {
+      const num = x => { const v = parseFloat(String(x).replace(/[^\d.+-]/g, '')); return isNaN(v) ? 0 : v; };
+      S = { ...S, kind: 'team', rows: S.rows.map(r => [r[0], num(r[1]) + num(r[3]), num(r[2]) + num(r[4])]) };
+    }
     const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;
     let title = 'انتهت الجولة';
     if (st.phase === 'over') title = st.winner != null ? 'فاز ' + TEAM[st.winner] + '!' : 'فاز ' + st.names[st.winnerSeat] + '!';

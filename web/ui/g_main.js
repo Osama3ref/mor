@@ -24,8 +24,8 @@ window.addEventListener('resize', () => { layoutHand(); fitBoard(); });
 // shrink meld cards until every meld fits on the board without scrolling (portrait or landscape)
 function fitBoard() {
   const b = document.querySelector('.game .board'); if (!b || !b.querySelector('.zone')) return;
-  let w = 30; b.style.setProperty('--mcw', w + 'px');
-  while (b.scrollHeight > b.clientHeight + 2 && w > 15) { w -= 2; b.style.setProperty('--mcw', w + 'px'); }
+  let w = 44; b.style.setProperty('--mcw', w + 'px');
+  while (b.scrollHeight > b.clientHeight + 2 && w > 16) { w -= 2; b.style.setProperty('--mcw', w + 'px'); }
 }
 
 // ---------- events ----------
@@ -135,6 +135,8 @@ $app.addEventListener('click', e => {
       copyCode: () => copyText(ui.code, 'انسخ الرمز: ' + ui.code),
       shareRoom: () => shareRoom(),
       frontPlay: () => tapCard(t.dataset.c),
+      setRows: () => { prof.handRows = +t.dataset.v; saveProf(); render(); },
+      togPre: () => { prof.prePlay = prof.prePlay === false; saveProf(); render(); },
       discSel: () => { ui.pop.sel = +t.dataset.i; SFX.tap(); render(); },
       discTake: () => { const i = ui.pop.sel; ui.pop = null; act(Mor.takeDiscard, i); },
       setTimer: () => { B().meta({ timer: +t.dataset.v }).catch(() => toast('تعذّر الحفظ')); },

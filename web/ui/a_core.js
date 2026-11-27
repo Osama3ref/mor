@@ -133,7 +133,9 @@ function cardHTML(id, extra = '', attrs = '') {
 const SO = { H: 0, S: 1, D: 2, C: 3 };
 // ace high, descending: A K Q J 10 … 3; 2s and jokers (wild in Mor) go to the right end
 const hiRank = c => (Mor.isJ(c) ? -2 : Mor.card(c).r === 2 ? -1 : Mor.card(c).r === 1 ? 14 : Mor.card(c).r);
-function sortIds(h, byRank) {
+// shown right-to-left from big to small: the largest card sits at the right end of each group
+function sortIds(h, byRank) { return sortDesc(h, byRank).reverse(); }
+function sortDesc(h, byRank) {
   return h.slice().sort((a, b) => {
     const A = hiRank(a), B = hiRank(b);
     if ((A < 0) !== (B < 0)) return A < 0 ? 1 : -1;

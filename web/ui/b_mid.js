@@ -45,6 +45,8 @@ function afterState() {
   requestAnimationFrame(() => { try { flyFor(pv, st); } catch (e) {} });
   try { mafiaAuto(st); } catch (e) {}
   try { turnClock(st); } catch (e) {}
+  try { prePlayCheck(st); } catch (e) {}
+  try { autoPass(st); } catch (e) {}
   if (ui.mode === 'fb' && !['mafia', 'coup'].includes(st.game) && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
   const a = gameOf(st).actor(st);
   if (ui.mode === 'local' && a >= 0) {
@@ -106,7 +108,7 @@ function runBots() {
         !live.bots?.[a] || G.actor(live) !== a || keyFor(live) !== key) return;
     let n; try { n = G.bot(live, a, ui.mode === 'local' && prof.botLevel === 'expert' ? 'expert' : ui.mode !== 'local' || prof.botLevel !== 'normal'); } catch (e) { console.error(e); return; }
     if (n !== live) await commit(n);
-  }, G.id === 'mor' ? 1600 : (st.trickDone ? 2900 : 1000)) };
+  }, G.id === 'mor' ? 2600 : (st.trickDone ? 2900 : 1100)) };
   botJob = job;
 }
 
