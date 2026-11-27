@@ -9,7 +9,7 @@ function seatHTML(st, s, me, cls = '') {
 }
 function meldHTML(m, canTap, them) {
   const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
-  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
+  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || 0}</span><span class="mcnt" aria-label="عدد الأوراق">${m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
 }
 function game() {
   const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
@@ -106,26 +106,37 @@ function seatT(st, s, me) {
     ${avatarHTML(seatAv(st, s), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
     <div><div class="nm">${esc(name)}</div><div class="sinfo">${info}</div>${tags.join('')}</div>${dblFor(st, s)}</div>`;
 }
-function dblFor(st, s) {
-  if (!st.doubled || st.phase === 'choose' || st.phase === 'double') return '';
+// cards a player must keep face-up on the table in front of him: doubled cards, and in trix the 2s once revealed
+function frontCards(st, s) {
   const ids = [];
-  if (st.doubled.K === s) ids.push('H13');
-  for (const [c, by] of Object.entries(st.doubled.Q || {})) if (by === s) ids.push(c);
-  const live = ids.filter(c => st.hands[s].includes(c));
-  return live.length ? `<div class="dblrow" aria-label="مدبّل">${live.map(c => cardHTML(c)).join('')}</div>` : '';
+  if (st.doubled && st.phase !== 'choose' && st.phase !== 'double') {
+    if (st.doubled.K === s) ids.push('H13');
+    for (const [c, by] of Object.entries(st.doubled.Q || {})) if (by === s) ids.push(c);
+  }
+  if (st.phase === 'trix' && st.owner != null && 13 - st.hands[st.owner].length >= 2) ['S2', 'H2', 'D2', 'C2'].forEach(c => ids.push(c));
+  return ids.filter(c => st.hands[s].includes(c));
+}
+function dblFor(st, s) {
+  const live = frontCards(st, s);
+  return live.length ? `<div class="dblrow" aria-label="أوراق مكشوفة">${live.map(c => cardHTML(c)).join('')}</div>` : '';
 }
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]) : [];
+  const front = me >= 0 && !ui.hidden ? frontCards(st, me) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]).filter(c => !front.includes(c)) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
-  if (ui.armed && !hand.includes(ui.armed)) ui.armed = null;
+  if (ui.armed && !hand.includes(ui.armed) && !front.includes(ui.armed)) ui.armed = null;
   const teamSum = t => st.game === 'tarneeb61' ? st.tscores[t] : st.scores[t] + st.scores[t + 2] + liveHs(st, t) + liveHs(st, t + 2);
   const pills = (G.teams || st.partner)
     ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'نحن' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'نحن' : 'هم'} <b>${teamSum(1)}</b></span>`
     : `<span class="sp">لك <b>${me >= 0 ? st.scores[me] + liveHs(st, me) : 0}</b></span>`;
+  // per-seat score cross in the corner, laid out like the table
+  const seatScore = s => st.scores[s] + liveHs(st, s);
+  const ctrLabel = G.trixFamily && st.contract ? `${(st.kingdom || 0) + 1} · ${Games.CN[st.contract]}` : st.game === 'tarneeb41' ? 'طرنيب 41' : st.game === 'tarneeb61' ? 'طرنيب 61' : '';
+  const scross = st.game === 'tarneeb61' ? '' : `<div class="scross" aria-label="النقاط"><b class="t">${seatScore(P)}</b><b class="l">${seatScore(L)}</b><b class="r">${seatScore(R)}</b><b class="m">${seatScore(base)}</b></div>${ctrLabel ? `<div class="sclabel">${esc(ctrLabel)}</div>` : ''}`;
   // info chips
   const chips = [];
   if (st.trump) chips.push(`<span class="ichip">الطرنيب <b class="${'HD'.includes(st.trump) ? 'red' : ''}">${SUIT[st.trump]}</b> ${Games.SN[st.trump]}</span>`);
@@ -163,7 +174,7 @@ function trickTable() {
     centre = `${lastBox}<div class="trickbox ${cls}" style="--cd:${delay}ms">${slot(P, 'pt')}${slot(L, 'pl')}${slot(R, 'pr')}${slot(base, 'pb')}</div>`;
   }
   // status + actions
-  let status = '', acts = '';
+  let status = '', acts = '', dmodal = '';
   const nm = s => esc(st.names[s]);
   if (a >= 0 && !myAct) status = { bid: 'يزايد', trump: 'يختار الطرنيب', choose: 'يختار الطلب', double: 'يقرّر الدبل', play: 'دوره', trix: 'دوره' }[st.phase] + ': ' + nm(a) + (st.bots[a] ? ' (بوت)' : '');
   if (myAct) {
@@ -182,9 +193,8 @@ function trickTable() {
       acts = G.contracts.map((c, i) => st.used.includes(i) ? '' : `<button class="btn sm" data-a="choose" data-i="${i}">${Games.CN[c]}</button>`).join('');
     } else if (st.phase === 'double') {
       const el = G.dblCards(st, me); ui.dblSel = (ui.dblSel || []).filter(x => el.includes(x));
-      status = 'هل تريد الدبل؟ اختر الأوراق التي تريد دبلها';
-      acts = `<div class="mini dbl">${el.map(c => `<span data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</span>`).join('')}</div>
-        <button class="btn sm" data-a="dblDone">${ui.dblSel.length ? 'دبّل (' + ui.dblSel.length + ')' : 'بدون دبل'}</button>`;
+      status = '';
+      dmodal = `<div class="dmodal" role="dialog" aria-label="الدبل"><h3>اختر أوراق الدبل</h3><div class="muted">اضغط على الورقة لتدبّلها، أو اضغط «جاهز» بدون اختيار.</div><div class="dcards">${el.map(c => `<button data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</button>`).join('')}</div><button class="btn wide" data-a="dblDone">${ui.dblSel.length ? 'جاهز · دبّل ' + ui.dblSel.length : 'جاهز'}</button></div>`;
     } else if (st.phase === 'play') status = 'دورك: العب ورقة';
     else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'لا تملك ورقة مناسبة'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
   }
@@ -193,9 +203,11 @@ function trickTable() {
     ${voiceBtns()}` : '';
   return `<div class="game tg">
   <div class="top"><button class="ic" data-a="exit" aria-label="خروج">${ICON.x}</button><div class="score">${pills}</div>${chatBtn}<button class="ic" data-a="tmenu" aria-label="الإعدادات">${ICON.gear}</button></div>
+  ${scross}${dmodal}
   <div class="partner">${seatT(st, P, me)}</div>
   <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
   <div class="bar"><div class="status">${tmrBadge(me)}${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
+  ${front.length ? `<div class="myfront" aria-label="أوراقك المكشوفة على الطاولة">${front.map(id => `<button data-a="frontPlay" data-c="${id}" class="${ui.armed === id ? 'armed' : ''}">${cardHTML(id, legalSet && !legalSet.includes(id) ? 'dim' : '')}</button>`).join('')}</div>` : ''}
   <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اضغط مرتين على الورقة أو اسحبها إلى الأعلى لتلعبها</div>' : ''}</div>
   </div>${overlays2(me)}`;
 }
@@ -209,8 +221,8 @@ function overlays2(me) {
     let title = 'انتهت الجولة';
     if (st.phase === 'over') title = st.winner != null ? 'فاز ' + TEAM[st.winner] + '!' : 'فاز ' + st.names[st.winnerSeat] + '!';
     const teamRow = S.kind === 'players' && (G.teams || st.partner) ? `<tr><td>مجموع الفريق</td>${[0, 1, 2, 3].map(i => `<td><b>${st.scores[i % 2] + st.scores[i % 2 + 2]}</b></td>`).join('')}</tr>` : '';
-    h += `<div class="ov cen"><div class="box"><h2>${title}</h2>
-    <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${esc(c)}</th>`).join('')}</tr>
+    h += `<div class="ov cen"><div class="box sumbox"><div class="sumhead">${st.phase === 'over' ? '🏆' : '🃏'}<h2>${title}</h2></div>
+    <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${S.kind === 'team' ? '' : avatarHTML(seatAv(st, i), c, 'xs') + '<br>'}${esc(c)}</th>`).join('')}</tr>
     ${S.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}${teamRow}</table></div>
     <p class="muted">${(S.notes || []).map(esc).join('<br>')}</p>
     ${endActs(st, ui.mode === 'local' || me >= 0)}</div></div>`;

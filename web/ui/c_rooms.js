@@ -118,11 +118,11 @@ async function ensureUser() {
     }
   }
   prof.code = code; prof.email = fb.auth.currentUser.email || d.email || ''; saveProf();
-  if (prof.name) await FB.setDoc(ref, { name: prof.name, av: prof.av, code, t: Date.now() }, { merge: true }).catch(() => {});
+  if (prof.name) await FB.setDoc(ref, { name: prof.name, nameKey: nameKey(prof.name), av: prof.av, code, t: Date.now() }, { merge: true }).catch(() => {});
 }
 function pushProfile() {
   if (!fb.ready || !prof.name) return;
-  FB.setDoc(fbB.ref('users', fb.uid), { name: prof.name, av: prof.av, ph: prof.photo || '', code: prof.code, t: Date.now() }, { merge: true }).catch(() => {});
+  FB.setDoc(fbB.ref('users', fb.uid), { name: prof.name, nameKey: nameKey(prof.name), av: prof.av, ph: prof.photo || '', code: prof.code, t: Date.now() }, { merge: true }).catch(() => {});
   if (ui.mode === 'fb' && ui.code) FB.updateDoc(fbB.ref('rooms', ui.code, 'players', uid), { name: prof.name, av: prof.av, ph: prof.photo || '' }).catch(() => {});
   if (ui.mode === 'lan') lanB.setSeat((ui.players.find(p => p.id === uid) || { seat: -1 }).seat).catch(() => {});
 }

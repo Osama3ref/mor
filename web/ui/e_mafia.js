@@ -6,13 +6,13 @@ const RDESC = {
   doctor: 'كل ليلة تختار شخصاً تحميه من القتل (يمكنك حماية نفسك)، ولا يمكنك حماية الشخص نفسه ليلتين متتاليتين.',
   detective: 'كل ليلة تسأل عن لاعب لتعرف إن كان من المافيا أم لا. استعمل المعلومة بذكاء.'
 };
-const mafCfg = () => (ui.mafCfg = ui.mafCfg || Object.assign({ mafia: 0, doctor: true, detective: true, reveal: true, narr: false, voice: ui.mode === 'lan' ? 'host' : 'all' }, ls.get('mor-mafia') || {}));
+const mafCfg = () => (ui.mafCfg = ui.mafCfg || Object.assign({ mafia: 0, doctor: true, detective: true, reveal: true, narr: false, stepTime: 30, voice: ui.mode === 'lan' ? 'host' : 'all' }, ls.get('mor-mafia') || {}));
 function saveMafCfg() { ls.set('mor-mafia', ui.mafCfg); }
 async function startMafia() {
   const c = mafCfg(), narrator = c.narr ? uid : null;
   const ps = ui.players.filter(p => p.id !== narrator).map(p => ({ id: p.id, name: p.name, av: p.av }));
   let st;
-  try { st = Mafia.newGame(ps, { mafia: c.mafia || Mafia.defMafia(ps.length), doctor: c.doctor && ps.length >= 5, detective: c.detective && ps.length >= 5, reveal: c.reveal, narrator, voice: c.voice }); }
+  try { st = Mafia.newGame(ps, { mafia: c.mafia || Mafia.defMafia(ps.length), doctor: c.doctor && ps.length >= 5, detective: c.detective && ps.length >= 5, reveal: c.reveal, narrator, voice: c.voice, stepTime: c.narr ? 0 : c.stepTime }); }
   catch (e) { return toast(e.message); }
   st.deal = Date.now(); ui.st = { v: (ui.room && ui.room.sv) || 0 }; ui.mafSel = null; ui.mafPeek = false;
   await commit(st);
@@ -35,6 +35,7 @@ function mafiaLobby() {
     <div class="li"><div class="t"><b>الراوي</b><span>${c.narr ? 'أنت تدير اللعبة وترى كل الأدوار' : 'يدير التطبيق الليل والنهار تلقائياً'}</span></div><div class="seg" style="width:150px"><button class="${c.narr ? '' : 'on'}" data-a="mafNarr" data-v="0">التطبيق</button><button class="${c.narr ? 'on' : ''}" data-a="mafNarr" data-v="1">أنا</button></div></div>
     <div class="li"><div class="t"><b>عدد المافيا</b><span>${n >= 4 ? `لـ ${n} لاعبين` : ''}</span></div><button class="ic" data-a="mafN" data-d="-1" aria-label="أقل">−</button><b style="font:600 22px Oswald,sans-serif;min-width:26px;text-align:center">${m}</b><button class="ic" data-a="mafN" data-d="1" aria-label="أكثر">+</button></div>
     ${c.narr ? '' : `<div class="li"><div class="t"><b>🔊 صوت الراوي</b><span>${{ all: 'يُسمع على أجهزة الجميع (للعب عن بُعد)', host: 'يُسمع على جهازك فقط (إذا كنتم في غرفة واحدة)', off: 'بلا صوت' }[c.voice]}</span></div><div class="seg" style="width:190px"><button class="${c.voice === 'all' ? 'on' : ''}" data-a="mafVoice" data-v="all">الكل</button><button class="${c.voice === 'host' ? 'on' : ''}" data-a="mafVoice" data-v="host">جهازي</button><button class="${c.voice === 'off' ? 'on' : ''}" data-a="mafVoice" data-v="off">بلا</button></div></div>`}
+    ${c.narr ? '' : `<div class="li"><div class="t"><b>⏱️ وقت كل دور في الليل</b><span>إذا انتهى الوقت ينتقل الراوي إلى الدور التالي</span></div><div class="seg" style="width:200px">${[0, 20, 30, 45].map(v => `<button class="${(c.stepTime || 0) === v ? 'on' : ''}" data-a="mafStepT" data-v="${v}">${v ? v + 'ث' : 'بلا'}</button>`).join('')}</div></div>`}
     ${tog('doctor', '💉 الطبيب', 'من 5 لاعبين فأكثر')}${tog('detective', '🔎 المحقق', 'من 5 لاعبين فأكثر')}${tog('reveal', 'كشف الدور', 'عندما يخرج أحد، يظهر دوره للجميع')}
     <div class="acts"><button class="btn wide" data-a="mafStart" ${n >= 4 ? '' : 'disabled'}>🎭 وزّع الأدوار وابدأ</button></div></div>`
     : `<p class="muted" style="text-align:center">يجهّز صاحب الغرفة الإعدادات ويبدأ. افتحوا المكالمة للنقاش 🎙️</p>`}
@@ -88,7 +89,7 @@ function mafiaView() {
     } else panel = '<p class="muted">أنت تشاهد هذه اللعبة.</p>';
   } else if (ph === 'night') {
     const step = st.night.step, SN = { mafia: 'المافيا', doctor: 'الطبيب', detective: 'المحقق', done: '' };
-    const wait = step === 'done' ? 'انتهى الجميع من الاختيار' : `الدور الآن على: ${SN[step]}`;
+    const left = mafLeft(st), wait = (step === 'done' ? 'انتهى الجميع من الاختيار' : `الدور الآن على: ${SN[step]}`) + (left >= 0 && step !== 'done' ? ` · <span class="tmr" style="position:static;display:inline-grid" data-maft>${left}</span>` : '');
     const myStep = me && me.alive && role === step;
     if (narr) panel = `<p class="muted">${wait}. هدف المافيا: <b>${esc((Mafia.P(st, Mafia.mafiaTarget(st)) || {}).name || '—')}</b></p><div class="acts"><button class="btn wide" data-a="mafNext">${step === 'done' ? '☀️ أعلن الصباح' : '⏭️ التالي'}</button></div>`;
     else if (!me || !me.alive) panel = `<p class="muted">${me ? 'خرجت من اللعبة، وأنت الآن تشاهد.' : 'أنت تشاهد.'} ${wait}</p>`;
@@ -127,6 +128,7 @@ const mafiaActs = {
   mafNarr: t => { mafCfg().narr = t.dataset.v === '1'; saveMafCfg(); render(); },
   mafN: t => { const c = mafCfg(), n = Math.max(4, ui.players.length - (c.narr ? 1 : 0)); c.mafia = Math.min(Mafia.maxMafia(n), Math.max(1, (c.mafia || Mafia.defMafia(n)) + +t.dataset.d)); saveMafCfg(); render(); },
   mafStart: () => startMafia(),
+  mafStepT: t => { mafCfg().stepTime = +t.dataset.v; saveMafCfg(); render(); },
   mafVoice: t => { mafCfg().voice = t.dataset.v; saveMafCfg(); if (t.dataset.v !== 'off') speak('صوت الراوي جاهز'); render(); },
   mafPeek: () => { ui.mafPeek = !ui.mafPeek; SFX.tap(); render(); },
   mafReady: () => { ui.mafPeek = false; actR(Mafia.setReady, uid); },
@@ -180,9 +182,22 @@ function mafiaNarrate(prev, st) {
   lines.forEach(speak);
 }
 let mafSkipKey = null;
-function mafiaAuto(st) {
-  // the host's phone moves past a role whose players are all dead, after a natural pause
-  if (st.game !== 'mafia' || st.phase !== 'night' || st.cfg.narrator || !isHost() || !Mafia.stepEmpty(st)) return;
-  const key = st.deal + ':' + st.day + ':' + st.night.step; if (mafSkipKey === key) return; mafSkipKey = key;
-  setTimeout(() => { if (ui.st && ui.st.game === 'mafia' && ui.st.phase === 'night' && ui.st.night.step === st.night.step && ui.st.day === st.day) actR(Mafia.skipStep, uid, true); }, 5000 + Math.random() * 3000);
+const mafClock = { key: null, at: 0 };
+function mafLeft(st) {
+  if (st.game !== 'mafia' || st.phase !== 'night' || !st.cfg.stepTime) return -1;
+  return Math.max(0, Math.ceil((mafClock.at + st.cfg.stepTime * 1000 - Date.now()) / 1000));
 }
+function mafiaAuto(st) {
+  if (st.game !== 'mafia' || st.phase !== 'night' || st.cfg.narrator) return;
+  const key = st.deal + ':' + st.day + ':' + st.night.step;
+  if (mafClock.key !== key) { mafClock.key = key; mafClock.at = Date.now(); }
+  if (!isHost() || mafSkipKey === key) return;
+  // a role whose players are all dead is still called (so nobody learns who died), then skipped after a natural pause;
+  // a living role gets the time the host chose
+  const empty = Mafia.stepEmpty(st);
+  if (!empty && !st.cfg.stepTime) return;
+  mafSkipKey = key;
+  const wait = empty ? 5000 + Math.random() * 3000 : st.cfg.stepTime * 1000;
+  setTimeout(() => { if (ui.st && ui.st.game === 'mafia' && ui.st.phase === 'night' && ui.st.night.step === st.night.step && ui.st.day === st.day) actR(Mafia.skipStep, uid, true); }, wait);
+}
+setInterval(() => { const st = ui.st; if (!st || st.game !== 'mafia') return; const n = mafLeft(st); document.querySelectorAll('[data-maft]').forEach(el => { el.textContent = n; el.classList.toggle('low', n <= 5); }); }, 500);

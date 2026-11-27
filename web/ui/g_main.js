@@ -11,7 +11,7 @@ function render() {
     : ui.st.game === 'mafia' ? mafiaView()
     : ui.st.game === 'coup' ? coupView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
-  layoutHand();
+  layoutHand(); fitBoard();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
   if (focus) { const el = document.getElementById(focus); if (el && el.tagName === 'INPUT' && el.type !== 'range') el.focus(); }
   gm.forEach(id => { const el = document.querySelector(`[data-gm="${id}"]`); if (el) el.classList.add('on'); });
@@ -20,7 +20,13 @@ function render() {
   for (const id of ['msgs', 'dmmsgs']) { const m2 = document.getElementById(id); if (m2) m2.scrollTop = m2.scrollHeight; }
   if (ui.chatOpen) ui.unread = 0;
 }
-window.addEventListener('resize', () => layoutHand());
+window.addEventListener('resize', () => { layoutHand(); fitBoard(); });
+// shrink meld cards until every meld fits on the board without scrolling (portrait or landscape)
+function fitBoard() {
+  const b = document.querySelector('.game .board'); if (!b || !b.querySelector('.zone')) return;
+  let w = 30; b.style.setProperty('--mcw', w + 'px');
+  while (b.scrollHeight > b.clientHeight + 2 && w > 15) { w -= 2; b.style.setProperty('--mcw', w + 'px'); }
+}
 
 // ---------- events ----------
 const APK_URL = 'https://github.com/Osama3ref/mor/releases/latest/download/Mor.apk';
@@ -39,6 +45,15 @@ function nameError(n) {
   if (!/^[\p{L}\p{N} ._\-]+$/u.test(n)) return 'يُسمح بالحروف والأرقام والمسافة والرموز . _ - فقط';
   if (!/[\p{L}\p{N}]{2}/u.test(n.replace(/\s/g, ''))) return 'الاسم يجب أن يحتوي على حرفين أو رقمين على الأقل';
   return '';
+}
+// usernames are unique (case and spacing ignored); checked against the online directory when available
+const nameKey = n => n.trim().toLowerCase().replace(/\s+/g, ' ');
+async function nameTaken(n) {
+  if (!online()) return '';
+  try {
+    const q = await FB.getDocs(FB.query(fbB.col('users'), FB.where('nameKey', '==', nameKey(n)), FB.limit(3)));
+    return q.docs.some(d => d.id !== fb.uid) ? 'هذا الاسم مستخدم من لاعب آخر، اختر اسماً مختلفاً' : '';
+  } catch (e) { return ''; }
 }
 function pickPhoto() {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
@@ -94,12 +109,12 @@ $app.addEventListener('click', e => {
       // onboarding and profile
       obAv: () => { ui.obAv = t.dataset.v; render(); },
       obCol: () => { const [, gl] = (ui.obAv || prof.av).split('|'); ui.obAv = t.dataset.v + '|' + gl; render(); },
-      obDone: () => { const n = (document.getElementById('obn').value || '').trim(); const bad = nameError(n); if (bad) return toast(bad); prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; saveProf(); ls.set('mor-name', prof.name); pushProfile(); SFX.deal(); render(); },
+      obDone: async () => { const n = (document.getElementById('obn').value || '').trim(); const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad); prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; saveProf(); ls.set('mor-name', prof.name); pushProfile(); SFX.deal(); render(); },
       pickPhoto: () => pickPhoto(),
       rmPhoto: () => { prof.photo = ''; saveProf(); pushProfile(); render(); },
       avPop: () => { ui.obAv = prof.av; ui.pop = { k: 'av' }; render(); },
       avSave: () => { if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; ui.pop = null; saveProf(); pushProfile(); render(); },
-      saveName: () => { const n = (document.getElementById('pname').value || '').trim(); const bad = nameError(n); if (bad) return toast(bad); prof.name = n; saveProf(); ls.set('mor-name', prof.name); pushProfile(); toast('حُفظ'); },
+      saveName: async () => { const n = (document.getElementById('pname').value || '').trim(); if (n === prof.name) return toast('هذا اسمك الحالي'); const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad); prof.name = n; saveProf(); ls.set('mor-name', prof.name); pushProfile(); toast('حُفظ'); },
       setP: () => { prof[t.dataset.k] = t.dataset.v; saveProf(); SFX.tap(); render(); },
       mute: () => { prof.mute = !prof.mute; saveProf(); actx(); if (!prof.mute) SFX.card(); render(); },
       testSnd: () => { SFX.deal(); setTimeout(SFX.card, 700); setTimeout(SFX.collect, 1100); },
@@ -119,6 +134,7 @@ $app.addEventListener('click', e => {
       // room
       copyCode: () => copyText(ui.code, 'انسخ الرمز: ' + ui.code),
       shareRoom: () => shareRoom(),
+      frontPlay: () => tapCard(t.dataset.c),
       discSel: () => { ui.pop.sel = +t.dataset.i; SFX.tap(); render(); },
       discTake: () => { const i = ui.pop.sel; ui.pop = null; act(Mor.takeDiscard, i); },
       setTimer: () => { B().meta({ timer: +t.dataset.v }).catch(() => toast('تعذّر الحفظ')); },
@@ -133,7 +149,7 @@ $app.addEventListener('click', e => {
       draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
       declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
       morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
-      sort: () => { const me = mySeat(); const h = ui.st.hands[me]; const cur = ui.order[me] || []; const s1 = sortIds(h, false); ui.order[me] = cur.join() === s1.join() ? sortIds(h, true) : s1; render(); },
+      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (الزائد على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
       reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
       noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
       // chat & voice

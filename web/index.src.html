@@ -182,6 +182,21 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 [data-cards=four]{--big:block;--ix2:none;--cD:#1d6fd6;--cC:#1b8a3c;--cH:#d0202d}
 [data-cards=jumbo]{--ix2:none;--ixb:.5;--ixi:.4;--ixw:.5}
 [data-cards=jumbo] .c .ix b{font-family:Oswald,sans-serif}
+/* clear: bold oversized index readable in a tight fan, big suit at the bottom, court art kept */
+[data-cards=clear]{--ix2:none;--big:block;--court:flex;--ace:none;--ixb:.46;--ixi:.36;--ixw:.42}
+[data-cards=clear] .c{background:#fff;border:1px solid rgba(0,0,0,.18)}
+[data-cards=clear] .c .ix{left:calc(var(--w)*.04);top:calc(var(--w)*.04)}
+[data-cards=clear] .c .ix b{font:700 calc(var(--w)*.46)/.95 Oswald,'Arial Narrow',sans-serif;letter-spacing:-1px}
+[data-cards=clear] .c .court{inset:calc(var(--w)*.62) calc(var(--w)*.08) calc(var(--w)*.08) calc(var(--w)*.42);border-width:1px}
+[data-cards=clear] .c .court b{display:none}
+[data-cards=clear] .c .big{font-size:calc(var(--w)*.5)}
+[data-cards=clear] .c.s-K .big,[data-cards=clear] .c:has(.court) .big{display:none}
+/* luxe: engraved classic with gold inner frame and serif indices */
+[data-cards=luxe]{--pip:block;--ace:grid;--court:flex;--ixb:.28;--ixi:.19;--ixw:.25}
+[data-cards=luxe] .c{background:linear-gradient(160deg,#fffdf6,#f4ead2);box-shadow:inset 0 0 0 calc(var(--w)*.035) #fffdf6,inset 0 0 0 calc(var(--w)*.05) #b8913e,0 3px 8px rgba(0,0,0,.35)}
+[data-cards=luxe] .c .ix b,[data-cards=luxe] .c .ix2 b{font-family:'Playfair Display',Georgia,serif;font-weight:800}
+[data-cards=luxe] .c .court{background:linear-gradient(180deg,rgba(184,145,62,.35),rgba(184,145,62,.08));border-color:#b8913e}
+[data-cards=luxe] .c .ace{font-size:calc(var(--w)*.7);text-shadow:0 0 0 #b8913e,0 1px 0 rgba(184,145,62,.6)}
 .c.jk{background:linear-gradient(165deg,#fffaf0,#f8e3a6)}
 .c.jk .jkc{position:absolute;inset:0;display:grid;place-items:center;font-size:calc(var(--w)*.55);color:#b0262f}
 .c.jk .ix b{font-size:calc(var(--w)*.2);letter-spacing:0}
@@ -190,6 +205,8 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 [data-back]{--backbg:repeating-linear-gradient(45deg,#1b2a5e 0 5px,#24377a 5px 10px)}
 [data-back=red]{--backbg:repeating-linear-gradient(45deg,#8a1a24 0 5px,#a6232e 5px 10px)}
 [data-back=green]{--backbg:repeating-linear-gradient(-45deg,#0f5a3b 0 6px,#146b47 6px 12px)}
+[data-back=luxe]{--backbg:radial-gradient(circle at 50% 50%,#f0d58a 0 7%,transparent 8%) 0 0/12px 12px,radial-gradient(circle at 0 0,#f0d58a 0 6%,transparent 7%) 6px 6px/12px 12px,repeating-linear-gradient(45deg,#7d1420 0 3px,#931a27 3px 6px)}
+[data-back=royal]{--backbg:radial-gradient(circle at 50% 50%,transparent 0 30%,rgba(226,191,104,.55) 31% 34%,transparent 35%) 0 0/16px 16px,repeating-linear-gradient(-45deg,#14245a 0 4px,#1b3074 4px 8px)}
 [data-back=gold]{--backbg:radial-gradient(circle at 50% 50%,#e2bf68 0 18%,transparent 19%) 0 0/14px 14px,linear-gradient(#1a1a1a,#2c2c2c)}
 .c.w{box-shadow:0 0 0 2px var(--red) inset}
 .mini .c{--w:30px}
@@ -212,7 +229,9 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .zl b{color:#fff}
 .melds{display:flex;flex-wrap:wrap;gap:8px 6px;justify-content:center;min-height:46px;align-items:flex-start}
 .meld{position:relative;padding:5px 6px 4px 16px;border-radius:10px;background:rgba(0,0,0,.2);display:flex;direction:ltr}
-.meld .c{margin-right:-15px}.meld .c:last-child{margin-right:0}
+.board .mini .c{--w:var(--mcw,30px)}
+.meld .mcnt{position:absolute;top:-7px;left:-5px;background:#0b0d14;color:#fff;border-radius:8px;padding:0 5px;font:600 11px/15px Oswald,sans-serif;box-shadow:0 1px 3px #000a}
+.meld .c{margin-right:calc(var(--w) * -.5)}.meld .c:last-child{margin-right:0}
 .meld.tap{box-shadow:0 0 0 2px var(--gold);animation:pulse 1.4s infinite}
 .meld .val{position:absolute;top:-7px;right:-5px;background:var(--a);color:#2a1d00;border-radius:8px;padding:0 6px;font:600 12px/16px Oswald,sans-serif}
 .meld .val.z{background:#d9d4c6}.meld.them .val{background:var(--b);color:#03212d}
@@ -263,7 +282,7 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .slot.pr{right:0;top:50%;transform:translateY(-50%)}.slot.pl{left:0;top:50%;transform:translateY(-50%)}
 .slot.win .c{box-shadow:0 0 0 3px var(--gold),0 0 20px var(--gold)}
 .last{font-size:12px;color:rgba(255,255,255,.65);text-align:center;min-height:16px}
-.lastt{position:fixed;top:calc(52px + env(safe-area-inset-top));left:6px;z-index:6;background:rgba(0,0,0,.55);border:1px solid var(--line2);box-shadow:0 6px 16px rgba(0,0,0,.4);border-radius:12px;padding:4px 7px;font-size:10.5px;color:rgba(255,255,255,.75);display:flex;flex-direction:column;gap:2px}
+.lastt{position:fixed;top:calc(52px + env(safe-area-inset-top));right:6px;z-index:6;background:rgba(0,0,0,.55);border:1px solid var(--line2);box-shadow:0 6px 16px rgba(0,0,0,.4);border-radius:12px;padding:4px 7px;font-size:10.5px;color:rgba(255,255,255,.75);display:flex;flex-direction:column;gap:2px}
 .lastt .lrow .c{--w:24px;margin-right:-6px}.lastt .lrow .c .ix b{font-size:10px}.lastt .lrow .c .ix i{font-size:9px}
 .ladders{display:flex;flex-direction:column;gap:6px;width:100%;padding:6px 2px}
 .lad{display:flex;align-items:center;gap:8px}.ls{font-size:22px;width:22px;text-align:center;color:#fff}.ls.red{color:#ff8a92}
@@ -325,6 +344,32 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .rs{justify-content:center}
 .clog{margin:6px auto 0;max-width:420px;font-size:12px;color:var(--dim);text-align:center;line-height:1.6}
 .mine{margin-top:8px}.mycoins{font-size:15px;text-align:center}.mycoins b{font:600 20px Oswald,sans-serif;color:var(--gold)}
+/* face-up cards in front of me */
+.myfront{display:flex;justify-content:center;gap:8px;padding:2px 0 6px;direction:ltr}
+.myfront button .c{--w:50px;box-shadow:0 0 0 2px var(--red),0 6px 14px rgba(0,0,0,.45)}
+.myfront button.armed .c{transform:translateY(-10px);box-shadow:0 0 0 3px var(--gold),0 10px 18px rgba(0,0,0,.5)}
+/* score cross */
+.scross{position:fixed;top:calc(54px + env(safe-area-inset-top));left:8px;z-index:6;width:92px;height:76px;display:grid;grid-template:1fr 1fr 1fr/1fr 1fr 1fr;place-items:center;border-radius:14px;border:2px solid rgba(255,255,255,.12);background:rgba(0,0,0,.25)}
+.scross b{min-width:34px;height:22px;padding:0 6px;border-radius:11px;background:#0b0d14;color:#fff;font:600 14px/22px Oswald,sans-serif;text-align:center;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.scross .t{grid-area:1/2}.scross .l{grid-area:2/1}.scross .r{grid-area:2/3}.scross .m{grid-area:3/2;background:var(--gold);color:var(--btnink)}
+.sclabel{position:fixed;top:calc(136px + env(safe-area-inset-top));left:8px;z-index:6;background:#0b0d14;color:#fff;border-radius:10px;padding:3px 10px;font-weight:800;font-size:13px}
+/* double dialog */
+.dmodal{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:40;width:min(86vw,340px);background:linear-gradient(180deg,#1a2030,#10141f);border:1px solid var(--line);border-radius:22px;padding:16px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.6);animation:fade .2s}
+.dmodal h3{font-size:20px;padding-bottom:8px;border-bottom:1px solid var(--line2);margin-bottom:8px}
+.dcards{display:flex;justify-content:center;gap:12px;margin:14px 0;direction:ltr}
+.dcards button .c{--w:74px;transition:transform .15s}
+.dcards button.dsel .c{transform:translateY(-10px);box-shadow:0 0 0 3px var(--red),0 0 18px rgba(216,52,63,.6)}
+/* round summary */
+.sumbox{max-width:460px;animation:pop2 .35s cubic-bezier(.2,.8,.3,1)}
+@keyframes pop2{from{transform:scale(.85);opacity:0}}
+.sumhead{display:flex;align-items:center;justify-content:center;gap:10px;font-size:30px;margin-bottom:8px}
+.sumhead h2{margin:0;font-size:24px;background:linear-gradient(180deg,#fff6dc,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sumbox table{border-collapse:separate;border-spacing:0 4px}
+.sumbox th{font-size:12.5px;padding:4px}.sumbox th .avt{margin-bottom:2px}
+.sumbox td{background:rgba(255,255,255,.05);font:600 15px Oswald,Cairo,sans-serif;padding:8px 6px}
+.sumbox td:first-child{font:700 13px Cairo,sans-serif;border-radius:0 10px 10px 0;color:var(--dim)}
+.sumbox td:last-child{border-radius:10px 0 0 10px}
+.sumbox tr:last-child td{background:color-mix(in srgb,var(--gold) 18%,transparent);color:#fff}
 /* discard picker */
 .dpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;margin:12px 0;direction:ltr}
 .dp{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px;border-radius:12px;opacity:.45;transition:opacity .15s,transform .15s}
@@ -424,9 +469,9 @@ let unsub = [];
 const AVC = ['#c8a24a', '#d8434e', '#2f7fd1', '#2e9d63', '#8a4fd1', '#e07a2e', '#16a3a3', '#c2407f', '#5b6b8c', '#7a5a33'];
 const AVG = ['♠', '♥', '♦', '♣', '★', '♛', '☾', '✦', '⚜', '♞'];
 const SKINS = [['royal', 'ملكي', '#16224a', '#18704b', '#e2bf68'], ['classic', 'خشب كلاسيك', '#4a2e1a', '#1f7a45', '#e8c07a'], ['night', 'ليلي', '#16181d', '#13454a', '#4fd1c5'], ['vivid', 'زاهي', '#0f4c75', '#22a06b', '#ffc857']];
-const CSTY = [['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], ['four', 'أربع ألوان'], ['jumbo', 'أرقام كبيرة']];
-const BACKS = [['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
-const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'classic', back: 'navy', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
+const CSTY = [['clear', 'واضح'], ['luxe', 'فاخر'], ['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], ['four', 'أربعة ألوان'], ['jumbo', 'أرقام كبيرة']];
+const BACKS = [['luxe', 'فاخر أحمر'], ['royal', 'ملكي أزرق'], ['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
+const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'clear', back: 'luxe', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
 if (!prof.name && ls.get('mor-name')) prof.name = ls.get('mor-name');
 if (prof.lastGame === 'mafia' || prof.lastGame === 'coup') prof.lastGame = 'mor';
 function saveProf() { ls.set('mor-prof', prof); applySkin(); }
@@ -509,12 +554,22 @@ function cardHTML(id, extra = '', attrs = '') {
   return `<div class="c ${red ? 'r' : ''} s-${c.s} ${extra}" data-id="${id}" ${attrs} aria-label="${r}${su}"><span class="ix"><b>${r}</b><i>${su}</i></span><span class="ix2"><b>${r}</b><i>${su}</i></span>${body}</div>`;
 }
 const SO = { H: 0, S: 1, D: 2, C: 3 };
+// ace high, descending: A K Q J 10 … 3; 2s and jokers (wild in Mor) go to the right end
+const hiRank = c => (Mor.isJ(c) ? -2 : Mor.card(c).r === 2 ? -1 : Mor.card(c).r === 1 ? 14 : Mor.card(c).r);
 function sortIds(h, byRank) {
   return h.slice().sort((a, b) => {
-    if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
-    const A = Mor.card(a), B = Mor.card(b);
-    return byRank ? (A.r - B.r || SO[A.s] - SO[B.s]) : (SO[A.s] - SO[B.s] || A.r - B.r);
+    const A = hiRank(a), B = hiRank(b);
+    if ((A < 0) !== (B < 0)) return A < 0 ? 1 : -1;
+    if (A < 0 && B < 0) return B - A || SO[Mor.card(a).s] - SO[Mor.card(b).s];
+    return byRank ? (B - A || SO[Mor.card(a).s] - SO[Mor.card(b).s]) : (SO[Mor.card(a).s] - SO[Mor.card(b).s] || B - A);
   });
+}
+// by melds: cards that will not be melded (extras and duplicates) on the left, then each planned meld
+function sortByMelds(h, team) {
+  let plan; try { plan = Mor.planMelds(h, [], team); } catch (e) { return sortIds(h); }
+  const groups = plan.acts.filter(a => a.t === 'new').map(a => sortIds(a.ids));
+  const used = new Set(groups.flat());
+  return [...sortIds(h.filter(c => !used.has(c))), ...groups.flat()];
 }
 function handOrder(seat, hand) {
   let o = (ui.order[seat] || []).filter(id => hand.includes(id));
@@ -1211,11 +1266,11 @@ async function ensureUser() {
     }
   }
   prof.code = code; prof.email = fb.auth.currentUser.email || d.email || ''; saveProf();
-  if (prof.name) await FB.setDoc(ref, { name: prof.name, av: prof.av, code, t: Date.now() }, { merge: true }).catch(() => {});
+  if (prof.name) await FB.setDoc(ref, { name: prof.name, nameKey: nameKey(prof.name), av: prof.av, code, t: Date.now() }, { merge: true }).catch(() => {});
 }
 function pushProfile() {
   if (!fb.ready || !prof.name) return;
-  FB.setDoc(fbB.ref('users', fb.uid), { name: prof.name, av: prof.av, ph: prof.photo || '', code: prof.code, t: Date.now() }, { merge: true }).catch(() => {});
+  FB.setDoc(fbB.ref('users', fb.uid), { name: prof.name, nameKey: nameKey(prof.name), av: prof.av, ph: prof.photo || '', code: prof.code, t: Date.now() }, { merge: true }).catch(() => {});
   if (ui.mode === 'fb' && ui.code) FB.updateDoc(fbB.ref('rooms', ui.code, 'players', uid), { name: prof.name, av: prof.av, ph: prof.photo || '' }).catch(() => {});
   if (ui.mode === 'lan') lanB.setSeat((ui.players.find(p => p.id === uid) || { seat: -1 }).seat).catch(() => {});
 }
@@ -1474,7 +1529,7 @@ function meTab() {
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.11</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.12</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -1590,7 +1645,7 @@ function seatHTML(st, s, me, cls = '') {
 }
 function meldHTML(m, canTap, them) {
   const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
-  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
+  return `<div class="meld mini ${canTap ? 'tap' : ''} ${them ? 'them' : ''}" data-meld="${m.id}"><span class="val ${v ? '' : 'z'}">${v || 0}</span><span class="mcnt" aria-label="عدد الأوراق">${m.cards.length}</span>${m.cards.map(id => cardHTML(id, a && a.wild.includes(id) ? 'w' : '')).join('')}</div>`;
 }
 function game() {
   const st = ui.st, me = mySeat(), base = me >= 0 ? me : 0, myT = Mor.teamOf(base);
@@ -1687,26 +1742,37 @@ function seatT(st, s, me) {
     ${avatarHTML(seatAv(st, s), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
     <div><div class="nm">${esc(name)}</div><div class="sinfo">${info}</div>${tags.join('')}</div>${dblFor(st, s)}</div>`;
 }
-function dblFor(st, s) {
-  if (!st.doubled || st.phase === 'choose' || st.phase === 'double') return '';
+// cards a player must keep face-up on the table in front of him: doubled cards, and in trix the 2s once revealed
+function frontCards(st, s) {
   const ids = [];
-  if (st.doubled.K === s) ids.push('H13');
-  for (const [c, by] of Object.entries(st.doubled.Q || {})) if (by === s) ids.push(c);
-  const live = ids.filter(c => st.hands[s].includes(c));
-  return live.length ? `<div class="dblrow" aria-label="مدبّل">${live.map(c => cardHTML(c)).join('')}</div>` : '';
+  if (st.doubled && st.phase !== 'choose' && st.phase !== 'double') {
+    if (st.doubled.K === s) ids.push('H13');
+    for (const [c, by] of Object.entries(st.doubled.Q || {})) if (by === s) ids.push(c);
+  }
+  if (st.phase === 'trix' && st.owner != null && 13 - st.hands[st.owner].length >= 2) ['S2', 'H2', 'D2', 'C2'].forEach(c => ids.push(c));
+  return ids.filter(c => st.hands[s].includes(c));
+}
+function dblFor(st, s) {
+  const live = frontCards(st, s);
+  return live.length ? `<div class="dblrow" aria-label="أوراق مكشوفة">${live.map(c => cardHTML(c)).join('')}</div>` : '';
 }
 function trickTable() {
   const st = ui.st, G = gameOf(st), me = mySeat(), base = me >= 0 ? me : 0, myT = base % 2;
   const a = G.actor(st), myAct = a === me && me >= 0 && !ui.hidden;
-  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]) : [];
+  const front = me >= 0 && !ui.hidden ? frontCards(st, me) : [];
+  const hand = me >= 0 && !ui.hidden ? Games.sortIds(st.hands[me]).filter(c => !front.includes(c)) : [];
   const legalSet = myAct && st.phase === 'play' ? Games.legal(st, me) : myAct && st.phase === 'trix' ? G.trixLegal(st, me) : null;
   const R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const dk = st.handNo + ':' + st.deal + ':' + me, dealNew = ui.dealtKey !== dk; ui.dealtKey = dk;
-  if (ui.armed && !hand.includes(ui.armed)) ui.armed = null;
+  if (ui.armed && !hand.includes(ui.armed) && !front.includes(ui.armed)) ui.armed = null;
   const teamSum = t => st.game === 'tarneeb61' ? st.tscores[t] : st.scores[t] + st.scores[t + 2] + liveHs(st, t) + liveHs(st, t + 2);
   const pills = (G.teams || st.partner)
     ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'نحن' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'نحن' : 'هم'} <b>${teamSum(1)}</b></span>`
     : `<span class="sp">لك <b>${me >= 0 ? st.scores[me] + liveHs(st, me) : 0}</b></span>`;
+  // per-seat score cross in the corner, laid out like the table
+  const seatScore = s => st.scores[s] + liveHs(st, s);
+  const ctrLabel = G.trixFamily && st.contract ? `${(st.kingdom || 0) + 1} · ${Games.CN[st.contract]}` : st.game === 'tarneeb41' ? 'طرنيب 41' : st.game === 'tarneeb61' ? 'طرنيب 61' : '';
+  const scross = st.game === 'tarneeb61' ? '' : `<div class="scross" aria-label="النقاط"><b class="t">${seatScore(P)}</b><b class="l">${seatScore(L)}</b><b class="r">${seatScore(R)}</b><b class="m">${seatScore(base)}</b></div>${ctrLabel ? `<div class="sclabel">${esc(ctrLabel)}</div>` : ''}`;
   // info chips
   const chips = [];
   if (st.trump) chips.push(`<span class="ichip">الطرنيب <b class="${'HD'.includes(st.trump) ? 'red' : ''}">${SUIT[st.trump]}</b> ${Games.SN[st.trump]}</span>`);
@@ -1744,7 +1810,7 @@ function trickTable() {
     centre = `${lastBox}<div class="trickbox ${cls}" style="--cd:${delay}ms">${slot(P, 'pt')}${slot(L, 'pl')}${slot(R, 'pr')}${slot(base, 'pb')}</div>`;
   }
   // status + actions
-  let status = '', acts = '';
+  let status = '', acts = '', dmodal = '';
   const nm = s => esc(st.names[s]);
   if (a >= 0 && !myAct) status = { bid: 'يزايد', trump: 'يختار الطرنيب', choose: 'يختار الطلب', double: 'يقرّر الدبل', play: 'دوره', trix: 'دوره' }[st.phase] + ': ' + nm(a) + (st.bots[a] ? ' (بوت)' : '');
   if (myAct) {
@@ -1763,9 +1829,8 @@ function trickTable() {
       acts = G.contracts.map((c, i) => st.used.includes(i) ? '' : `<button class="btn sm" data-a="choose" data-i="${i}">${Games.CN[c]}</button>`).join('');
     } else if (st.phase === 'double') {
       const el = G.dblCards(st, me); ui.dblSel = (ui.dblSel || []).filter(x => el.includes(x));
-      status = 'هل تريد الدبل؟ اختر الأوراق التي تريد دبلها';
-      acts = `<div class="mini dbl">${el.map(c => `<span data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</span>`).join('')}</div>
-        <button class="btn sm" data-a="dblDone">${ui.dblSel.length ? 'دبّل (' + ui.dblSel.length + ')' : 'بدون دبل'}</button>`;
+      status = '';
+      dmodal = `<div class="dmodal" role="dialog" aria-label="الدبل"><h3>اختر أوراق الدبل</h3><div class="muted">اضغط على الورقة لتدبّلها، أو اضغط «جاهز» بدون اختيار.</div><div class="dcards">${el.map(c => `<button data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</button>`).join('')}</div><button class="btn wide" data-a="dblDone">${ui.dblSel.length ? 'جاهز · دبّل ' + ui.dblSel.length : 'جاهز'}</button></div>`;
     } else if (st.phase === 'play') status = 'دورك: العب ورقة';
     else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'لا تملك ورقة مناسبة'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
   }
@@ -1774,9 +1839,11 @@ function trickTable() {
     ${voiceBtns()}` : '';
   return `<div class="game tg">
   <div class="top"><button class="ic" data-a="exit" aria-label="خروج">${ICON.x}</button><div class="score">${pills}</div>${chatBtn}<button class="ic" data-a="tmenu" aria-label="الإعدادات">${ICON.gear}</button></div>
+  ${scross}${dmodal}
   <div class="partner">${seatT(st, P, me)}</div>
   <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
   <div class="bar"><div class="status">${tmrBadge(me)}${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
+  ${front.length ? `<div class="myfront" aria-label="أوراقك المكشوفة على الطاولة">${front.map(id => `<button data-a="frontPlay" data-c="${id}" class="${ui.armed === id ? 'armed' : ''}">${cardHTML(id, legalSet && !legalSet.includes(id) ? 'dim' : '')}</button>`).join('')}</div>` : ''}
   <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اضغط مرتين على الورقة أو اسحبها إلى الأعلى لتلعبها</div>' : ''}</div>
   </div>${overlays2(me)}`;
 }
@@ -1790,8 +1857,8 @@ function overlays2(me) {
     let title = 'انتهت الجولة';
     if (st.phase === 'over') title = st.winner != null ? 'فاز ' + TEAM[st.winner] + '!' : 'فاز ' + st.names[st.winnerSeat] + '!';
     const teamRow = S.kind === 'players' && (G.teams || st.partner) ? `<tr><td>مجموع الفريق</td>${[0, 1, 2, 3].map(i => `<td><b>${st.scores[i % 2] + st.scores[i % 2 + 2]}</b></td>`).join('')}</tr>` : '';
-    h += `<div class="ov cen"><div class="box"><h2>${title}</h2>
-    <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${esc(c)}</th>`).join('')}</tr>
+    h += `<div class="ov cen"><div class="box sumbox"><div class="sumhead">${st.phase === 'over' ? '🏆' : '🃏'}<h2>${title}</h2></div>
+    <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${S.kind === 'team' ? '' : avatarHTML(seatAv(st, i), c, 'xs') + '<br>'}${esc(c)}</th>`).join('')}</tr>
     ${S.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}${teamRow}</table></div>
     <p class="muted">${(S.notes || []).map(esc).join('<br>')}</p>
     ${endActs(st, ui.mode === 'local' || me >= 0)}</div></div>`;
@@ -1814,13 +1881,13 @@ const RDESC = {
   doctor: 'كل ليلة تختار شخصاً تحميه من القتل (يمكنك حماية نفسك)، ولا يمكنك حماية الشخص نفسه ليلتين متتاليتين.',
   detective: 'كل ليلة تسأل عن لاعب لتعرف إن كان من المافيا أم لا. استعمل المعلومة بذكاء.'
 };
-const mafCfg = () => (ui.mafCfg = ui.mafCfg || Object.assign({ mafia: 0, doctor: true, detective: true, reveal: true, narr: false, voice: ui.mode === 'lan' ? 'host' : 'all' }, ls.get('mor-mafia') || {}));
+const mafCfg = () => (ui.mafCfg = ui.mafCfg || Object.assign({ mafia: 0, doctor: true, detective: true, reveal: true, narr: false, stepTime: 30, voice: ui.mode === 'lan' ? 'host' : 'all' }, ls.get('mor-mafia') || {}));
 function saveMafCfg() { ls.set('mor-mafia', ui.mafCfg); }
 async function startMafia() {
   const c = mafCfg(), narrator = c.narr ? uid : null;
   const ps = ui.players.filter(p => p.id !== narrator).map(p => ({ id: p.id, name: p.name, av: p.av }));
   let st;
-  try { st = Mafia.newGame(ps, { mafia: c.mafia || Mafia.defMafia(ps.length), doctor: c.doctor && ps.length >= 5, detective: c.detective && ps.length >= 5, reveal: c.reveal, narrator, voice: c.voice }); }
+  try { st = Mafia.newGame(ps, { mafia: c.mafia || Mafia.defMafia(ps.length), doctor: c.doctor && ps.length >= 5, detective: c.detective && ps.length >= 5, reveal: c.reveal, narrator, voice: c.voice, stepTime: c.narr ? 0 : c.stepTime }); }
   catch (e) { return toast(e.message); }
   st.deal = Date.now(); ui.st = { v: (ui.room && ui.room.sv) || 0 }; ui.mafSel = null; ui.mafPeek = false;
   await commit(st);
@@ -1843,6 +1910,7 @@ function mafiaLobby() {
     <div class="li"><div class="t"><b>الراوي</b><span>${c.narr ? 'أنت تدير اللعبة وترى كل الأدوار' : 'يدير التطبيق الليل والنهار تلقائياً'}</span></div><div class="seg" style="width:150px"><button class="${c.narr ? '' : 'on'}" data-a="mafNarr" data-v="0">التطبيق</button><button class="${c.narr ? 'on' : ''}" data-a="mafNarr" data-v="1">أنا</button></div></div>
     <div class="li"><div class="t"><b>عدد المافيا</b><span>${n >= 4 ? `لـ ${n} لاعبين` : ''}</span></div><button class="ic" data-a="mafN" data-d="-1" aria-label="أقل">−</button><b style="font:600 22px Oswald,sans-serif;min-width:26px;text-align:center">${m}</b><button class="ic" data-a="mafN" data-d="1" aria-label="أكثر">+</button></div>
     ${c.narr ? '' : `<div class="li"><div class="t"><b>🔊 صوت الراوي</b><span>${{ all: 'يُسمع على أجهزة الجميع (للعب عن بُعد)', host: 'يُسمع على جهازك فقط (إذا كنتم في غرفة واحدة)', off: 'بلا صوت' }[c.voice]}</span></div><div class="seg" style="width:190px"><button class="${c.voice === 'all' ? 'on' : ''}" data-a="mafVoice" data-v="all">الكل</button><button class="${c.voice === 'host' ? 'on' : ''}" data-a="mafVoice" data-v="host">جهازي</button><button class="${c.voice === 'off' ? 'on' : ''}" data-a="mafVoice" data-v="off">بلا</button></div></div>`}
+    ${c.narr ? '' : `<div class="li"><div class="t"><b>⏱️ وقت كل دور في الليل</b><span>إذا انتهى الوقت ينتقل الراوي إلى الدور التالي</span></div><div class="seg" style="width:200px">${[0, 20, 30, 45].map(v => `<button class="${(c.stepTime || 0) === v ? 'on' : ''}" data-a="mafStepT" data-v="${v}">${v ? v + 'ث' : 'بلا'}</button>`).join('')}</div></div>`}
     ${tog('doctor', '💉 الطبيب', 'من 5 لاعبين فأكثر')}${tog('detective', '🔎 المحقق', 'من 5 لاعبين فأكثر')}${tog('reveal', 'كشف الدور', 'عندما يخرج أحد، يظهر دوره للجميع')}
     <div class="acts"><button class="btn wide" data-a="mafStart" ${n >= 4 ? '' : 'disabled'}>🎭 وزّع الأدوار وابدأ</button></div></div>`
     : `<p class="muted" style="text-align:center">يجهّز صاحب الغرفة الإعدادات ويبدأ. افتحوا المكالمة للنقاش 🎙️</p>`}
@@ -1896,7 +1964,7 @@ function mafiaView() {
     } else panel = '<p class="muted">أنت تشاهد هذه اللعبة.</p>';
   } else if (ph === 'night') {
     const step = st.night.step, SN = { mafia: 'المافيا', doctor: 'الطبيب', detective: 'المحقق', done: '' };
-    const wait = step === 'done' ? 'انتهى الجميع من الاختيار' : `الدور الآن على: ${SN[step]}`;
+    const left = mafLeft(st), wait = (step === 'done' ? 'انتهى الجميع من الاختيار' : `الدور الآن على: ${SN[step]}`) + (left >= 0 && step !== 'done' ? ` · <span class="tmr" style="position:static;display:inline-grid" data-maft>${left}</span>` : '');
     const myStep = me && me.alive && role === step;
     if (narr) panel = `<p class="muted">${wait}. هدف المافيا: <b>${esc((Mafia.P(st, Mafia.mafiaTarget(st)) || {}).name || '—')}</b></p><div class="acts"><button class="btn wide" data-a="mafNext">${step === 'done' ? '☀️ أعلن الصباح' : '⏭️ التالي'}</button></div>`;
     else if (!me || !me.alive) panel = `<p class="muted">${me ? 'خرجت من اللعبة، وأنت الآن تشاهد.' : 'أنت تشاهد.'} ${wait}</p>`;
@@ -1935,6 +2003,7 @@ const mafiaActs = {
   mafNarr: t => { mafCfg().narr = t.dataset.v === '1'; saveMafCfg(); render(); },
   mafN: t => { const c = mafCfg(), n = Math.max(4, ui.players.length - (c.narr ? 1 : 0)); c.mafia = Math.min(Mafia.maxMafia(n), Math.max(1, (c.mafia || Mafia.defMafia(n)) + +t.dataset.d)); saveMafCfg(); render(); },
   mafStart: () => startMafia(),
+  mafStepT: t => { mafCfg().stepTime = +t.dataset.v; saveMafCfg(); render(); },
   mafVoice: t => { mafCfg().voice = t.dataset.v; saveMafCfg(); if (t.dataset.v !== 'off') speak('صوت الراوي جاهز'); render(); },
   mafPeek: () => { ui.mafPeek = !ui.mafPeek; SFX.tap(); render(); },
   mafReady: () => { ui.mafPeek = false; actR(Mafia.setReady, uid); },
@@ -1988,12 +2057,25 @@ function mafiaNarrate(prev, st) {
   lines.forEach(speak);
 }
 let mafSkipKey = null;
-function mafiaAuto(st) {
-  // the host's phone moves past a role whose players are all dead, after a natural pause
-  if (st.game !== 'mafia' || st.phase !== 'night' || st.cfg.narrator || !isHost() || !Mafia.stepEmpty(st)) return;
-  const key = st.deal + ':' + st.day + ':' + st.night.step; if (mafSkipKey === key) return; mafSkipKey = key;
-  setTimeout(() => { if (ui.st && ui.st.game === 'mafia' && ui.st.phase === 'night' && ui.st.night.step === st.night.step && ui.st.day === st.day) actR(Mafia.skipStep, uid, true); }, 5000 + Math.random() * 3000);
+const mafClock = { key: null, at: 0 };
+function mafLeft(st) {
+  if (st.game !== 'mafia' || st.phase !== 'night' || !st.cfg.stepTime) return -1;
+  return Math.max(0, Math.ceil((mafClock.at + st.cfg.stepTime * 1000 - Date.now()) / 1000));
 }
+function mafiaAuto(st) {
+  if (st.game !== 'mafia' || st.phase !== 'night' || st.cfg.narrator) return;
+  const key = st.deal + ':' + st.day + ':' + st.night.step;
+  if (mafClock.key !== key) { mafClock.key = key; mafClock.at = Date.now(); }
+  if (!isHost() || mafSkipKey === key) return;
+  // a role whose players are all dead is still called (so nobody learns who died), then skipped after a natural pause;
+  // a living role gets the time the host chose
+  const empty = Mafia.stepEmpty(st);
+  if (!empty && !st.cfg.stepTime) return;
+  mafSkipKey = key;
+  const wait = empty ? 5000 + Math.random() * 3000 : st.cfg.stepTime * 1000;
+  setTimeout(() => { if (ui.st && ui.st.game === 'mafia' && ui.st.phase === 'night' && ui.st.night.step === st.night.step && ui.st.day === st.day) actR(Mafia.skipStep, uid, true); }, wait);
+}
+setInterval(() => { const st = ui.st; if (!st || st.game !== 'mafia') return; const n = mafLeft(st); document.querySelectorAll('[data-maft]').forEach(el => { el.textContent = n; el.classList.toggle('low', n <= 5); }); }, 500);
 
 // ---------- Coup ----------
 const CICON = { duke: '👑', assassin: '🗡️', captain: '⚓', ambassador: '🕊️', contessa: '💃' };
@@ -2244,7 +2326,7 @@ function render() {
     : ui.st.game === 'mafia' ? mafiaView()
     : ui.st.game === 'coup' ? coupView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
-  layoutHand();
+  layoutHand(); fitBoard();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
   if (focus) { const el = document.getElementById(focus); if (el && el.tagName === 'INPUT' && el.type !== 'range') el.focus(); }
   gm.forEach(id => { const el = document.querySelector(`[data-gm="${id}"]`); if (el) el.classList.add('on'); });
@@ -2253,7 +2335,13 @@ function render() {
   for (const id of ['msgs', 'dmmsgs']) { const m2 = document.getElementById(id); if (m2) m2.scrollTop = m2.scrollHeight; }
   if (ui.chatOpen) ui.unread = 0;
 }
-window.addEventListener('resize', () => layoutHand());
+window.addEventListener('resize', () => { layoutHand(); fitBoard(); });
+// shrink meld cards until every meld fits on the board without scrolling (portrait or landscape)
+function fitBoard() {
+  const b = document.querySelector('.game .board'); if (!b || !b.querySelector('.zone')) return;
+  let w = 30; b.style.setProperty('--mcw', w + 'px');
+  while (b.scrollHeight > b.clientHeight + 2 && w > 15) { w -= 2; b.style.setProperty('--mcw', w + 'px'); }
+}
 
 // ---------- events ----------
 const APK_URL = 'https://github.com/Osama3ref/mor/releases/latest/download/Mor.apk';
@@ -2272,6 +2360,15 @@ function nameError(n) {
   if (!/^[\p{L}\p{N} ._\-]+$/u.test(n)) return 'يُسمح بالحروف والأرقام والمسافة والرموز . _ - فقط';
   if (!/[\p{L}\p{N}]{2}/u.test(n.replace(/\s/g, ''))) return 'الاسم يجب أن يحتوي على حرفين أو رقمين على الأقل';
   return '';
+}
+// usernames are unique (case and spacing ignored); checked against the online directory when available
+const nameKey = n => n.trim().toLowerCase().replace(/\s+/g, ' ');
+async function nameTaken(n) {
+  if (!online()) return '';
+  try {
+    const q = await FB.getDocs(FB.query(fbB.col('users'), FB.where('nameKey', '==', nameKey(n)), FB.limit(3)));
+    return q.docs.some(d => d.id !== fb.uid) ? 'هذا الاسم مستخدم من لاعب آخر، اختر اسماً مختلفاً' : '';
+  } catch (e) { return ''; }
 }
 function pickPhoto() {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
@@ -2327,12 +2424,12 @@ $app.addEventListener('click', e => {
       // onboarding and profile
       obAv: () => { ui.obAv = t.dataset.v; render(); },
       obCol: () => { const [, gl] = (ui.obAv || prof.av).split('|'); ui.obAv = t.dataset.v + '|' + gl; render(); },
-      obDone: () => { const n = (document.getElementById('obn').value || '').trim(); const bad = nameError(n); if (bad) return toast(bad); prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; saveProf(); ls.set('mor-name', prof.name); pushProfile(); SFX.deal(); render(); },
+      obDone: async () => { const n = (document.getElementById('obn').value || '').trim(); const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad); prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; saveProf(); ls.set('mor-name', prof.name); pushProfile(); SFX.deal(); render(); },
       pickPhoto: () => pickPhoto(),
       rmPhoto: () => { prof.photo = ''; saveProf(); pushProfile(); render(); },
       avPop: () => { ui.obAv = prof.av; ui.pop = { k: 'av' }; render(); },
       avSave: () => { if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; ui.pop = null; saveProf(); pushProfile(); render(); },
-      saveName: () => { const n = (document.getElementById('pname').value || '').trim(); const bad = nameError(n); if (bad) return toast(bad); prof.name = n; saveProf(); ls.set('mor-name', prof.name); pushProfile(); toast('حُفظ'); },
+      saveName: async () => { const n = (document.getElementById('pname').value || '').trim(); if (n === prof.name) return toast('هذا اسمك الحالي'); const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad); prof.name = n; saveProf(); ls.set('mor-name', prof.name); pushProfile(); toast('حُفظ'); },
       setP: () => { prof[t.dataset.k] = t.dataset.v; saveProf(); SFX.tap(); render(); },
       mute: () => { prof.mute = !prof.mute; saveProf(); actx(); if (!prof.mute) SFX.card(); render(); },
       testSnd: () => { SFX.deal(); setTimeout(SFX.card, 700); setTimeout(SFX.collect, 1100); },
@@ -2352,6 +2449,7 @@ $app.addEventListener('click', e => {
       // room
       copyCode: () => copyText(ui.code, 'انسخ الرمز: ' + ui.code),
       shareRoom: () => shareRoom(),
+      frontPlay: () => tapCard(t.dataset.c),
       discSel: () => { ui.pop.sel = +t.dataset.i; SFX.tap(); render(); },
       discTake: () => { const i = ui.pop.sel; ui.pop = null; act(Mor.takeDiscard, i); },
       setTimer: () => { B().meta({ timer: +t.dataset.v }).catch(() => toast('تعذّر الحفظ')); },
@@ -2366,7 +2464,7 @@ $app.addEventListener('click', e => {
       draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
       declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
       morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
-      sort: () => { const me = mySeat(); const h = ui.st.hands[me]; const cur = ui.order[me] || []; const s1 = sortIds(h, false); ui.order[me] = cur.join() === s1.join() ? sortIds(h, true) : s1; render(); },
+      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (الزائد على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
       reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
       noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
       // chat & voice

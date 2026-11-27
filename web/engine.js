@@ -750,6 +750,6 @@ const Mor = (() => {
     return next && next.turn===seat && next.step==='choice' ? botTurnStrong(next,seat) : next || botTurnStrong(st,seat);
   }
 
-  return { botTurnStrong, botTurnEasy: botTurn, botTurn: (st, seat, stronger = true) => stronger ? morExpert(st, seat, stronger === 'expert') : botTurnStrong(st, seat), declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
+  return { planMelds, botTurnStrong, botTurnEasy: botTurn, botTurn: (st, seat, stronger = true) => stronger ? morExpert(st, seat, stronger === 'expert') : botTurnStrong(st, seat), declare, undeclare, okMor, okClose, card, isJ, rankOf, teamOf, analyze, meldValue, ground, newGame, draw, takeDiscard, meldNew, addToMeld, swapWild, swapOptions, takeMorNow, discard, chooseMor, close, nextRound, canMor, canClose, MOR_MIN, CLOSE_MIN, TARGET, buildDeck };
 })();
 if (typeof module !== 'undefined') module.exports = Mor;

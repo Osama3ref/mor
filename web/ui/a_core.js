@@ -46,9 +46,9 @@ let unsub = [];
 const AVC = ['#c8a24a', '#d8434e', '#2f7fd1', '#2e9d63', '#8a4fd1', '#e07a2e', '#16a3a3', '#c2407f', '#5b6b8c', '#7a5a33'];
 const AVG = ['♠', '♥', '♦', '♣', '★', '♛', '☾', '✦', '⚜', '♞'];
 const SKINS = [['royal', 'ملكي', '#16224a', '#18704b', '#e2bf68'], ['classic', 'خشب كلاسيك', '#4a2e1a', '#1f7a45', '#e8c07a'], ['night', 'ليلي', '#16181d', '#13454a', '#4fd1c5'], ['vivid', 'زاهي', '#0f4c75', '#22a06b', '#ffc857']];
-const CSTY = [['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], ['four', 'أربع ألوان'], ['jumbo', 'أرقام كبيرة']];
-const BACKS = [['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
-const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'classic', back: 'navy', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
+const CSTY = [['clear', 'واضح'], ['luxe', 'فاخر'], ['classic', 'كلاسيك بالصور'], ['modern', 'عصري'], ['four', 'أربعة ألوان'], ['jumbo', 'أرقام كبيرة']];
+const BACKS = [['luxe', 'فاخر أحمر'], ['royal', 'ملكي أزرق'], ['navy', 'كحلي'], ['red', 'أحمر'], ['green', 'أخضر'], ['gold', 'أسود وذهبي']];
+const prof = Object.assign({ name: '', av: '0|♠', skin: 'royal', cards: 'clear', back: 'luxe', vol: 0.8, mute: ls.get('mor-sound') === false, lastGame: 'mor' }, ls.get('mor-prof') || {});
 if (!prof.name && ls.get('mor-name')) prof.name = ls.get('mor-name');
 if (prof.lastGame === 'mafia' || prof.lastGame === 'coup') prof.lastGame = 'mor';
 function saveProf() { ls.set('mor-prof', prof); applySkin(); }
@@ -131,12 +131,22 @@ function cardHTML(id, extra = '', attrs = '') {
   return `<div class="c ${red ? 'r' : ''} s-${c.s} ${extra}" data-id="${id}" ${attrs} aria-label="${r}${su}"><span class="ix"><b>${r}</b><i>${su}</i></span><span class="ix2"><b>${r}</b><i>${su}</i></span>${body}</div>`;
 }
 const SO = { H: 0, S: 1, D: 2, C: 3 };
+// ace high, descending: A K Q J 10 … 3; 2s and jokers (wild in Mor) go to the right end
+const hiRank = c => (Mor.isJ(c) ? -2 : Mor.card(c).r === 2 ? -1 : Mor.card(c).r === 1 ? 14 : Mor.card(c).r);
 function sortIds(h, byRank) {
   return h.slice().sort((a, b) => {
-    if (Mor.isJ(a) !== Mor.isJ(b)) return Mor.isJ(a) ? 1 : -1;
-    const A = Mor.card(a), B = Mor.card(b);
-    return byRank ? (A.r - B.r || SO[A.s] - SO[B.s]) : (SO[A.s] - SO[B.s] || A.r - B.r);
+    const A = hiRank(a), B = hiRank(b);
+    if ((A < 0) !== (B < 0)) return A < 0 ? 1 : -1;
+    if (A < 0 && B < 0) return B - A || SO[Mor.card(a).s] - SO[Mor.card(b).s];
+    return byRank ? (B - A || SO[Mor.card(a).s] - SO[Mor.card(b).s]) : (SO[Mor.card(a).s] - SO[Mor.card(b).s] || B - A);
   });
+}
+// by melds: cards that will not be melded (extras and duplicates) on the left, then each planned meld
+function sortByMelds(h, team) {
+  let plan; try { plan = Mor.planMelds(h, [], team); } catch (e) { return sortIds(h); }
+  const groups = plan.acts.filter(a => a.t === 'new').map(a => sortIds(a.ids));
+  const used = new Set(groups.flat());
+  return [...sortIds(h.filter(c => !used.has(c))), ...groups.flat()];
 }
 function handOrder(seat, hand) {
   let o = (ui.order[seat] || []).filter(id => hand.includes(id));

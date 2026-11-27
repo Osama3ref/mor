@@ -19,7 +19,7 @@ const Mafia = (() => {
     shuffle(roles);
     return {
       game: 'mafia', phase: 'roles', day: 0,
-      cfg: { mafia: m, doctor: !!cfg.doctor, detective: !!cfg.detective, reveal: cfg.reveal !== false, narrator: cfg.narrator || null, voice: cfg.voice || 'all' },
+      cfg: { mafia: m, doctor: !!cfg.doctor, detective: !!cfg.detective, reveal: cfg.reveal !== false, narrator: cfg.narrator || null, voice: cfg.voice || 'all', stepTime: +cfg.stepTime || 0 },
       players: players.map((p, i) => ({ id: p.id, name: p.name, av: p.av || '', role: roles[i], alive: true })),
       ready: {}, night: { kill: {}, save: null, check: null }, lastSave: null, checks: {}, votes: {}, events: [], winner: null, log: []
     };
@@ -65,7 +65,8 @@ const Mafia = (() => {
   function nightDone(st) { return st.night.step === 'done'; }
   function skipStep(s, id, isHost) {
     const st = clone(s); if (st.phase !== 'night') err('ليس وقت الليل');
-    if (st.cfg.narrator ? !isNarr(st, id) : !(isHost && stepEmpty(st))) err('لا يمكنك');
+    if (st.cfg.narrator ? !isNarr(st, id) : !(isHost && (stepEmpty(st) || st.cfg.stepTime))) err('لا يمكنك');
+    if (!stepEmpty(st)) st.log.push('انتهى وقت ' + { mafia: 'المافيا', doctor: 'الطبيب', detective: 'المحقق' }[st.night.step]);
     advanceStep(st); return st;
   }
   function mafiaTarget(st) {

@@ -748,7 +748,8 @@ const Games = (() => {
     id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 إلى 13', target: 61, teams: true,
     newGame(names, bots) { const st = base('tarneeb61', names, bots); st.tscores = [0, 0]; st.dealer = rnd(4); T61.startHand(st); return st; },
     startHand(st) {
-      deal(st); st.phase = 'bid'; st.bid = null; st.passed = [false, false, false, false]; st.trump = null;
+      deal(st); st.dealer = (st.hands.findIndex(h => h.includes('H7')) + 3) % 4; // the seven of hearts opens every hand
+      st.phase = 'bid'; st.bid = null; st.passed = [false, false, false, false]; st.trump = null;
       st.turn = (st.dealer + 1) % 4; st.handNo++;
     },
     actor: st => (['bid', 'trump', 'play'].includes(st.phase) ? st.turn : -1),
@@ -831,7 +832,7 @@ const Games = (() => {
     id: 'tarneeb41', name: 'طرنيب 41', sub: 'سوري · كل لاعب يطلب بمفرده', target: 41, teams: true,
     newGame(names, bots) { const st = base('tarneeb41', names, bots); st.dealer = rnd(4); T41.startHand(st); return st; },
     startHand(st) {
-      deal(st); st.handNo++;
+      deal(st); st.handNo++; st.dealer = (st.hands.findIndex(h => h.includes('H7')) + 3) % 4; // the seven of hearts opens every hand
       const dh = st.hands[st.dealer]; st.reveal = dh[rnd(dh.length)];
       st.trump = PAIR[st.reveal[0]]; st.bids = [null, null, null, null];
       st.phase = 'bid'; st.turn = (st.dealer + 1) % 4;
@@ -912,7 +913,11 @@ const Games = (() => {
         G.startHand(st); return st;
       },
       startHand(st) {
-        deal(st); st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = []; st.ladderNo = [[],[],[],[]];
+        // house rule: no player (or, in partnership, no team) may be dealt all four 2s
+        const twos = s => st.hands[s].filter(c => c[0] !== 'X' && cr(c).r === 2).length;
+        let guard = 0;
+        do deal(st); while (guard++ < 50 && (partner ? [0, 1].some(t => twos(t) + twos(t + 2) === 4) : [0, 1, 2, 3].some(s => twos(s) === 4)));
+        st.handNo++; st.trump = null; st.doubled = { K: null, Q: {} }; st.dblPending = {}; st.ladder = { S: null, H: null, C: null, D: null }; st.finished = []; st.ladderNo = [[],[],[],[]];
         if (st.owner == null) st.owner = st.hands.findIndex(h => h.includes('H7'));
         const left = contracts.filter((c, i) => !st.used.includes(i));
         if (new Set(left).size === 1) { G._begin(st, contracts.findIndex((c, i) => !st.used.includes(i))); }
