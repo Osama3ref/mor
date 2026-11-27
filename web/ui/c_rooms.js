@@ -183,9 +183,29 @@ async function recoverEmail() {
 // ---------- friends, messages, groups ----------
 let socialUnsub = [];
 const readMap = ls.get('mor-read') || {};
-function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; }
+function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; Object.values(presSub).forEach(u => u()); presSub = {}; ui.pres = {}; clearInterval(presTick.iv); }
+// ---------- friends presence: online / in a room, refreshed every minute while the app is open ----------
+let presSub = {};
+function presTick() {
+  if (!fb.ready || !fb.uid || document.hidden) return;
+  const inRoom = ui.mode === 'fb' && ui.code;
+  FB.setDoc(fbB.ref('users', fb.uid), { seen: Date.now(), room: inRoom ? ui.code : '', rgame: inRoom ? (ui.room && ui.room.game || 'mor') : '', playing: !!(inRoom && ui.st) }, { merge: true }).catch(() => {});
+}
+function presWatch() {
+  const ids = ui.friends.filter(f => f.st === 'ok').map(f => f.id);
+  for (const id of Object.keys(presSub)) if (!ids.includes(id)) { presSub[id](); delete presSub[id]; }
+  for (const id of ids) if (!presSub[id]) presSub[id] = FB.onSnapshot(fbB.ref('users', id), d => { const x = d.data() || {}; ui.pres[id] = { seen: x.seen || 0, room: x.room || '', game: x.rgame || '', playing: !!x.playing }; render(); }, () => {});
+}
+function presOf(fid) {
+  const p = (ui.pres || {})[fid]; if (!p || Date.now() - p.seen > 150000) return { on: false, label: p && p.seen ? 'آخر ظهور ' + agoText(p.seen) : 'غير متصل' };
+  if (p.room) return { on: true, room: p.room, label: (p.playing ? 'يلعب ' : 'في غرفة ') + GG(p.game || 'mor').name };
+  return { on: true, label: 'متصل الآن' };
+}
+function agoText(t) { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? 'منذ ' + Math.max(1, m) + ' د' : m < 1440 ? 'منذ ' + Math.round(m / 60) + ' س' : 'منذ ' + Math.round(m / 1440) + ' يوم'; }
 function socialStart() {
-  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || [];
+  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || []; ui.pres = {};
+  presTick(); presTick.iv = setInterval(presTick, 60000);
+  if (!presTick.vis) { presTick.vis = 1; document.addEventListener('visibilitychange', () => { if (!document.hidden) presTick(); }); }
   try { native && native.askNotify && native.askNotify(); } catch (e) {}
   socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => {
     const before = ui.friends; ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -197,7 +217,7 @@ function socialStart() {
       else if (f.st === 'ok' && o && o.st === 'out') pushNote({ ic: '🤝', title: 'قُبل طلبك', body: (f.name || '') + ' أصبح صديقك', a: 'dm', d: { f: f.id } });
       seen[key] = 1;
     }
-    ls.set('mor-seenfr', seen); render();
+    ls.set('mor-seenfr', seen); presWatch(); render();
   }, () => {}));
   socialUnsub.push(FB.onSnapshot(FB.query(fbB.col('chats'), FB.where('members', 'array-contains', fb.uid)), s => {
     const before = ui.chats;
@@ -297,6 +317,7 @@ async function sendDM(kind = 'text', extra = {}, cid) {
   cid = cid || (ui.dm && ui.dm.id); if (!cid) return;
   let text = '';
   if (kind === 'text') { const el = document.getElementById('dmin'); text = (el && el.value || '').trim(); if (!text) return; el.value = ''; }
+  else if (kind === 'voice') text = '🎤 رسالة صوتية';
   else if (kind === 'sticker') text = 'ملصق: ' + ((STK.find(x => x.id === extra.stk) || {}).t || '');
   else text = 'دعوة لغرفة ' + (extra.game ? GG(extra.game).name : '');
   const m = { by: fb.uid, name: prof.name, text: text.slice(0, 300), t: Date.now(), kind, ...extra };

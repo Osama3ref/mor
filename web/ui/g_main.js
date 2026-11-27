@@ -128,7 +128,7 @@ $app.addEventListener('click', e => {
       addFriend, accept: () => acceptFriend(t.dataset.f), unfriend: () => dropFriend(t.dataset.f),
       friendMenu: () => { ui.pop = { k: 'friend', f: t.dataset.f }; render(); },
       dm: () => { ui.pop = null; openDM(t.dataset.f); }, openChat: () => openChat(t.dataset.c), closeChat,
-      sendDM: () => sendDM(),
+      sendDM: () => sendDM(), playDM: () => playDM(t.dataset.m),
       stkTog: () => { ui.stkOpen = !ui.stkOpen; render(); }, sendStk: () => { ui.stkOpen = false; render(); sendDM('sticker', { stk: t.dataset.k }); },
       notesPop: () => { const L = ui.notes || []; ui.pop = { k: 'notes' }; render(); L.forEach(n => delete n.new); ls.set('mor-notes', L); },
       noteGo: () => { const n = t.dataset.l ? (ui.notes || [])[+t.dataset.i] : ui.banner; if (n) { delete n.new; ls.set('mor-notes', ui.notes || []); } noteGo(n); },

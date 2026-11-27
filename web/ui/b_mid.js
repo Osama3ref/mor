@@ -356,6 +356,7 @@ function gotChat(list) {
     }
   }
 }
+function playDM(id) { const m = (ui.dmMsgs || []).find(x => x.id === id); if (!m || !m.au) return; try { if (playDM.a) playDM.a.pause(); playDM.a = new Audio('data:' + (m.mime || 'audio/webm') + ';base64,' + m.au); playDM.a.play(); } catch (e) {} }
 async function playVoice(mid) {
   try { const j = await B().chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
 }
@@ -366,6 +367,7 @@ async function sendChat() {
 const rec = { mr: null, chunks: [], t0: 0, timer: null };
 async function recStart() {
   if (rec.mr) return;
+  rec.dm = ui.view === 'dm' && ui.dm ? ui.dm.id : null;
   if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي يعمل في التطبيق فقط');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -376,9 +378,10 @@ async function recStart() {
       const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
       if (dur < 500) return toast('اضغط مطوّل لتسجّل');
       const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
+      if (rec.dm) { if (b64.length > 700000) return toast('الرسالة طويلة جداً'); return sendDM('voice', { au: b64, mime, dur: Math.round(dur / 1000) }, rec.dm); }
       try { await B().chat.voice(b64, mime); } catch (e) { toast('لم تُرسل الرسالة الصوتية'); }
     };
-    rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
+    rec.mr.start(); rec.timer = setTimeout(recStop, rec.dm ? 60000 : 15000); render();
   } catch (e) { toast('اسمح للتطبيق باستخدام الميكروفون'); }
 }
 function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }

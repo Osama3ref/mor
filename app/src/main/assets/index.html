@@ -440,6 +440,7 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .stk.sm{width:70px;height:94px;border-width:3px;border-radius:10px;transform:none}.stk.sm .se{font-size:30px}.stk.sm .st{font-size:9.5px;margin-top:4px;padding:1px 4px}.stk.sm .cr{font-size:12px}
 .msg.stkm{background:none!important;border:none!important;box-shadow:none!important;padding:4px}
 .stkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;max-height:38vh;overflow:auto;background:rgba(0,0,0,.25);border-top:1px solid var(--line)}.stkgrid button{background:none;border:none;padding:0;display:grid;place-items:center}
+.pav{position:relative;display:inline-flex}.pdot{position:absolute;bottom:0;inset-inline-end:0;width:11px;height:11px;border-radius:50%;background:#6b7280;border:2px solid var(--bg,#111)}.pdot.on{background:#22c55e}.pon{color:#4ade80!important}
 </style>
 </head>
 <body>
@@ -4180,7 +4181,7 @@ const MafiaG = { id: 'mafia', name: 'المافيا', sub: '4 لاعبين أو 
   <b>نهاراً:</b> يُعلَن من قُتل، ثم تتناقشون بالصوت أو الدردشة، وبعدها تصوّتون على من يخرج. التعادل لا يُخرج أحداً.<br>
   يفوز الشعب إذا أخرج كل المافيا، وتفوز المافيا إذا أصبح عددها مساوياً لعدد الباقين.<br>
   قد يكون الراوي التطبيقَ أو صاحبَ الغرفة (يرى كل الأدوار ويدير اللعبة دون أن يلعب). ويختار صاحب الغرفة هل يُكشف دور من يخرج أم لا.</p>` };
-const CoupG = { id: 'coup', name: 'كو (Coup)', sub: '2–6 لاعبين · كذب وانقلابات', icon: '🃏', social: true, actor: () => -1,
+const CoupG = { id: 'coup', name: 'كوب', sub: '2–6 لاعبين · كذب وانقلابات', icon: '🃏', social: true, actor: () => -1,
   rules: `<p>مع كل لاعب ورقتا شخصيات مخفيتان (نفوذ) وقطعتان نقديتان. من يخسر ورقتيه يخرج، وآخر من يبقى يفوز.<br>
   <b>في دورك تقوم بحركة واحدة:</b> دخل +1 · مساعدة خارجية +2 (يمنعها الدوق) · انقلاب بـ 7: يخسر لاعب ورقة ولا يستطيع أحد منعه، وإذا كان معك 10 وجب عليك تنفيذه.<br>
   <b>حركات الشخصيات (يمكنك الكذب فيها):</b> 👑 الدوق: ضريبة +3 · 🗡️ القاتل: اغتيال بـ 3 (تمنعه الكونتيسة) · ⚓ القبطان: يسرق 2 من لاعب (يمنعه القبطان أو السفير) · 🕊️ السفير: يأخذ ورقتين من السحبة ويعيد اثنتين.<br>
@@ -4703,6 +4704,7 @@ function gotChat(list) {
     }
   }
 }
+function playDM(id) { const m = (ui.dmMsgs || []).find(x => x.id === id); if (!m || !m.au) return; try { if (playDM.a) playDM.a.pause(); playDM.a = new Audio('data:' + (m.mime || 'audio/webm') + ';base64,' + m.au); playDM.a.play(); } catch (e) {} }
 async function playVoice(mid) {
   try { const j = await B().chat.get(mid); const a = new Audio('data:' + j.mime + ';base64,' + j.data); await a.play(); } catch (e) {}
 }
@@ -4713,6 +4715,7 @@ async function sendChat() {
 const rec = { mr: null, chunks: [], t0: 0, timer: null };
 async function recStart() {
   if (rec.mr) return;
+  rec.dm = ui.view === 'dm' && ui.dm ? ui.dm.id : null;
   if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي يعمل في التطبيق فقط');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -4723,9 +4726,10 @@ async function recStart() {
       const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
       if (dur < 500) return toast('اضغط مطوّل لتسجّل');
       const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
+      if (rec.dm) { if (b64.length > 700000) return toast('الرسالة طويلة جداً'); return sendDM('voice', { au: b64, mime, dur: Math.round(dur / 1000) }, rec.dm); }
       try { await B().chat.voice(b64, mime); } catch (e) { toast('لم تُرسل الرسالة الصوتية'); }
     };
-    rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
+    rec.mr.start(); rec.timer = setTimeout(recStop, rec.dm ? 60000 : 15000); render();
   } catch (e) { toast('اسمح للتطبيق باستخدام الميكروفون'); }
 }
 function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
@@ -5091,9 +5095,29 @@ async function recoverEmail() {
 // ---------- friends, messages, groups ----------
 let socialUnsub = [];
 const readMap = ls.get('mor-read') || {};
-function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; }
+function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; Object.values(presSub).forEach(u => u()); presSub = {}; ui.pres = {}; clearInterval(presTick.iv); }
+// ---------- friends presence: online / in a room, refreshed every minute while the app is open ----------
+let presSub = {};
+function presTick() {
+  if (!fb.ready || !fb.uid || document.hidden) return;
+  const inRoom = ui.mode === 'fb' && ui.code;
+  FB.setDoc(fbB.ref('users', fb.uid), { seen: Date.now(), room: inRoom ? ui.code : '', rgame: inRoom ? (ui.room && ui.room.game || 'mor') : '', playing: !!(inRoom && ui.st) }, { merge: true }).catch(() => {});
+}
+function presWatch() {
+  const ids = ui.friends.filter(f => f.st === 'ok').map(f => f.id);
+  for (const id of Object.keys(presSub)) if (!ids.includes(id)) { presSub[id](); delete presSub[id]; }
+  for (const id of ids) if (!presSub[id]) presSub[id] = FB.onSnapshot(fbB.ref('users', id), d => { const x = d.data() || {}; ui.pres[id] = { seen: x.seen || 0, room: x.room || '', game: x.rgame || '', playing: !!x.playing }; render(); }, () => {});
+}
+function presOf(fid) {
+  const p = (ui.pres || {})[fid]; if (!p || Date.now() - p.seen > 150000) return { on: false, label: p && p.seen ? 'آخر ظهور ' + agoText(p.seen) : 'غير متصل' };
+  if (p.room) return { on: true, room: p.room, label: (p.playing ? 'يلعب ' : 'في غرفة ') + GG(p.game || 'mor').name };
+  return { on: true, label: 'متصل الآن' };
+}
+function agoText(t) { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? 'منذ ' + Math.max(1, m) + ' د' : m < 1440 ? 'منذ ' + Math.round(m / 60) + ' س' : 'منذ ' + Math.round(m / 1440) + ' يوم'; }
 function socialStart() {
-  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || [];
+  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || []; ui.pres = {};
+  presTick(); presTick.iv = setInterval(presTick, 60000);
+  if (!presTick.vis) { presTick.vis = 1; document.addEventListener('visibilitychange', () => { if (!document.hidden) presTick(); }); }
   try { native && native.askNotify && native.askNotify(); } catch (e) {}
   socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => {
     const before = ui.friends; ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -5105,7 +5129,7 @@ function socialStart() {
       else if (f.st === 'ok' && o && o.st === 'out') pushNote({ ic: '🤝', title: 'قُبل طلبك', body: (f.name || '') + ' أصبح صديقك', a: 'dm', d: { f: f.id } });
       seen[key] = 1;
     }
-    ls.set('mor-seenfr', seen); render();
+    ls.set('mor-seenfr', seen); presWatch(); render();
   }, () => {}));
   socialUnsub.push(FB.onSnapshot(FB.query(fbB.col('chats'), FB.where('members', 'array-contains', fb.uid)), s => {
     const before = ui.chats;
@@ -5205,6 +5229,7 @@ async function sendDM(kind = 'text', extra = {}, cid) {
   cid = cid || (ui.dm && ui.dm.id); if (!cid) return;
   let text = '';
   if (kind === 'text') { const el = document.getElementById('dmin'); text = (el && el.value || '').trim(); if (!text) return; el.value = ''; }
+  else if (kind === 'voice') text = '🎤 رسالة صوتية';
   else if (kind === 'sticker') text = 'ملصق: ' + ((STK.find(x => x.id === extra.stk) || {}).t || '');
   else text = 'دعوة لغرفة ' + (extra.game ? GG(extra.game).name : '');
   const m = { by: fb.uid, name: prof.name, text: text.slice(0, 300), t: Date.now(), kind, ...extra };
@@ -5311,7 +5336,7 @@ function friendsTab() {
   <div class="card"><div class="row"><div style="flex:1"><div class="muted">معرّفك (ID)</div><div class="roomcode" style="font-size:30px;letter-spacing:4px;text-align:start">${esc(prof.code || '…')}</div></div><button class="btn alt sm" data-a="copyId">${ICON.copy} انسخ</button></div>
     <div class="row" style="margin-top:12px"><input id="fcode" class="grow" inputmode="numeric" maxlength="6" placeholder="ID صاحبك" style="direction:ltr;text-align:center"><button class="btn" data-a="addFriend">${ICON.invite} أضف</button></div></div>
   ${inn.length ? `<div class="card"><h2>طلبات صداقة</h2>${inn.map(f => `<div class="li">${avatarHTML(pav(f), f.name, 'sm')}<div class="t"><b>${esc(f.name)}</b><span>ID ${esc(f.code || '')}</span></div><button class="btn sm" data-a="accept" data-f="${f.id}">قبول</button><button class="btn ghost sm" data-a="unfriend" data-f="${f.id}">رفض</button></div>`).join('')}</div>` : ''}
-  <div class="card"><h2>أصدقائي ${ok.length ? `<span class="muted">(${ok.length})</span>` : ''}</h2>${ok.length ? ok.map(f => `<div class="li">${avatarHTML(pav(f), f.name, 'sm')}<div class="t"><b>${esc(f.name)}</b><span>ID ${esc(f.code || '')}</span></div>${ui.mode === 'fb' ? `<button class="btn sm" data-a="invite" data-to="f:${f.id}">ادعوه</button>` : ''}<button class="ic" data-a="dm" data-f="${f.id}" aria-label="رسالة">${ICON.chat}</button><button class="ic" data-a="friendMenu" data-f="${f.id}" aria-label="خيارات">⋯</button></div>`).join('') : '<div class="empty">ليس لديك أصدقاء بعد. أرسل معرّفك (ID) إلى أصدقائك.</div>'}</div>
+  <div class="card"><h2>أصدقائي ${ok.length ? `<span class="muted">(${ok.length})</span>` : ''}</h2>${ok.length ? ok.slice().sort((a, b) => (presOf(b.id).on ? 1 : 0) - (presOf(a.id).on ? 1 : 0)).map(f => { const pr = presOf(f.id); return `<div class="li"><span class="pav">${avatarHTML(pav(f), f.name, 'sm')}<i class="pdot ${pr.on ? 'on' : ''}"></i></span><div class="t"><b>${esc(f.name)}</b><span class="${pr.on ? 'pon' : ''}">${esc(pr.label)}</span></div>${pr.room && pr.room !== ui.code ? `<button class="btn sm" data-a="acceptInv" data-r="${esc(pr.room)}">انضمّ</button>` : ui.mode === 'fb' ? `<button class="btn sm" data-a="invite" data-to="f:${f.id}">ادعُه</button>` : ''}<button class="ic" data-a="dm" data-f="${f.id}" aria-label="رسالة">${ICON.chat}</button><button class="ic" data-a="friendMenu" data-f="${f.id}" aria-label="خيارات">⋯</button></div>`; }).join('') : '<div class="empty">ليس لديك أصدقاء بعد. أرسل معرّفك (ID) إلى أصدقائك.</div>'}</div>
   ${out.length ? `<div class="card"><h2>طلبات أرسلتها</h2>${out.map(f => `<div class="li">${avatarHTML(pav(f), f.name, 'sm')}<div class="t"><b>${esc(f.name)}</b><span>بانتظار قبوله</span></div><button class="btn ghost sm" data-a="unfriend" data-f="${f.id}">إلغاء</button></div>`).join('')}</div>` : ''}`;
 }
 function msgsTab() {
@@ -5342,7 +5367,7 @@ function meTab() {
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.14</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.15</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -5422,12 +5447,13 @@ function dmView() {
   return `<div class="chatv"><div class="hd"><button class="ic" data-a="closeChat" aria-label="رجوع">${ICON.back}</button>${chatAv(c)}<div style="flex:1"><b>${esc(chatTitle(c))}</b>${c.group ? `<div class="muted">${(c.members || []).map(m => esc((c.names || {})[m] || '')).join('، ')}</div>` : ''}</div>${ui.mode === 'fb' ? `<button class="btn sm" data-a="invite" data-to="${c.id}">ادعُ إلى الغرفة</button>` : ''}</div>
   <div class="msgs" id="dmmsgs">${ui.dmMsgs.map(m => {
     const mine = m.by === fb.uid;
+    if (m.kind === 'voice') return `<div class="msg ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}<button class="chip" data-a="playDM" data-m="${m.id}">▶ رسالة صوتية${m.dur ? ' · ' + m.dur + ' ث' : ''}</button></div>`;
     if (m.kind === 'sticker') return `<div class="msg stkm ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${stkHTML(m.stk)}</div>`;
     if (m.kind === 'invite') return `<div class="msg inv ${mine ? 'me' : ''}"><small>${esc(m.name)}</small>🎴 دعوة لغرفة <b>${esc(GG(m.game).name)}</b> · <span dir="ltr">${esc(m.room)}</span>${mine ? '' : `<div style="margin-top:6px"><button class="btn sm" data-a="acceptInv" data-r="${esc(m.room)}">ادخل الغرفة</button></div>`}</div>`;
     return `<div class="msg ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${esc(m.text)}</div>`;
   }).join('') || '<div class="empty">قل مرحباً 👋</div>'}</div>
   ${ui.stkOpen ? `<div class="stkgrid">${STK.map(k => `<button data-a="sendStk" data-k="${k.id}" aria-label="${esc(k.t)}">${stkHTML(k.id, 1)}</button>`).join('')}</div>` : ''}
-  <div class="inp"><button class="ic ${ui.stkOpen ? 'on' : ''}" data-a="stkTog" aria-label="الملصقات">🃏</button><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div></div>${toastHTML()}`;
+  <div class="inp"><button class="ic ${ui.stkOpen ? 'on' : ''}" data-a="stkTog" aria-label="الملصقات">🃏</button><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic ${rec.mr ? 'von' : ''}" id="mic" aria-label="اضغط مطوّلاً وتكلّم">${ICON.mic}</button><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div>${rec.mr ? '<div class="muted" style="text-align:center;padding:4px">🔴 يُسجَّل… اترك الزر لترسل</div>' : ''}</div>${toastHTML()}`;
 }
 function lobby() {
   const G = GG(ui.room && ui.room.game || 'mor'), host = isHost(), mine = ui.players.find(p => p.id === uid);
@@ -6342,7 +6368,7 @@ $app.addEventListener('click', e => {
       addFriend, accept: () => acceptFriend(t.dataset.f), unfriend: () => dropFriend(t.dataset.f),
       friendMenu: () => { ui.pop = { k: 'friend', f: t.dataset.f }; render(); },
       dm: () => { ui.pop = null; openDM(t.dataset.f); }, openChat: () => openChat(t.dataset.c), closeChat,
-      sendDM: () => sendDM(),
+      sendDM: () => sendDM(), playDM: () => playDM(t.dataset.m),
       stkTog: () => { ui.stkOpen = !ui.stkOpen; render(); }, sendStk: () => { ui.stkOpen = false; render(); sendDM('sticker', { stk: t.dataset.k }); },
       notesPop: () => { const L = ui.notes || []; ui.pop = { k: 'notes' }; render(); L.forEach(n => delete n.new); ls.set('mor-notes', L); },
       noteGo: () => { const n = t.dataset.l ? (ui.notes || [])[+t.dataset.i] : ui.banner; if (n) { delete n.new; ls.set('mor-notes', ui.notes || []); } noteGo(n); },
