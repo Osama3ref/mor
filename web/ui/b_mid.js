@@ -182,10 +182,17 @@ async function fbInit() {
   try {
     if (!fb.app) { fb.app = FB.initializeApp(FB_CONFIG); fb.auth = FB.getAuth(fb.app); }
     const user = await Promise.race([new Promise(r => { const off = FB.onAuthStateChanged(fb.auth, u => { off(); r(u); }); }), sleep(6000).then(() => null)]);
-    if (!user) await Promise.race([FB.signInAnonymously(fb.auth), sleep(9000).then(() => { throw new Error('timeout'); })]);
+    if (!user) {
+      // a guest who already chose to play as a guest on this device comes straight back to the same account
+      const c = prof.guest && !prof.acct ? await guestCreds() : null;
+      await Promise.race([(c ? FB.signInWithEmailAndPassword(fb.auth, c.em, c.pw).catch(() => FB.signInAnonymously(fb.auth)) : FB.signInAnonymously(fb.auth)), sleep(9000).then(() => { throw new Error('timeout'); })]);
+      if (prof.acct && fb.auth.currentUser.isAnonymous) ui.needLogin = true;
+    }
     fb.db = FB.getFirestore(fb.app); fb.uid = fb.auth.currentUser.uid; fb.ready = true;
     if (!ui.mode) uid = fb.uid;
-    await ensureUser(); socialStart(); render();
+    if (prof.name) { await ensureUser(); socialStart(); }
+    if (ui.needLogin) { ui.needLogin = false; ui.pop = { k: 'email', m: 'rec' }; toast('سجّل الدخول باسمك وكلمة المرور'); }
+    render();
   } catch (e) { console.error('firebase', e); fb.tried = false; render(); }
 }
 const fbB = {

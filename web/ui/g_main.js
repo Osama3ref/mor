@@ -110,6 +110,7 @@ $app.addEventListener('click', e => {
       // onboarding and profile
       obAv: () => { ui.obAv = t.dataset.v; render(); },
       obCol: () => { const [, gl] = (ui.obAv || prof.av).split('|'); ui.obAv = t.dataset.v + '|' + gl; render(); },
+      welGuest, welCreate, welSignIn, logout, welNew: () => { ui.wel = 'new'; render(); }, welLogin: () => { ui.wel = 'login'; render(); }, welBack: () => { ui.wel = null; render(); }, welLocal: () => { ui.wel = 'local'; render(); },
       obDone: async () => { const n = (document.getElementById('obn').value || '').trim(); const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad); prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; saveProf(); ls.set('mor-name', prof.name); pushProfile(); SFX.deal(); render(); },
       pickPhoto: () => pickPhoto(),
       rmPhoto: () => { prof.photo = ''; saveProf(); pushProfile(); render(); },

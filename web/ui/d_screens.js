@@ -25,7 +25,32 @@ function nav() {
 function meBar() {
   return `<button class="me-bar" data-a="tab" data-t="me" style="width:100%;text-align:start">${avatarHTML(myAv(), prof.name)}<div style="flex:1"><div class="nm">${esc(prof.name || 'ضيف')}</div><div class="muted">${prof.code ? 'ID ' + prof.code : online() ? '' : isServed ? 'دون إنترنت: الشبكة المحلية متاحة' : ''}</div></div><span class="ic">${ICON.gear}</span></button>`;
 }
+function welcome() {
+  const w = ui.wel, busy = ui.busy ? 'disabled' : '', wait = !fb.ready ? '<div class="muted" style="text-align:center">جارٍ الاتصال بالإنترنت…</div>' : '';
+  const brand = `<div class="brand">${fan(['H1a', 'S13a', 'J0a'], 44)}<h1>سهرة ورق</h1><div class="muted">مور وطرنيب وتركس ومافيا وكوب مع أصدقائك</div></div>`;
+  if (w === 'new') {
+    const sel = ui.obAv || prof.av, [c] = sel.split('|');
+    return `<div class="scr"><div class="in">${brand}<div class="card"><div class="row" style="justify-content:space-between"><h2>حساب جديد</h2><button class="btn ghost sm" data-a="welBack">رجوع</button></div>
+      <label class="muted" for="obn">اسم المستخدم (يظهر للاعبين، ولا يتكرر)</label><input id="obn" maxlength="14" autocomplete="username" placeholder="مثلاً: أبو أحمد">
+      <label class="muted" for="em" style="display:block;margin-top:10px">البريد الإلكتروني (لاسترجاع الحساب)</label><input id="em" type="email" style="direction:ltr" autocomplete="email">
+      <label class="muted" for="pw" style="display:block;margin-top:10px">كلمة المرور (8 خانات على الأقل، حروف وأرقام)</label><input id="pw" type="password" style="direction:ltr" autocomplete="new-password">
+      <div class="muted" style="margin-top:12px">صورتك</div>
+      <div class="avpick">${AVG.concat(['A']).slice(0, 10).map(g => `<button data-a="obAv" data-v="${c}|${g}" class="${sel === c + '|' + g ? 'on' : ''}">${avatarHTML(c + '|' + g, 'أ')}</button>`).join('')}</div>
+      <div class="swatches">${AVC.map((col, i) => `<button data-a="obCol" data-v="${i}" class="${+c === i ? 'on' : ''}" style="background:${col}" aria-label="لون ${i + 1}"></button>`).join('')}</div>
+      <div class="acts"><button class="btn wide" data-a="welCreate" ${busy}>${ui.busy ? 'لحظة…' : 'أنشئ حسابي'}</button></div>${wait}</div></div></div>${toastHTML()}`;
+  }
+  if (w === 'login') return `<div class="scr"><div class="in">${brand}<div class="card"><div class="row" style="justify-content:space-between"><h2>تسجيل الدخول</h2><button class="btn ghost sm" data-a="welBack">رجوع</button></div>
+      <input id="em" placeholder="اسم المستخدم أو البريد الإلكتروني" autocomplete="username" style="margin-top:6px"><input id="pw" type="password" placeholder="كلمة المرور" style="direction:ltr;margin-top:8px" autocomplete="current-password">
+      <div class="acts"><button class="btn wide" data-a="welSignIn" ${busy}>${ui.busy ? 'لحظة…' : 'دخول'}</button><button class="btn ghost sm" data-a="resetPw">نسيت كلمة المرور</button></div>${wait}</div></div></div>${toastHTML()}`;
+  return `<div class="scr"><div class="in">${brand}
+    <div class="card"><h2 style="text-align:center">كيف تريد أن تدخل؟</h2>
+    <button class="big-act main" data-a="welGuest" ${busy}><span class="bi">🎮</span><div><b>${ui.busy ? 'لحظة…' : 'ادخل ضيفاً'}</b><span>اسم وحساب تلقائيان مربوطان بجهازك. إن حذفت التطبيق ونزّلته من جديد يعرفك.</span></div></button>
+    <button class="big-act" data-a="welNew"><span class="bi">✨</span><div><b>أنشئ حساباً</b><span>اسم مستخدم وكلمة مرور مربوطان ببريدك، تدخل بهما من أي جهاز</span></div></button>
+    <button class="big-act" data-a="welLogin"><span class="bi">🔑</span><div><b>لديّ حساب</b><span>ادخل باسم المستخدم أو البريد وكلمة المرور</span></div></button>
+    ${wait}${!fb.ready ? '<div class="acts" style="justify-content:center"><button class="btn ghost sm" data-a="welLocal">لا يوجد إنترنت؟ العب على الواي فاي فقط</button></div>' : ''}</div></div></div>${toastHTML()}`;
+}
 function onboarding() {
+  if (window.FB && ui.wel !== 'local') return welcome();
   const sel = ui.obAv || prof.av;
   const [c] = sel.split('|');
   return `<div class="scr"><div class="in">
@@ -100,7 +125,7 @@ function meTab() {
   </div>
   ${online() ? `<div class="card"><h2>حماية الحساب</h2>${prof.email ? (prof.emailOk ? `<div class="muted">حسابك مربوط بالبريد <b dir="ltr">${esc(prof.email)}</b> ومؤكَّد ✓. إذا غيّرت جهازك، سجّل الدخول بالبريد نفسه.</div><div class="acts"><button class="btn alt sm" data-a="emailPop" data-m="rec">الدخول بحساب آخر</button></div>`
       : `<div class="muted">ربطتَ البريد <b dir="ltr">${esc(prof.email)}</b>، لكنه <b class="red">غير مؤكَّد</b> بعد. افتح رابط التأكيد الذي وصلك، ثم اضغط الزر.</div><div class="acts"><button class="btn sm" data-a="checkVerify">أكّدت بريدي</button><button class="btn alt sm" data-a="resendVerify">أعد إرسال الرابط</button></div>`)
-    : `<div class="muted">اربط حسابك ببريد إلكتروني (اختياري) لتستعيد أصدقاءك وترتيبك إذا غيّرت جهازك. سنرسل إليك رابطاً لتأكيد البريد.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط بريداً</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">لديّ حساب</button></div>`}</div>` : ''}
+    : `<div class="muted">${prof.guest ? 'أنت ضيف على هذا الجهاز. ' : ''}حوّل حسابك إلى حساب باسمك وكلمة مرور مربوط ببريدك، لتدخل به من أي جهاز وتحتفظ بأصدقائك وترتيبك.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط بريداً وكلمة مرور</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">لديّ حساب</button></div>`}</div>` : ''}
   <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">تنطبق على اللعب ضد الكمبيوتر وعلى جهاز واحد.</p></div>
   <div class="card"><h2>🎬 سجلّ الألعاب</h2><div class="muted">شاهد أي لعبة لعبتها من جديد.</div><div class="acts"><button class="btn sm" data-a="replays">افتح السجلّ</button></div></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
@@ -109,7 +134,8 @@ function meTab() {
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.16</p>`;
+  ${online() && prof.acct ? `<div class="acts" style="justify-content:center"><button class="btn ghost sm" data-a="logout">تسجيل الخروج</button></div>` : ''}
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.17</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -166,8 +192,8 @@ function pops() {
       ${ok.map(f => `<div class="li">${avatarHTML(pav(f), f.name, 'sm')}<div class="t"><b>${esc(f.name)}</b></div><button class="btn sm" data-a="invite" data-to="f:${f.id}">ادعُ</button></div>`).join('') || '<div class="empty">ليس لديك أصدقاء بعد. أضفهم من صفحة الأصدقاء بالمعرّف (ID).</div>'}
       <div class="sep"></div><div class="muted">أو أرسل إليهم الرمز: <b class="gold" style="letter-spacing:3px">${esc(ui.code)}</b></div>`);
   }
-  if (p.k === 'email') return sheet(`${sheetHead(p.m === 'link' ? 'ربط بريد إلكتروني' : 'تسجيل الدخول بحسابي')}<div class="muted">${p.m === 'link' ? 'اختر كلمة مرور من 8 خانات على الأقل، فيها حروف وأرقام. سنرسل رابط تأكيد إلى بريدك.' : 'سيُستبدل الحساب الحالي على هذا الجهاز بالحساب الذي تدخل إليه. يجب أن يكون البريد مؤكَّداً.'}</div>
-    <input id="em" type="email" placeholder="البريد الإلكتروني" style="direction:ltr;margin-top:10px" autocomplete="email"><input id="pw" type="password" placeholder="كلمة المرور" style="direction:ltr;margin-top:8px" autocomplete="${p.m === 'link' ? 'new-password' : 'current-password'}">
+  if (p.k === 'email') return sheet(`${sheetHead(p.m === 'link' ? 'ربط بريد إلكتروني' : 'تسجيل الدخول بحسابي')}<div class="muted">${p.m === 'link' ? 'اختر كلمة مرور من 8 خانات على الأقل، فيها حروف وأرقام. سنرسل رابط تأكيد إلى بريدك.' : 'ادخل باسم المستخدم أو البريد وكلمة المرور. سيُستبدل الحساب الحالي على هذا الجهاز بحسابك.'}</div>
+    <input id="em" ${p.m === 'link' ? 'type="email" style="direction:ltr;margin-top:10px"' : 'style="margin-top:10px"'} placeholder="${p.m === 'link' ? 'البريد الإلكتروني' : 'اسم المستخدم أو البريد'}" autocomplete="${p.m === 'link' ? 'email' : 'username'}"><input id="pw" type="password" placeholder="كلمة المرور" style="direction:ltr;margin-top:8px" autocomplete="${p.m === 'link' ? 'new-password' : 'current-password'}">
     <div class="acts"><button class="btn wide" data-a="${p.m === 'link' ? 'linkEmail' : 'recoverEmail'}">${p.m === 'link' ? 'اربط وأرسل رابط التأكيد' : 'دخول'}</button>${p.m === 'link' ? '' : '<button class="btn ghost sm" data-a="resetPw">نسيت كلمة المرور</button>'}</div>`);
   if (p.k === 'group') {
     const ok = ui.friends.filter(f => f.st === 'ok');

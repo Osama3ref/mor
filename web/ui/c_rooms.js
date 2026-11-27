@@ -132,53 +132,146 @@ function pwError(pw) {
   if (!/[A-Za-z\u0600-\u06FF]/.test(pw) || !/\d/.test(pw)) return 'كلمة المرور يجب أن تحتوي على حروف وأرقام معاً';
   return '';
 }
+// ---------- first launch: guest bound to this device, or a named account with email + password ----------
+const GUEST_DOM = '@guest.sahra-waraq.app';
+async function sha(t) {
+  try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+  catch (e) { let h = 2166136261, o = ''; for (let k = 0; k < 8; k++) { for (const ch of t + k) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; o += h.toString(16).padStart(8, '0'); } return o; }
+}
+async function guestCreds() {
+  let id = ''; try { id = native && native.deviceId ? native.deviceId() : ''; } catch (e) {}
+  if (!id) return null; const h = await sha('sahra-waraq:' + id);
+  return { em: 'g' + h.slice(0, 24) + GUEST_DOM, pw: 'Gx' + h.slice(24, 48) };
+}
+const isGuestEmail = e => !!e && e.endsWith(GUEST_DOM);
+async function afterSignIn(defaults) {
+  fb.uid = fb.auth.currentUser.uid; if (!ui.mode) uid = fb.uid;
+  const d = (await FB.getDoc(fbB.ref('users', fb.uid)).catch(() => null))?.data?.() || {};
+  const back = !!d.name;
+  if (d.name) { prof.name = d.name; if (d.av) prof.av = d.av; prof.photo = d.ph || ''; }
+  else if (defaults) Object.assign(prof, defaults);
+  const em = fb.auth.currentUser.email || '';
+  prof.email = isGuestEmail(em) ? (d.email || '') : em; prof.emailOk = !!(em && !isGuestEmail(em) && fb.auth.currentUser.emailVerified) || !!d.emailOk;
+  saveProf(); ls.set('mor-name', prof.name); await ensureUser(); pushProfile(); socialStart();
+  return back;
+}
+async function welGuest() {
+  if (!fb.ready) return toast('جارٍ الاتصال… حاول بعد لحظة');
+  ui.busy = true; render();
+  try {
+    socialStop(); const c = await guestCreds(); let back = false;
+    if (c) {
+      try { await FB.signInWithEmailAndPassword(fb.auth, c.em, c.pw); back = true; }
+      catch (e) {
+        if (!fb.auth.currentUser) await FB.signInAnonymously(fb.auth);
+        await FB.linkWithCredential(fb.auth.currentUser, FB.EmailAuthProvider.credential(c.em, c.pw));
+      }
+    }
+    let nm = ''; for (let i = 0; i < 6 && !nm; i++) { const t = 'ضيف' + (1000 + Math.floor(Math.random() * 9000)); if (!(await nameTaken(t))) nm = t; }
+    const restored = await afterSignIn({ name: nm || 'ضيف' + Date.now() % 100000, av: Math.floor(Math.random() * AVC.length) + '|' + AVG[Math.floor(Math.random() * AVG.length)] });
+    prof.guest = true; prof.acct = false; saveProf();
+    toast(back && restored ? 'أهلاً من جديد ' + prof.name + '، عرفنا جهازك 👋' : 'دخلت ضيفاً باسم ' + prof.name + '، ويمكنك تغييره من «حسابي»');
+  } catch (e) { console.error(e); toast(AUTHERR[e.code] || 'تعذّر الدخول ضيفاً، تأكد من الإنترنت'); }
+  ui.busy = false; render();
+}
+async function welCreate() {
+  if (!fb.ready) return toast('جارٍ الاتصال… حاول بعد لحظة');
+  const n = (document.getElementById('obn')?.value || '').trim(), em = (document.getElementById('em')?.value || '').trim(), pw = document.getElementById('pw')?.value || '';
+  const bad = nameError(n) || await nameTaken(n); if (bad) return toast(bad);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return toast('اكتب بريداً إلكترونياً صحيحاً');
+  const pb = pwError(pw); if (pb) return toast(pb);
+  ui.busy = true; render();
+  try {
+    if (!fb.auth.currentUser) await FB.signInAnonymously(fb.auth);
+    await FB.linkWithCredential(fb.auth.currentUser, FB.EmailAuthProvider.credential(em, pw));
+    await FB.sendEmailVerification(fb.auth.currentUser).catch(() => {});
+    prof.name = n; if (ui.obAv) prof.av = ui.obAv; ui.obAv = null; prof.acct = true; prof.guest = false;
+    await afterSignIn(); prof.email = em; prof.emailOk = false; saveProf();
+    FB.setDoc(fbB.ref('users', fb.uid), { email: em, emailOk: false }, { merge: true }).catch(() => {});
+    ui.wel = null; SFX.deal(); toast('أُنشئ حسابك! أرسلنا رابط تأكيد إلى بريدك');
+  } catch (e) { toast(AUTHERR[e.code] || 'تعذّر إنشاء الحساب'); }
+  ui.busy = false; render();
+}
+// sign in with a username or an email
+async function loginWith(idv, pw) {
+  let ems = [idv];
+  if (!idv.includes('@')) {
+    const q = await FB.getDocs(FB.query(fbB.col('users'), FB.where('nameKey', '==', nameKey(idv)), FB.limit(1)));
+    if (q.empty) { const e = new Error('nouser'); e.code = 'auth/user-not-found'; throw e; }
+    const d = q.docs[0].data(); ems = [d.email, d.alt].filter(Boolean);
+    if (!ems.length) { const e = new Error('noemail'); e.code = 'sahra/no-account'; throw e; }
+  }
+  let err; for (const em of ems) { try { await FB.signInWithEmailAndPassword(fb.auth, em, pw); return; } catch (e) { err = e; } }
+  throw err;
+}
+async function welSignIn() {
+  if (!fb.ready) return toast('جارٍ الاتصال… حاول بعد لحظة');
+  const idv = (document.getElementById('em')?.value || '').trim(), pw = document.getElementById('pw')?.value || '';
+  if (!idv || !pw) return toast('اكتب اسم المستخدم أو البريد، وكلمة المرور');
+  ui.busy = true; render();
+  try {
+    socialStop(); await loginWith(idv, pw);
+    await afterSignIn(); prof.acct = true; prof.guest = false; saveProf(); ui.wel = null; ui.pop = null;
+    toast('أهلاً بعودتك ' + prof.name);
+  } catch (e) {
+    if (!fb.auth.currentUser) await FB.signInAnonymously(fb.auth).catch(() => {});
+    if (fb.auth.currentUser) { fb.uid = fb.auth.currentUser.uid; if (prof.name) socialStart(); }
+    toast(e.code === 'sahra/no-account' ? 'هذا الاسم ليس له حساب بكلمة مرور (ربما دخل ضيفاً)' : e.code === 'auth/user-not-found' ? 'لا يوجد حساب بهذا الاسم أو البريد' : AUTHERR[e.code] || 'تعذّر تسجيل الدخول');
+  }
+  ui.busy = false; render();
+}
+async function logout() {
+  ui.pop = null; socialStop();
+  try { await FB.signOut(fb.auth); await FB.signInAnonymously(fb.auth); fb.uid = fb.auth.currentUser.uid; uid = fb.uid; } catch (e) {}
+  ['name', 'email', 'emailOk', 'acct', 'guest', 'code', 'photo'].forEach(k => delete prof[k]); prof.name = ''; saveProf(); ui.wel = null; ui.tab = 'home'; render();
+}
 async function linkEmail() {
   const em = (document.getElementById('em')?.value || '').trim(), pw = document.getElementById('pw')?.value || '';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) return toast('اكتب بريداً إلكترونياً صحيحاً');
   const bad = pwError(pw); if (bad) return toast(bad);
   try {
-    await FB.linkWithCredential(fb.auth.currentUser, FB.EmailAuthProvider.credential(em, pw));
-    await FB.sendEmailVerification(fb.auth.currentUser).catch(() => {});
-    prof.email = em; prof.emailOk = false; saveProf(); FB.setDoc(fbB.ref('users', fb.uid), { email: em, emailOk: false }, { merge: true }).catch(() => {});
-    ui.pop = null; toast('أرسلنا رابط تأكيد إلى بريدك. افتحه، ثم اضغط «أكّدت بريدي»'); render();
+    const cu = fb.auth.currentUser;
+    if (isGuestEmail(cu.email)) {
+      // a device guest already has an email login: give it the user's password, then move it to the real email once confirmed
+      await FB.updatePassword(cu, pw); await FB.verifyBeforeUpdateEmail(cu, em);
+      FB.setDoc(fbB.ref('users', fb.uid), { email: em, alt: cu.email, emailOk: false }, { merge: true }).catch(() => {});
+    } else {
+      await FB.linkWithCredential(cu, FB.EmailAuthProvider.credential(em, pw));
+      await FB.sendEmailVerification(cu).catch(() => {});
+      FB.setDoc(fbB.ref('users', fb.uid), { email: em, emailOk: false }, { merge: true }).catch(() => {});
+    }
+    prof.email = em; prof.emailOk = false; prof.acct = true; prof.guest = false; saveProf();
+    ui.pop = null; toast('أرسلنا رابط تأكيد إلى بريدك. افتحه، ثم اضغط «أكّدت بريدي». بعدها تدخل باسمك وكلمة المرور'); render();
   } catch (e) { toast(AUTHERR[e.code] || 'تعذّر ربط البريد'); }
 }
 async function checkVerified() {
   try {
     await FB.reload(fb.auth.currentUser);
-    if (fb.auth.currentUser.emailVerified) {
+    if (fb.auth.currentUser.emailVerified && !isGuestEmail(fb.auth.currentUser.email)) {
       prof.emailOk = true; saveProf(); FB.setDoc(fbB.ref('users', fb.uid), { emailOk: true }, { merge: true }).catch(() => {});
       toast('تم تأكيد بريدك، وأصبح حسابك محمياً ✓');
     } else toast('لم يتأكد البريد بعد. افتح الرابط الذي وصلك (تفقّد مجلد الرسائل غير المرغوبة)');
-  } catch (e) { toast('تعذّر التحقق، تأكد من الاتصال'); }
+  } catch (e) {
+    if (/token|requires-recent-login|user-disabled|user-not-found/.test(e.code || '')) { ui.pop = { k: 'email', m: 'rec' }; toast('تأكّد بريدك! سجّل الدخول الآن باسمك وكلمة المرور'); }
+    else toast('تعذّر التحقق، تأكد من الاتصال');
+  }
   render();
 }
 async function resendVerify() {
   try { await FB.sendEmailVerification(fb.auth.currentUser); toast('أعدنا إرسال رابط التأكيد'); } catch (e) { toast(AUTHERR[e.code] || 'تعذّر الإرسال، حاول لاحقاً'); }
 }
 async function resetPw() {
-  const em = (document.getElementById('em')?.value || '').trim();
-  if (!em) return toast('اكتب بريدك أولاً');
-  try { await FB.sendPasswordResetEmail(fb.auth, em); toast('أرسلنا رابط تغيير كلمة المرور إلى بريدك'); } catch (e) { toast(AUTHERR[e.code] || 'تعذّر الإرسال'); }
-}
-async function recoverEmail() {
-  const em = (document.getElementById('em')?.value || '').trim(), pw = document.getElementById('pw')?.value || '';
-  if (!em || !pw) return toast('اكتب البريد الإلكتروني وكلمة المرور');
+  let em = (document.getElementById('em')?.value || '').trim();
+  if (!em) return toast('اكتب اسم المستخدم أو البريد أولاً');
   try {
-    socialStop();
-    await FB.signInWithEmailAndPassword(fb.auth, em, pw);
-    if (!fb.auth.currentUser.emailVerified) {
-      await FB.sendEmailVerification(fb.auth.currentUser).catch(() => {});
-      await FB.signOut(fb.auth); await FB.signInAnonymously(fb.auth);
-      fb.uid = fb.auth.currentUser.uid; if (!ui.mode) uid = fb.uid; await ensureUser(); socialStart();
-      return toast('هذا البريد لم يُؤكَّد بعد. أرسلنا إليه رابط التأكيد، أكّده ثم حاول مجدداً');
+    if (!em.includes('@')) {
+      const q = await FB.getDocs(FB.query(fbB.col('users'), FB.where('nameKey', '==', nameKey(em)), FB.limit(1)));
+      em = q.empty ? '' : q.docs[0].data().email || ''; if (!em) return toast('لا يوجد بريد مربوط بهذا الاسم');
     }
-    fb.uid = fb.auth.currentUser.uid; if (!ui.mode) uid = fb.uid;
-    const d = (await FB.getDoc(fbB.ref('users', fb.uid))).data() || {};
-    if (d.name) prof.name = d.name; if (d.av) prof.av = d.av; prof.photo = d.ph || ''; prof.email = em; prof.emailOk = true; saveProf();
-    await ensureUser(); socialStart(); ui.pop = null; toast('عاد حسابك، أهلاً ' + myName()); render();
-  } catch (e) { socialStart(); toast(AUTHERR[e.code] || 'تعذّر استرجاع الحساب'); }
+    await FB.sendPasswordResetEmail(fb.auth, em); toast('أرسلنا رابط تغيير كلمة المرور إلى البريد المربوط');
+  } catch (e) { toast(AUTHERR[e.code] || 'تعذّر الإرسال'); }
 }
+async function recoverEmail() { return welSignIn(); }
 
 // ---------- friends, messages, groups ----------
 let socialUnsub = [];

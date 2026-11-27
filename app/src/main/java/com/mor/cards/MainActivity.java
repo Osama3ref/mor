@@ -134,6 +134,9 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() { if (tts != null) tts.shutdown(); super.onDestroy(); }
 
     class Bridge {
+        @JavascriptInterface public String deviceId() {
+            try { String a = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); return a == null ? "" : a; } catch (Exception e) { return ""; }
+        }
         @JavascriptInterface
         public boolean speak(final String text) {
             runOnUiThread(() -> {
