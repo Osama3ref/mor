@@ -17,7 +17,7 @@ jobs:
       - name: Stable signing key (if the KEYSTORE_B64 secret is set)
         env: { KS_B64: '${{ secrets.KEYSTORE_B64 }}', KS_PASS: '${{ secrets.KEYSTORE_PASS }}' }
         run: |
-          if [ -n "$KS_B64" ]; then printf '%s' "$KS_B64" | tr -cd 'A-Za-z0-9+/=' | base64 -d > $RUNNER_TEMP/sahra.jks; ls -l $RUNNER_TEMP/sahra.jks; if keytool -list -keystore $RUNNER_TEMP/sahra.jks -storepass "$(printf '%s' "$KS_PASS" | tr -d '\r\n ')" >/dev/null 2>&1; then echo "KS_FILE=$RUNNER_TEMP/sahra.jks" >> $GITHUB_ENV; echo "stable key OK"; else echo "::warning::stable signing key unreadable; using a temporary key"; fi; fi
+          if [ -n "$KS_B64" ]; then printf '%s' "$KS_B64" | tr -cd 'A-Za-z0-9+/=' | base64 -d > $RUNNER_TEMP/sahra.jks; ls -l $RUNNER_TEMP/sahra.jks; T="$(printf '%s' "$KS_B64" | tr -cd 'A-Za-z0-9+/=')"; echo "diag len=${#T} raw=${#KS_B64} head=$(printf '%s' "${T:0:200}" | sha256sum | cut -c1-12) tail=$(printf '%s' "${T: -200}" | sha256sum | cut -c1-12)"; if keytool -list -keystore $RUNNER_TEMP/sahra.jks -storepass "$(printf '%s' "$KS_PASS" | tr -d '\r\n ')" >/dev/null 2>&1; then echo "KS_FILE=$RUNNER_TEMP/sahra.jks" >> $GITHUB_ENV; echo "stable key OK"; else echo "::warning::stable signing key unreadable; using a temporary key"; fi; fi
       - run: gradle assembleRelease --no-daemon
         env: { KS_PASS: '${{ secrets.KEYSTORE_PASS }}' }
       - run: cp app/build/outputs/apk/release/app-release.apk Mor.apk
