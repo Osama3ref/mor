@@ -1,4 +1,4 @@
-parts=['a_core','b_mid','c_rooms','d_screens','e_table','e_mafia','e_coup','f_hand','g_main']
+parts=['a_core','b_mid','c_rooms','d_screens','e_table','e_mafia','e_coup','f_hand','f_fly','g_main']
 js='\n'.join(open(f'/home/claude/mor/ui/{p}.js').read() for p in parts)
 import json,base64,re as _re
 _ff=''.join("@font-face{font-family:'%s';font-style:normal;font-weight:%d;font-display:swap;src:url(data:font/woff2;base64,%s) format('woff2');unicode-range:%s}" % (f,w,base64.b64encode(open('/home/claude/mor/fonts/'+fn,'rb').read()).decode(),ur) for f,w,fn,ur in json.load(open('/home/claude/mor/fonts/fonts.json')))

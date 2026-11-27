@@ -2,10 +2,10 @@
 function seatHTML(st, s, me, cls = '') {
   const b = ui.bubbles[s] && Date.now() - ui.bubbles[s].t < 4000 ? ui.bubbles[s] : null;
   const name = st.names[s];
-  return `<div class="seatv ${st.turn === s && st.phase === 'play' ? 'on' : ''} ${cls}" data-seat="${s}" style="--tc:${TC[s % 2]}">
+  return `<div class="seatv ${st.turn === s && st.phase === 'play' ? 'on' : ''} ${cls}" data-seat="${s}" style="--tc:${TC[s % 2]}">${tmrBadge(s)}
     ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
-    ${avatarHTML(st.avs ? st.avs[s] : (st.bots && st.bots[s] ? 'bot' : ''), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
-    <div><div class="nm">${esc(name)}</div>${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.seats && vc.members.includes(st.seats[s]) ? '<span class="tag" style="color:var(--b)">بالمكالمة</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'معلن مور' : 'معلن ضمان'}</span>` : ''}</div></div>`;
+    ${avatarHTML(seatAv(st, s), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
+    <div><div class="nm">${esc(name)}</div>${st.pending[s] ? '<span class="tag">مور</span>' : ''}${st.seats && vc.members.includes(st.seats[s]) ? '<span class="tag" style="color:var(--b)">في المكالمة</span>' : ''}${st.declared && st.declared.seat === s ? `<span class="tag" style="color:var(--a)">${st.declared.kind === 'mor' ? 'أعلن المور' : 'أعلن الضمان'}</span>` : ''}</div></div>`;
 }
 function meldHTML(m, canTap, them) {
   const a = Mor.analyze(m.cards), v = Mor.meldValue(m);
@@ -18,60 +18,60 @@ function game() {
   const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
-  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لسا ما في</span>'}</div></div>`; };
+  const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لا يوجد بعد</span>'}</div></div>`; };
   const canDraw = myTurn && st.step === 'draw';
   const piles = `<div class="piles"><div class="pile ${canDraw && st.stock.length ? 'can' : ''} ${st.stock.length ? '' : 'gone'}" data-a="${canDraw && st.stock.length ? 'draw' : ''}">${cardHTML('back')}<span class="n">${st.stock.length}</span><span>السحبة</span></div>
-    ${[0, 1].map(k => `<div class="pile ${st.mor[k] ? '' : 'gone'}">${cardHTML('back')}<span>${st.morBy[k] != null ? (st.morBy[k] === myT ? 'إلنا' : 'إلهم') : 'مور'}</span></div>`).join('')}</div>`;
+    ${[0, 1].map(k => `<div class="pile ${st.mor[k] ? '' : 'gone'}">${cardHTML('back')}<span>${st.morBy[k] != null ? (st.morBy[k] === myT ? 'لنا' : 'لهم') : 'مور'}</span></div>`).join('')}</div>`;
   const topK = st.discard.length + ':' + st.discard[st.discard.length - 1], dropNew = ui.topK && ui.topK !== topK && st.discard.length; ui.topK = topK;
-  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, dropNew && i === st.discard.length - 1 ? 'drop' : '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فاضية</span>'}</div>`;
+  const disc = `<div class="disc ${canDraw ? 'can' : ''}" id="disc">${st.discard.map((id, i) => cardHTML(id, dropNew && i === st.discard.length - 1 ? 'drop' : '', `data-di="${i}"`)).join('') || '<span class="empty">الأرض فارغة</span>'}</div>`;
   let status = '', acts = '';
   const last = st.log[st.log.length - 1] || '';
   if (st.phase === 'play') {
-    if (me < 0) status = `بتتفرّج · دور ${esc(st.names[st.turn])} <span class="last">${esc(last)}</span>`;
+    if (me < 0) status = `تشاهد · دور ${esc(st.names[st.turn])} <span class="last">${esc(last)}</span>`;
     else if (!myTurn) status = `دور ${esc(st.names[st.turn])}${st.bots && st.bots[st.turn] ? ' (بوت)' : ''} <span class="last">${esc(last)}</span>`;
     else if (st.step === 'draw') { status = st.stock.length ? 'دورك: اسحب من السحبة أو خذ من الأرض' : 'آخر دور! خذ من الأرض'; if (st.stock.length) acts = `<button class="btn sm" data-a="draw">اسحب</button>`; }
     else if (st.step === 'play') {
       const decl = st.declared && st.declared.seat === me ? st.declared.kind : null;
-      status = !hand.length ? 'خلّصت ورقك!' : decl ? (decl === 'mor' ? 'معلن: بدك المور' : 'معلن: بدك تضمّن') : 'نزّل أو ارمي ورقة';
-      acts = `<button class="btn sm" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل${nSel ? ' (' + nSel + ')' : ''}</button><button class="btn alt sm" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمي</button>`;
-      if (!st.melded && !decl && hand.length) acts += `<button class="btn sky sm" data-a="declMor">بدي المور</button><button class="btn sky sm" data-a="declClose">بدي ضمّن</button>`;
+      status = !hand.length ? 'أنهيت أوراقك!' : decl ? (decl === 'mor' ? 'أعلنت: تريد المور' : 'أعلنت: تريد الضمان') : 'نزّل أو ارمِ ورقة';
+      acts = `<button class="btn sm" data-a="meld" ${nSel >= 3 ? '' : 'disabled'}>نزّل${nSel ? ' (' + nSel + ')' : ''}</button><button class="btn alt sm" data-a="discard" ${nSel === 1 ? '' : 'disabled'}>ارمِ</button>`;
+      if (!st.melded && !decl && hand.length) acts += `<button class="btn sky sm" data-a="declMor">أريد المور</button><button class="btn sky sm" data-a="declClose">أريد الضمان</button>`;
       if (decl && !st.melded) acts += `<button class="btn alt sm" data-a="undecl">إلغاء الإعلان</button>`;
       if (!hand.length && Mor.okMor(st, me)) acts += `<button class="btn sm" data-a="morNow">خذ المور</button>`;
-      if (!hand.length && Mor.okClose(st, me)) acts += `<button class="btn red sm" data-a="close">ضمّن</button>`;
+      if (!hand.length && Mor.okClose(st, me)) acts += `<button class="btn red sm" data-a="close">اضمن</button>`;
     }
   }
   const fresh = st.got && st.got.seat === me && st.turn === me ? st.got.ids : [];
   const chatBtn = social() ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
-    <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="${vc.on ? (vc.muted ? 'شغّل المايك' : 'سكّر المايك') : 'ادخل المكالمة'}">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}${!vc.on && vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>` : '';
+    ${voiceBtns()}` : '';
   return `<div class="game">
-  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button>
-    <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
+  <div class="top"><button class="ic" data-a="exit" aria-label="خروج">${ICON.x}</button>
+    <div class="score"><span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'نحن' : 'هم'} <b>${st.scores[0]}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'نحن' : 'هم'} <b>${st.scores[1]}</b></span><span class="sp">ج ${st.round + 1}</span></div>
     ${chatBtn}<button class="ic" data-a="tmenu" aria-label="الإعدادات">${ICON.gear}</button></div>
   <div class="partner">${seatHTML(st, P, me)}</div>
   <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
-  <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">السحبة خلصت: آخر دور من الأرض بس</div>` : ''}<div class="status">${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
+  <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">انتهت السحبة: الدور الأخير من الأرض فقط</div>` : ''}<div class="status">${tmrBadge(me)}${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
   <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
   </div>${overlays(me)}`;
 }
 function endActs(st, can) {
   const room = ui.mode === 'lan' || ui.mode === 'fb';
-  if (st.phase !== 'over') return can ? `<div class="acts"><button class="btn" data-a="nextRound">الجولة الجاية</button><button class="btn alt" data-a="exit">طلاع</button></div>` : '<p class="muted">ناطرين اللاعبين…</p>';
-  if (!room) return `<div class="acts"><button class="btn" data-a="newMatch">لعبة جديدة</button><button class="btn alt" data-a="exit">طلاع</button></div>`;
-  if (isHost()) return `<div class="acts"><button class="btn" data-a="backRoom">رجوع للغرفة واختيار لعبة</button><button class="btn alt" data-a="newMatch">نفس اللعبة كمان مرة</button></div>`;
-  return '<p class="muted">صاحب الغرفة بيرجّعكم للغرفة لتختاروا اللعبة الجاية.</p><div class="acts"><button class="btn alt sm" data-a="exit">طلاع</button></div>';
+  if (st.phase !== 'over') return can ? `<div class="acts"><button class="btn" data-a="nextRound">الجولة التالية</button><button class="btn alt" data-a="exit">خروج</button></div>` : '<p class="muted">بانتظار اللاعبين…</p>';
+  if (!room) return `<div class="acts"><button class="btn" data-a="newMatch">لعبة جديدة</button><button class="btn alt" data-a="exit">خروج</button></div>`;
+  if (isHost()) return `<div class="acts"><button class="btn" data-a="backRoom">العودة إلى الغرفة واختيار لعبة</button><button class="btn alt" data-a="newMatch">اللعبة نفسها مرة أخرى</button></div>`;
+  return '<p class="muted">سيعيدكم صاحب الغرفة إليها لتختاروا اللعبة التالية.</p><div class="acts"><button class="btn alt sm" data-a="exit">خروج</button></div>';
 }
 function overlays(me) {
   const st = ui.st; let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play' && !st.bots[st.turn]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && st.phase === 'play' && !st.bots[st.turn]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجهاز"><h2>دور ${esc(st.names[st.turn])}</h2><p class="muted">سلّموه الجهاز، ولا ينظر أحد.</p><button class="btn" data-a="reveal">أظهر أوراقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'play' && st.turn === me && st.step === 'choice') {
-    h += `<div class="ov cen"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">ضمّن</button>' : ''}</div></div></div>`;
+    h += `<div class="ov cen"><div class="box"><h2>رميت آخر ورقة</h2><div class="acts">${Mor.okMor(st, me) ? '<button class="btn" data-a="chooseMor">خذ المور (منقطع)</button>' : ''}${Mor.okClose(st, me) ? '<button class="btn red" data-a="close">اضمن</button>' : ''}</div></div></div>`;
   } else if (ui.sheet) {
     h += `<div class="ov" data-a="noSheet"><div class="box" data-stop="1"><h2>${ui.sheet.title}</h2><div class="acts">${ui.sheet.opts.map((o, i) => `<button class="btn ${i ? 'alt' : ''}" data-a="sheet" data-i="${i}">${o.label}</button>`).join('')}<button class="btn alt" data-a="noSheet">إلغاء</button></div></div></div>`;
   } else if (st.phase === 'roundEnd' || st.phase === 'over') {
     const s = st.summary || { ground: [0, 0], bonus: [0, 0], notes: [] };
     const can = ui.mode === 'local' || me >= 0;
-    h += `<div class="ov cen"><div class="box"><h2>${st.phase === 'over' ? 'ربح ' + TEAM[st.winner] + '!' : s.void ? 'الجولة بتنعاد' : 'خلصت الجولة'}</h2>
+    h += `<div class="ov cen"><div class="box"><h2>${st.phase === 'over' ? 'فاز ' + TEAM[st.winner] + '!' : s.void ? 'تُعاد الجولة' : 'انتهت الجولة'}</h2>
     <table><tr><th></th><th style="color:var(--a)">${TEAM[0]}</th><th style="color:var(--b)">${TEAM[1]}</th></tr>
     <tr><td>المشاريع</td><td>${s.ground[0]}</td><td>${s.ground[1]}</td></tr>
     <tr><td>زيادة/خصم</td><td>${s.bonus[0]}</td><td>${s.bonus[1]}</td></tr>
@@ -99,11 +99,11 @@ function seatT(st, s, me) {
   if (G.trixFamily && st.owner === s) tags.push('<span class="tag" style="color:var(--a)">المملكة</span>');
   if (st.dealer === s && !G.trixFamily) tags.push('<span class="tag">موزّع</span>');
   if (st.game === 'tarneeb61' && st.bid && st.bid.seat === s) tags.push(`<span class="tag" style="color:var(--a)">طالب ${st.bid.val}</span>`);
-  if (st.finished && st.finished.includes(s)) tags.push(`<span class="tag" style="color:var(--a)">خلّص ${st.finished.indexOf(s) + 1}</span>`);
-  if (st.seats && vc.members.includes(st.seats[s])) tags.push('<span class="tag" style="color:var(--b)">بالمكالمة</span>');
-  return `<div class="seatv ${act ? 'on' : ''}" data-seat="${s}" style="--tc:${G.teams || st.partner ? TC[s % 2] : 'var(--a)'}">
+  if (st.finished && st.finished.includes(s)) tags.push(`<span class="tag" style="color:var(--a)">أنهِ ${st.finished.indexOf(s) + 1}</span>`);
+  if (st.seats && vc.members.includes(st.seats[s])) tags.push('<span class="tag" style="color:var(--b)">في المكالمة</span>');
+  return `<div class="seatv ${act ? 'on' : ''}" data-seat="${s}" style="--tc:${G.teams || st.partner ? TC[s % 2] : 'var(--a)'}">${tmrBadge(s)}
     ${b ? `<div class="bubble">${esc(b.text)}</div>` : ''}
-    ${avatarHTML(st.avs ? st.avs[s] : (st.bots && st.bots[s] ? 'bot' : ''), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
+    ${avatarHTML(seatAv(st, s), name, '', `<span class="cnt">${st.hands[s].length}</span>`)}
     <div><div class="nm">${esc(name)}</div><div class="sinfo">${info}</div>${tags.join('')}</div>${dblFor(st, s)}</div>`;
 }
 function dblFor(st, s) {
@@ -124,8 +124,8 @@ function trickTable() {
   if (ui.armed && !hand.includes(ui.armed)) ui.armed = null;
   const teamSum = t => st.game === 'tarneeb61' ? st.tscores[t] : st.scores[t] + st.scores[t + 2] + liveHs(st, t) + liveHs(st, t + 2);
   const pills = (G.teams || st.partner)
-    ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'إحنا' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'إحنا' : 'هم'} <b>${teamSum(1)}</b></span>`
-    : `<span class="sp">إلك <b>${me >= 0 ? st.scores[me] + liveHs(st, me) : 0}</b></span>`;
+    ? `<span class="sp"><span class="dot" style="background:var(--a)"></span>${myT === 0 ? 'نحن' : 'هم'} <b>${teamSum(0)}</b></span><span class="sp"><span class="dot" style="background:var(--b)"></span>${myT === 1 ? 'نحن' : 'هم'} <b>${teamSum(1)}</b></span>`
+    : `<span class="sp">لك <b>${me >= 0 ? st.scores[me] + liveHs(st, me) : 0}</b></span>`;
   // info chips
   const chips = [];
   if (st.trump) chips.push(`<span class="ichip">الطرنيب <b class="${'HD'.includes(st.trump) ? 'red' : ''}">${SUIT[st.trump]}</b> ${Games.SN[st.trump]}</span>`);
@@ -143,7 +143,7 @@ function trickTable() {
     centre = `<div class="ladders">${['S', 'H', 'C', 'D'].map(su => {
       const Lr = st.ladder[su]; let cards = '';
       if (Lr) for (let r = Lr[0]; r <= Lr[1]; r++) cards += cardHTML(su + r);
-      return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">ناطر الشبّ</span>'}</div></div>`;
+      return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">بانتظار الشبّ</span>'}</div></div>`;
     }).join('')}</div>`;
   } else {
     const posOf = x => (x === base ? 'pb' : x === R ? 'pr' : x === P ? 'pt' : 'pl');
@@ -151,11 +151,11 @@ function trickTable() {
     let cls = '', delay = 0, hideAll = false;
     if (st.trickDone) {
       const t0 = ui.doneAt[doneKey] || (ui.doneAt[doneKey] = Date.now()), el = Date.now() - t0;
-      if (el > 1500) hideAll = true; else { cls = 'collect c-' + posOf(st.lastWinner); delay = 750 - el; setTimeout(render, 1560 - el); }
+      if (el > 2700) hideAll = true; else { cls = 'collect c-' + posOf(st.lastWinner); delay = 2000 - el; setTimeout(render, 2760 - el); }
     }
     const slot = (x, pos) => {
       const t = hideAll ? null : st.trick.find(y => y.seat === x); let extra = '';
-      if (t) { const k = st.handNo + ':' + t.card; if (!ui.seenCard.has(k)) { ui.seenCard.add(k); if (!st.trickDone) extra = 'in-' + pos; } }
+      if (t) { const k = st.handNo + ':' + t.card; if (!ui.seenCard.has(k)) { ui.seenCard.add(k); extra = 'in-' + pos; } }
       return `<div class="slot ${pos} ${st.trickDone && st.lastWinner === x && !hideAll ? 'win' : ''}">${t ? cardHTML(t.card, extra) : ''}</div>`;
     };
     const pt = st.prevTrick && (!st.trickDone || hideAll) ? st.prevTrick : (st.trickDone && hideAll ? st.prevTrick : null);
@@ -165,49 +165,49 @@ function trickTable() {
   // status + actions
   let status = '', acts = '';
   const nm = s => esc(st.names[s]);
-  if (a >= 0 && !myAct) status = { bid: 'عم يطلب', trump: 'عم يختار الطرنيب', choose: 'عم يختار الطلب', double: 'عم يقرّر الدبل', play: 'دوره', trix: 'دوره' }[st.phase] + ': ' + nm(a) + (st.bots[a] ? ' (بوت)' : '');
+  if (a >= 0 && !myAct) status = { bid: 'يزايد', trump: 'يختار الطرنيب', choose: 'يختار الطلب', double: 'يقرّر الدبل', play: 'دوره', trix: 'دوره' }[st.phase] + ': ' + nm(a) + (st.bots[a] ? ' (بوت)' : '');
   if (myAct) {
     if (st.phase === 'bid' && st.game === 'tarneeb61') {
-      const min = st.bid ? st.bid.val + 1 : 7; status = 'شو بتطلب؟';
+      const min = st.bid ? st.bid.val + 1 : 7; status = 'كم تطلب؟';
       for (let v = min; v <= 13; v++) acts += `<button class="btn sm" data-a="bid" data-n="${v}">${v}</button>`;
       acts += `<button class="btn alt sm" data-a="bid" data-n="0">باس</button>`;
     } else if (st.phase === 'bid') {
-      status = 'كم لمّة بتجيب؟';
+      status = 'كم لمّة ستأخذ؟';
       for (let v = 2; v <= 13; v++) acts += `<button class="btn ${v <= 5 ? '' : 'alt'} sm bidb" data-a="bid" data-n="${v}">${v}</button>`;
     } else if (st.phase === 'trump') {
-      status = 'اختار الطرنيب';
+      status = 'اختر الطرنيب';
       acts = ['S', 'H', 'C', 'D'].map(su => `<button class="btn alt sm suitb ${'HD'.includes(su) ? 'red' : ''}" data-a="trump" data-s="${su}">${SUIT[su]} ${Games.SN[su]}</button>`).join('');
     } else if (st.phase === 'choose') {
-      status = 'مملكتك: اختار الطلب';
+      status = 'مملكتك: اختر الطلب';
       acts = G.contracts.map((c, i) => st.used.includes(i) ? '' : `<button class="btn sm" data-a="choose" data-i="${i}">${Games.CN[c]}</button>`).join('');
     } else if (st.phase === 'double') {
       const el = G.dblCards(st, me); ui.dblSel = (ui.dblSel || []).filter(x => el.includes(x));
-      status = 'بدك تدبّل؟ اختار الورق اللي بدك تدبّله';
+      status = 'هل تريد الدبل؟ اختر الأوراق التي تريد دبلها';
       acts = `<div class="mini dbl">${el.map(c => `<span data-a="dblT" data-c="${c}" class="${ui.dblSel.includes(c) ? 'dsel' : ''}">${cardHTML(c)}</span>`).join('')}</div>
         <button class="btn sm" data-a="dblDone">${ui.dblSel.length ? 'دبّل (' + ui.dblSel.length + ')' : 'بدون دبل'}</button>`;
     } else if (st.phase === 'play') status = 'دورك: العب ورقة';
-    else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'ما معك ورقة بتركب'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
+    else if (st.phase === 'trix') { status = legalSet.length ? 'دورك: نزّل ورقة على الأرض' : 'لا تملك ورقة مناسبة'; if (!legalSet.length) acts = `<button class="btn sm" data-a="trixPass">باس</button>`; }
   }
   const last = st.log[st.log.length - 1] || '';
   const chatBtn = social() ? `<button class="ic" data-a="chat" aria-label="الدردشة">${ICON.chat}${ui.unread ? `<span class="badge">${ui.unread}</span>` : ''}</button>
-    <button class="ic ${vc.on ? (vc.muted ? 'vmute' : 'von') : ''}" data-a="voice" aria-label="المكالمة">${vc.on ? (vc.muted || !vc.stream ? ICON.micoff : ICON.mic) : ICON.phone}</button>` : '';
+    ${voiceBtns()}` : '';
   return `<div class="game tg">
-  <div class="top"><button class="ic" data-a="exit" aria-label="طلاع">${ICON.x}</button><div class="score">${pills}</div>${chatBtn}<button class="ic" data-a="tmenu" aria-label="الإعدادات">${ICON.gear}</button></div>
+  <div class="top"><button class="ic" data-a="exit" aria-label="خروج">${ICON.x}</button><div class="score">${pills}</div>${chatBtn}<button class="ic" data-a="tmenu" aria-label="الإعدادات">${ICON.gear}</button></div>
   <div class="partner">${seatT(st, P, me)}</div>
   <div class="mid">${seatT(st, R, me)}<div class="board tboard"><div class="chips">${chips.join('')}</div>${centre}<div class="last">${esc(last)}</div></div>${seatT(st, L, me)}</div>
-  <div class="bar"><div class="status">${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
-  <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اكبس مرتين على الورقة أو اسحبها لفوق لتلعبها</div>' : ''}</div>
+  <div class="bar"><div class="status">${tmrBadge(me)}${status}</div>${acts ? `<div class="acts2">${acts}</div>` : ''}</div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map((id, i) => cardHTML(id, (legalSet && !legalSet.includes(id) ? 'dim ' : '') + (ui.armed === id ? 'sel ' : '') + (dealNew ? 'deal' : ''), dealNew ? `style="animation-delay:${i * 45}ms"` : '')).join('')}</div>${myAct && (st.phase === 'play' || st.phase === 'trix') && legalSet && legalSet.length ? '<div class="hint">اضغط مرتين على الورقة أو اسحبها إلى الأعلى لتلعبها</div>' : ''}</div>
   </div>${overlays2(me)}`;
 }
 function overlays2(me) {
   const st = ui.st, G = gameOf(st); let h = '';
   if (ui.confirmExit) h += exitBox();
-  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجوال"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجوال، وما حدا يطلّع.</p><button class="btn" data-a="reveal">شوف ورقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
+  else if (ui.mode === 'local' && ui.hidden && G.actor(st) >= 0 && !st.bots[G.actor(st)]) h += `<div class="ov cen handoff"><div class="box" style="text-align:center" role="dialog" aria-modal="true" aria-label="تسليم الجهاز"><h2>دور ${esc(st.names[G.actor(st)])}</h2><p class="muted">سلّموه الجهاز، ولا ينظر أحد.</p><button class="btn" data-a="reveal">أظهر أوراقي</button><div class="acts" style="justify-content:center"><button class="btn alt sm" data-a="exit">حفظ وخروج</button></div></div></div>`;
   else if (st.phase === 'handEnd' || st.phase === 'over') {
     const S = st.summary || { rows: [], notes: [] };
     const cols = S.kind === 'team' ? [TEAM[0], TEAM[1]] : st.names;
-    let title = 'خلصت الجولة';
-    if (st.phase === 'over') title = st.winner != null ? 'ربح ' + TEAM[st.winner] + '!' : 'ربح ' + st.names[st.winnerSeat] + '!';
+    let title = 'انتهت الجولة';
+    if (st.phase === 'over') title = st.winner != null ? 'فاز ' + TEAM[st.winner] + '!' : 'فاز ' + st.names[st.winnerSeat] + '!';
     const teamRow = S.kind === 'players' && (G.teams || st.partner) ? `<tr><td>مجموع الفريق</td>${[0, 1, 2, 3].map(i => `<td><b>${st.scores[i % 2] + st.scores[i % 2 + 2]}</b></td>`).join('')}</tr>` : '';
     h += `<div class="ov cen"><div class="box"><h2>${title}</h2>
     <div class="scroll"><table><tr><th></th>${cols.map((c, i) => `<th style="color:${S.kind === 'team' ? TC[i] : (G.teams || st.partner ? TC[i % 2] : 'inherit')}">${esc(c)}</th>`).join('')}</tr>
@@ -221,7 +221,7 @@ function overlays2(me) {
   return h;
 }
 
-function chatPanel() { return `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b>${vc.on ? `<button class="chip" data-a="voiceLeave">اطلع من المكالمة</button>` : `<button class="chip on" data-a="voice">ادخل المكالمة</button>`}<button class="ic" data-a="chatClose" aria-label="سكّر">${ICON.x}</button></div>
-    <div class="msgs" id="msgs" data-stop="1">${ui.chat.map(m => `<div class="msg ${m.id === uid ? 'me' : ''}"><small>${esc(m.name)}</small>${m.audio ? `<button class="chip" data-a="play" data-m="${m.mid}">▶ رسالة صوتية</button>` : esc(m.text)}</div>`).join('') || '<div class="muted">ما في رسائل لسا</div>'}</div>
-    <div class="row"><input id="chatin" class="grow" placeholder="اكتب رسالة" maxlength="200"><button class="ic" data-a="send" aria-label="ابعت">${ICON.send}</button><button class="mic ${rec.mr ? 'rec' : ''}" id="mic" aria-label="اضغط مطوّل وسجّل">${ICON.mic}</button></div>
-    <div class="muted">اضغط مطوّل على المايك وسجّل، وشيل إصبعك لتبعت.</div></div>`; }
+function chatPanel() { return `<div class="ov" data-a="chatClose" style="background:rgba(0,0,0,.3)"></div><div class="chat"><div class="row" style="justify-content:space-between"><b>الدردشة</b>${vc.on ? `<button class="chip" data-a="callPop">🎙️ المكالمة</button>` : `<button class="chip on" data-a="voice">انضم إلى المكالمة</button>`}<button class="ic" data-a="chatClose" aria-label="إغلاق">${ICON.x}</button></div>
+    <div class="msgs" id="msgs" data-stop="1">${ui.chat.map(m => `<div class="msg ${m.id === uid ? 'me' : ''}"><small>${esc(m.name)}</small>${m.audio ? `<button class="chip" data-a="play" data-m="${m.mid}">▶ رسالة صوتية</button>` : esc(m.text)}</div>`).join('') || '<div class="muted">لا توجد رسائل بعد</div>'}</div>
+    <div class="row"><input id="chatin" class="grow" placeholder="اكتب رسالة" maxlength="200"><button class="ic" data-a="send" aria-label="أرسل">${ICON.send}</button><button class="mic ${rec.mr ? 'rec' : ''}" id="mic" aria-label="اضغط مطوّل وسجّل">${ICON.mic}</button></div>
+    <div class="muted">اضغط مطوّلاً على الميكروفون وسجّل، وارفع إصبعك للإرسال.</div></div>`; }

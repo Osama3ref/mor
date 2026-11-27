@@ -83,6 +83,7 @@ h1,h2,h3{margin:0;line-height:1.2}
 .nav .badge{top:2px;left:12px}
 /* avatar */
 .avt{--s:44px;width:var(--s);height:var(--s);border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:calc(var(--s)*.44);color:#fff;flex:none;position:relative;box-shadow:inset 0 -3px 0 rgba(0,0,0,.18),0 0 0 2px rgba(255,255,255,.15)}
+.avt img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block}
 .avt.lg{--s:84px}.avt.sm{--s:34px}.avt.xs{--s:26px}
 .avpick{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px}
 .avpick button{display:grid;place-items:center;padding:4px;border-radius:50%}
@@ -263,7 +264,7 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .slot.pr{right:0;top:50%;transform:translateY(-50%)}.slot.pl{left:0;top:50%;transform:translateY(-50%)}
 .slot.win .c{box-shadow:0 0 0 3px var(--gold),0 0 20px var(--gold)}
 .last{font-size:12px;color:rgba(255,255,255,.65);text-align:center;min-height:16px}
-.lastt{align-self:flex-end;margin-inline-end:4px;background:rgba(0,0,0,.32);border-radius:12px;padding:4px 7px;font-size:10.5px;color:rgba(255,255,255,.75);display:flex;flex-direction:column;gap:2px}
+.lastt{position:fixed;top:calc(52px + env(safe-area-inset-top));left:6px;z-index:6;background:rgba(0,0,0,.55);border:1px solid var(--line2);box-shadow:0 6px 16px rgba(0,0,0,.4);border-radius:12px;padding:4px 7px;font-size:10.5px;color:rgba(255,255,255,.75);display:flex;flex-direction:column;gap:2px}
 .lastt .lrow .c{--w:24px;margin-right:-6px}.lastt .lrow .c .ix b{font-size:10px}.lastt .lrow .c .ix i{font-size:9px}
 .ladders{display:flex;flex-direction:column;gap:6px;width:100%;padding:6px 2px}
 .lad{display:flex;align-items:center;gap:8px}.ls{font-size:22px;width:22px;text-align:center;color:#fff}.ls.red{color:#ff8a92}
@@ -325,6 +326,19 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .rs{justify-content:center}
 .clog{margin:6px auto 0;max-width:420px;font-size:12px;color:var(--dim);text-align:center;line-height:1.6}
 .mine{margin-top:8px}.mycoins{font-size:15px;text-align:center}.mycoins b{font:600 20px Oswald,sans-serif;color:var(--gold)}
+/* discard picker */
+.dpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;margin:12px 0;direction:ltr}
+.dp{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px;border-radius:12px;opacity:.45;transition:opacity .15s,transform .15s}
+.dp .c{--w:52px}.dp.on{opacity:1}.dp.on .c{box-shadow:0 0 0 2px var(--gold)}.dp.first .c{box-shadow:0 0 0 3px var(--gold),0 0 14px var(--gold);transform:translateY(-4px)}
+.dp .dn{font:600 11px Oswald,sans-serif;color:var(--dim)}
+/* turn timer */
+.tmr{position:absolute;top:-8px;left:-6px;z-index:3;min-width:28px;height:28px;border-radius:14px;padding:0 6px;display:grid;place-items:center;background:var(--gold);color:var(--btnink);font:600 15px Oswald,sans-serif;box-shadow:0 3px 8px rgba(0,0,0,.45)}
+.status .tmr{position:static;margin-inline-end:6px}
+.tmr.low{background:var(--red);color:#fff;animation:pulse .6s infinite}
+/* flights */
+.flyer{position:fixed;left:0;top:0;z-index:80;pointer-events:none}.flyer .c{--w:46px;box-shadow:0 12px 24px rgba(0,0,0,.5)}
+.flabel{position:fixed;z-index:81;transform:translateX(-50%);pointer-events:none;background:rgba(10,14,30,.92);border:1px solid var(--gold);color:#fff;font-weight:800;font-size:13px;padding:5px 12px;border-radius:12px;white-space:nowrap;animation:flab 2.3s ease forwards}
+@keyframes flab{0%{opacity:0;transform:translate(-50%,8px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-10px)}}
 /* animations */
 @keyframes turn{0%,100%{box-shadow:0 0 0 3px var(--tc),0 0 0 0 transparent}50%{box-shadow:0 0 0 3px var(--tc),0 0 22px 6px var(--tc)}}
 @keyframes pulse{50%{opacity:.7}}
@@ -333,10 +347,10 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 @keyframes up{from{transform:translateY(40px);opacity:0}}
 @keyframes inB{from{transform:translateY(170px) scale(.8) rotate(-6deg);opacity:.2}}@keyframes inT{from{transform:translateY(-170px) scale(.8) rotate(6deg);opacity:.2}}
 @keyframes inL{from{transform:translateX(-150px) scale(.8) rotate(-8deg);opacity:.2}}@keyframes inR{from{transform:translateX(150px) scale(.8) rotate(8deg);opacity:.2}}
-.c.in-pb{animation:inB .32s cubic-bezier(.2,.8,.3,1)}.c.in-pt{animation:inT .32s cubic-bezier(.2,.8,.3,1)}.c.in-pl{animation:inL .32s cubic-bezier(.2,.8,.3,1)}.c.in-pr{animation:inR .32s cubic-bezier(.2,.8,.3,1)}
+.c.in-pb{animation:inB .6s cubic-bezier(.2,.8,.3,1)}.c.in-pt{animation:inT .6s cubic-bezier(.2,.8,.3,1)}.c.in-pl{animation:inL .6s cubic-bezier(.2,.8,.3,1)}.c.in-pr{animation:inR .6s cubic-bezier(.2,.8,.3,1)}
 @keyframes toB{to{transform:translateY(180px) scale(.4) rotate(10deg);opacity:0}}@keyframes toT{to{transform:translateY(-180px) scale(.4) rotate(-10deg);opacity:0}}
 @keyframes toL{to{transform:translateX(-160px) scale(.4);opacity:0}}@keyframes toR{to{transform:translateX(160px) scale(.4);opacity:0}}
-.trickbox.collect .c{animation-duration:.45s;animation-timing-function:ease-in;animation-fill-mode:forwards;animation-delay:var(--cd)}
+.trickbox.collect .c{animation-duration:.7s;animation-timing-function:ease-in;animation-fill-mode:forwards;animation-delay:var(--cd)}
 .trickbox.c-pb .c{animation-name:toB}.trickbox.c-pt .c{animation-name:toT}.trickbox.c-pl .c{animation-name:toL}.trickbox.c-pr .c{animation-name:toR}
 @keyframes deal{from{transform:translateY(-240px) rotate(-10deg) scale(.7);opacity:0}}
 .hand .c.deal{animation:deal .4s cubic-bezier(.2,.8,.3,1) backwards}

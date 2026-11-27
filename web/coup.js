@@ -18,17 +18,17 @@ const Coup = (() => {
   const live = p => p.cards.filter(c => !c.dead);
   const nm = (st, id) => (P(st, id) || {}).name || '';
   function newGame(players) {
-    if (players.length < 2) err('لازم لاعبين اتنين على الأقل');
+    if (players.length < 2) err('يلزم لاعبان على الأقل');
     if (players.length > 6) err('الحد الأقصى 6 لاعبين');
     const deck = shuffle(Object.keys(CH).flatMap(c => [c, c, c]));
     const ps = shuffle(players.slice()).map(p => ({ id: p.id, name: p.name, av: p.av || '', coins: 2, cards: [{ c: deck.pop() }, { c: deck.pop() }] }));
-    const st = { game: 'coup', phase: 'turn', players: ps, deck, turn: 0, act: null, resp: {}, block: null, queue: [], lose: null, exch: null, winner: null, log: ['بلّشت اللعبة'], round: 1 };
+    const st = { game: 'coup', phase: 'turn', players: ps, deck, turn: 0, act: null, resp: {}, block: null, queue: [], lose: null, exch: null, winner: null, log: ['بدأت اللعبة'], round: 1 };
     if (ps.length === 2) ps[0].coins = 1; // the first player starts with one coin in a two player game
     return st;
   }
   const cur = st => st.players[st.turn];
   function nextTurn(st) {
-    if (alive(st).length <= 1) { st.phase = 'over'; st.winner = alive(st)[0].id; st.log.push('ربح ' + alive(st)[0].name); return; }
+    if (alive(st).length <= 1) { st.phase = 'over'; st.winner = alive(st)[0].id; st.log.push('فاز ' + alive(st)[0].name); return; }
     let i = st.turn;
     do { i = (i + 1) % st.players.length; } while (!live(st.players[i]).length);
     if (i <= st.turn) st.round++;
@@ -57,8 +57,8 @@ const Coup = (() => {
   function killCard(st, p, i, why) {
     p.cards[i].dead = true;
     st.log.push(p.name + ' خسر ' + CH[p.cards[i].c] + (why ? ' (' + why + ')' : ''));
-    if (!live(p).length) st.log.push(p.name + ' طلع من اللعبة');
-    if (alive(st).length <= 1) { st.phase = 'over'; st.winner = alive(st)[0].id; st.log.push('ربح ' + alive(st)[0].name); st.queue = []; }
+    if (!live(p).length) st.log.push(p.name + ' خرج من اللعبة');
+    if (alive(st).length <= 1) { st.phase = 'over'; st.winner = alive(st)[0].id; st.log.push('فاز ' + alive(st)[0].name); st.queue = []; }
   }
   function exec(st) {
     const a = st.act, me = P(st, a.by), t = a.target && P(st, a.target), A = ACT[a.k];
@@ -69,7 +69,7 @@ const Coup = (() => {
       const draw = [st.deck.pop(), st.deck.pop()];
       st.exch = { opts: [...live(me).map(c => c.c), ...draw], keep: live(me).length };
       st.phase = 'exchange'; return true;
-    } else if (A.gain) { me.coins += A.gain; st.log.push(me.name + ' أخد ' + A.gain + ' (' + A.name + ')'); }
+    } else if (A.gain) { me.coins += A.gain; st.log.push(me.name + ' أخذ ' + A.gain + ' (' + A.name + ')'); }
     return false;
   }
   function eligible(st) {
@@ -80,47 +80,47 @@ const Coup = (() => {
     return [];
   }
   function act(s, id, k, target) {
-    const st = clone(s); if (st.phase !== 'turn') err('مش وقتها');
-    const me = cur(st); if (me.id !== id) err('مش دورك');
-    const A = ACT[k]; if (!A) err('حركة مش معروفة');
-    if (me.coins >= 10 && k !== 'coup') err('معك 10 أو أكتر: لازم تعمل انقلاب');
-    if (A.cost && me.coins < A.cost) err('ما معك مصاري كفاية');
-    if (A.target) { const t = P(st, target); if (!t || t.id === id || !live(t).length) err('اختار لاعب'); }
+    const st = clone(s); if (st.phase !== 'turn') err('ليس الآن');
+    const me = cur(st); if (me.id !== id) err('ليس دورك');
+    const A = ACT[k]; if (!A) err('حركة غير معروفة');
+    if (me.coins >= 10 && k !== 'coup') err('معك 10 أو أكثر: يجب أن تنفّذ انقلاباً');
+    if (A.cost && me.coins < A.cost) err('لا تملك مالاً كافياً');
+    if (A.target) { const t = P(st, target); if (!t || t.id === id || !live(t).length) err('اختر لاعباً'); }
     if (A.cost) me.coins -= A.cost;
     st.act = { k, by: id, target: A.target ? target : null, challenged: false };
-    st.log.push(me.name + ': ' + A.name + (A.target ? ' على ' + nm(st, target) : '') + (A.claim ? ' (بيدّعي ' + CH[A.claim] + ')' : ''));
+    st.log.push(me.name + ': ' + A.name + (A.target ? ' على ' + nm(st, target) : '') + (A.claim ? ' (يدّعي ' + CH[A.claim] + ')' : ''));
     if (k === 'income' || k === 'coup') { st.queue = [{ k: 'exec' }, { k: 'next' }]; return run(st); }
     st.phase = 'respond'; st.resp = {};
     if (!eligible(st).length) { st.queue = [{ k: 'exec' }, { k: 'next' }]; return run(st); }
     return st;
   }
   function pass(s, id) {
-    const st = clone(s); if (st.phase !== 'respond' && st.phase !== 'block') err('مش وقتها');
-    if (!eligible(st).includes(id)) err('مش مطلوب منك شي');
+    const st = clone(s); if (st.phase !== 'respond' && st.phase !== 'block') err('ليس الآن');
+    if (!eligible(st).includes(id)) err('لا شيء مطلوب منك');
     st.resp[id] = 'pass';
     if (eligible(st).every(x => st.resp[x])) {
       if (st.phase === 'respond') st.queue = [{ k: 'exec' }, { k: 'next' }];
-      else { st.log.push('انمنعت الحركة'); st.queue = [{ k: 'next' }]; }
+      else { st.log.push('مُنعت الحركة'); st.queue = [{ k: 'next' }]; }
       return run(st);
     }
     return st;
   }
   function challenge(s, id) {
     const st = clone(s);
-    if (!eligible(st).includes(id)) err('ما فيك تشكّك هلّق');
+    if (!eligible(st).includes(id)) err('لا يمكنك التشكيك الآن');
     const ch = P(st, id);
     if (st.phase === 'respond') {
-      const a = st.act, A = ACT[a.k]; if (!A.claim || a.challenged) err('ما في ادعاء لتشكّك فيه');
+      const a = st.act, A = ACT[a.k]; if (!A.claim || a.challenged) err('لا يوجد ادعاء لتشكّك فيه');
       const me = P(st, a.by);
-      st.log.push(ch.name + ' شكّك بـ ' + me.name);
+      st.log.push(ch.name + ' شكّك في ' + me.name);
       if (live(me).some(c => c.c === A.claim)) {
-        st.log.push(me.name + ' كاشف ' + CH[A.claim] + '، الحق معه');
+        st.log.push(me.name + ' كشف ' + CH[A.claim] + '، وهو صادق');
         swapCard(st, me, A.claim); a.challenged = true;
-        st.queue = [{ k: 'lose', p: id, why: 'شكّ غلط' }];
+        st.queue = [{ k: 'lose', p: id, why: 'شكّ خاطئ' }];
         const stillBlock = A.blockBy && alive(st).some(p => p.id !== a.by && (A.anyBlock || p.id === a.target));
         st.queue.push(stillBlock ? { k: 'respond' } : { k: 'exec' }, ...(stillBlock ? [] : [{ k: 'next' }]));
       } else {
-        st.log.push(me.name + ' كان عم يكذب');
+        st.log.push(me.name + ' كان يكذب');
         if (A.cost) me.coins += A.cost;
         st.queue = [{ k: 'lose', p: a.by, why: 'كذب' }, { k: 'next' }];
       }
@@ -128,32 +128,32 @@ const Coup = (() => {
     }
     if (st.phase === 'block') {
       const b = st.block, bp = P(st, b.by);
-      st.log.push(ch.name + ' شكّك بمنع ' + bp.name);
+      st.log.push(ch.name + ' شكّك في منع ' + bp.name);
       if (live(bp).some(c => c.c === b.as)) {
-        st.log.push(bp.name + ' كاشف ' + CH[b.as] + '، الحركة انمنعت');
+        st.log.push(bp.name + ' كشف ' + CH[b.as] + '، فمُنعت الحركة');
         swapCard(st, bp, b.as);
-        st.queue = [{ k: 'lose', p: id, why: 'شكّ غلط' }, { k: 'next' }];
+        st.queue = [{ k: 'lose', p: id, why: 'شكّ خاطئ' }, { k: 'next' }];
       } else {
-        st.log.push(bp.name + ' كان عم يكذب بالمنع');
+        st.log.push(bp.name + ' كان يكذب في المنع');
         st.queue = [{ k: 'lose', p: b.by, why: 'كذب' }, { k: 'exec' }, { k: 'next' }];
       }
       return run(st);
     }
-    err('مش وقتها');
+    err('ليس الآن');
   }
   function block(s, id, as) {
-    const st = clone(s); if (st.phase !== 'respond') err('مش وقتها');
+    const st = clone(s); if (st.phase !== 'respond') err('ليس الآن');
     const a = st.act, A = ACT[a.k];
-    if (!A.blockBy || !A.blockBy.includes(as)) err('ما فيك تمنع هيك');
-    if (!A.anyBlock && a.target !== id) err('بس المستهدف بيمنع');
-    if (!eligible(st).includes(id)) err('ما فيك تمنع');
+    if (!A.blockBy || !A.blockBy.includes(as)) err('لا يمكنك المنع هكذا');
+    if (!A.anyBlock && a.target !== id) err('المستهدف وحده يمنع');
+    if (!eligible(st).includes(id)) err('لا يمكنك المنع');
     st.block = { by: id, as }; st.phase = 'block'; st.resp = {};
-    st.log.push(nm(st, id) + ' بيمنع بـ ' + CH[as]);
+    st.log.push(nm(st, id) + ' يمنع بـ ' + CH[as]);
     return st;
   }
   function loseCard(s, id, i) {
-    const st = clone(s); if (st.phase !== 'lose' || st.lose.p !== id) err('مش مطلوب منك');
-    const p = P(st, id); if (!p.cards[i] || p.cards[i].dead) err('اختار ورقة عايشة');
+    const st = clone(s); if (st.phase !== 'lose' || st.lose.p !== id) err('لا شيء مطلوب منك');
+    const p = P(st, id); if (!p.cards[i] || p.cards[i].dead) err('اختر ورقة غير مكشوفة');
     killCard(st, p, i, st.lose.why); st.lose = null;
     if (st.phase === 'over') return st;
     st.phase = 'run';
@@ -162,12 +162,12 @@ const Coup = (() => {
     return st;
   }
   function exchange(s, id, keepIdx) {
-    const st = clone(s); if (st.phase !== 'exchange' || st.act.by !== id) err('مش وقتها');
-    const e = st.exch; if (!Array.isArray(keepIdx) || keepIdx.length !== e.keep || new Set(keepIdx).size !== e.keep) err('اختار ' + e.keep + ' ورقات');
+    const st = clone(s); if (st.phase !== 'exchange' || st.act.by !== id) err('ليس الآن');
+    const e = st.exch; if (!Array.isArray(keepIdx) || keepIdx.length !== e.keep || new Set(keepIdx).size !== e.keep) err('اختر ' + e.keep + ' أوراق');
     const p = P(st, id), keep = keepIdx.map(i => e.opts[i]);
     e.opts.forEach((c, i) => { if (!keepIdx.includes(i)) st.deck.push(c); }); shuffle(st.deck);
     let k = 0; p.cards.forEach(c => { if (!c.dead) c.c = keep[k++]; });
-    st.log.push(p.name + ' بدّل ورقاته'); st.exch = null;
+    st.log.push(p.name + ' بدّل أوراقه'); st.exch = null;
     st.phase = 'run'; st.queue = st.queue.length ? st.queue : [{ k: 'next' }]; run(st);
     if (st.phase === 'run') nextTurn(st);
     return st;

@@ -9,17 +9,17 @@ const Mafia = (() => {
   // players: [{id,name,av}], cfg: {mafia, doctor, detective, reveal, narrator (uid or null)}
   function newGame(players, cfg) {
     const n = players.length;
-    if (n < 4) err('لازم 4 لاعبين على الأقل');
+    if (n < 4) err('يلزم 4 لاعبين على الأقل');
     const m = Math.min(Math.max(1, cfg.mafia || defMafia(n)), maxMafia(n));
     const roles = Array(m).fill('mafia');
     if (cfg.doctor) roles.push('doctor');
     if (cfg.detective) roles.push('detective');
     while (roles.length < n) roles.push('town');
-    if (roles.length > n) err('الأدوار أكتر من اللاعبين');
+    if (roles.length > n) err('الأدوار أكثر من اللاعبين');
     shuffle(roles);
     return {
       game: 'mafia', phase: 'roles', day: 0,
-      cfg: { mafia: m, doctor: !!cfg.doctor, detective: !!cfg.detective, reveal: cfg.reveal !== false, narrator: cfg.narrator || null },
+      cfg: { mafia: m, doctor: !!cfg.doctor, detective: !!cfg.detective, reveal: cfg.reveal !== false, narrator: cfg.narrator || null, voice: cfg.voice || 'all' },
       players: players.map((p, i) => ({ id: p.id, name: p.name, av: p.av || '', role: roles[i], alive: true })),
       ready: {}, night: { kill: {}, save: null, check: null }, lastSave: null, checks: {}, votes: {}, events: [], winner: null, log: []
     };
@@ -36,21 +36,37 @@ const Mafia = (() => {
   }
   function finish(st) { const w = winner(st); if (w) { st.phase = 'over'; st.winner = w; } return !!w; }
   function setReady(s, id) {
-    const st = clone(s); if (st.phase !== 'roles') err('مش وقتها');
-    if (!P(st, id)) err('إنت مش لاعب'); st.ready[id] = true;
+    const st = clone(s); if (st.phase !== 'roles') err('ليس الآن');
+    if (!P(st, id)) err('أنت لست لاعباً'); st.ready[id] = true;
     if (!st.cfg.narrator && st.players.every(p => st.ready[p.id])) startNight(st);
     return st;
   }
+  // the night is called role by role, like a narrator would: mafia, then doctor, then detective
+  const steps = st => ['mafia', ...(st.cfg.doctor ? ['doctor'] : []), ...(st.cfg.detective ? ['detective'] : [])];
   function startNight(st) {
-    st.phase = 'night'; st.day++; st.night = { kill: {}, save: null, check: null }; st.votes = {};
+    st.phase = 'night'; st.day++; st.night = { kill: {}, save: null, check: null, step: 'mafia' }; st.votes = {};
     st.log.push('الليلة ' + st.day);
   }
-  function nightDone(st) {
-    const n = st.night;
-    if (aliveRole(st, 'mafia').some(p => !n.kill[p.id])) return false;
-    if (st.cfg.doctor && aliveRole(st, 'doctor').length && !n.save) return false;
-    if (st.cfg.detective && aliveRole(st, 'detective').length && !n.check) return false;
+  function stepDone(st) {
+    const n = st.night, r = n.step;
+    if (r === 'mafia') return aliveRole(st, 'mafia').every(p => n.kill[p.id]);
+    if (r === 'doctor') return !aliveRole(st, 'doctor').length ? false : !!n.save;
+    if (r === 'detective') return !aliveRole(st, 'detective').length ? false : !!n.check;
     return true;
+  }
+  // a role whose players are all dead still gets called (so nobody learns who died), then skipped after a pause
+  const stepEmpty = st => st.night.step !== 'mafia' && !aliveRole(st, st.night.step).length;
+  function advanceStep(st) {
+    const s = steps(st), i = s.indexOf(st.night.step);
+    if (i < s.length - 1) { st.night.step = s[i + 1]; return; }
+    st.night.step = 'done';
+    if (!st.cfg.narrator) resolveNight(st);
+  }
+  function nightDone(st) { return st.night.step === 'done'; }
+  function skipStep(s, id, isHost) {
+    const st = clone(s); if (st.phase !== 'night') err('ليس وقت الليل');
+    if (st.cfg.narrator ? !isNarr(st, id) : !(isHost && stepEmpty(st))) err('لا يمكنك');
+    advanceStep(st); return st;
   }
   function mafiaTarget(st) {
     const picks = aliveRole(st, 'mafia').map(p => st.night.kill[p.id]).filter(Boolean);
@@ -62,45 +78,46 @@ const Mafia = (() => {
     return top.length === 1 ? top[0] : picks.find(x => top.includes(x));
   }
   function nightAct(s, id, target) {
-    const st = clone(s); if (st.phase !== 'night') err('مش وقت الليل');
-    const me = P(st, id); if (!me || !me.alive) err('ما فيك تلعب هلّق');
-    const t = P(st, target); if (!t || !t.alive) err('اختار لاعب عايش');
-    if (me.role === 'mafia') { if (t.role === 'mafia') err('ما فيك تختار حدا من المافيا'); st.night.kill[id] = target; }
-    else if (me.role === 'doctor') { if (st.lastSave === target) err('ما فيك تحمي نفس الشخص ليلتين ورا بعض'); st.night.save = target; }
+    const st = clone(s); if (st.phase !== 'night') err('ليس وقت الليل');
+    const me = P(st, id); if (!me || !me.alive) err('لا يمكنك اللعب الآن');
+    if (me.role !== st.night.step) err('ليس دورك الآن');
+    const t = P(st, target); if (!t || !t.alive) err('اختر لاعباً حيّاً');
+    if (me.role === 'mafia') { if (t.role === 'mafia') err('لا يمكنك اختيار أحد من المافيا'); st.night.kill[id] = target; }
+    else if (me.role === 'doctor') { if (st.lastSave === target) err('لا يمكنك حماية الشخص نفسه ليلتين متتاليتين'); st.night.save = target; }
     else if (me.role === 'detective') {
-      if (st.night.check) err('سألت هالليلة خلص'); if (target === id) err('اختار حدا غيرك');
+      if (st.night.check) err('سألتَ هذه الليلة بالفعل'); if (target === id) err('اختر شخصاً غيرك');
       st.night.check = target; (st.checks[id] = st.checks[id] || []).push({ id: target, mafia: t.role === 'mafia', day: st.day });
-    } else err('ما عندك دور بالليل');
-    if (!st.cfg.narrator && nightDone(st)) resolveNight(st);
+    } else err('ليس لك دور في الليل');
+    if (stepDone(st) && !st.cfg.narrator) advanceStep(st);
     return st;
   }
   function resolveNight(st) {
     const v = mafiaTarget(st), saved = v && st.night.save === v;
     st.lastSave = st.night.save;
     const ev = { kind: 'night', day: st.day, victim: saved ? null : v, saved: !!saved };
-    if (v && !saved) { const p = P(st, v); p.alive = false; ev.role = p.role; st.log.push(p.name + ' انقتل بالليل'); }
-    else st.log.push(saved ? 'الطبيب أنقذ حدا هالليلة' : 'ما حدا انقتل');
+    if (v && !saved) { const p = P(st, v); p.alive = false; ev.role = p.role; st.log.push(p.name + ' قُتل ليلاً'); }
+    else st.log.push(saved ? 'أنقذ الطبيب أحدهم هذه الليلة' : 'لم يُقتل أحد');
     st.events.push(ev); st.phase = 'day';
     finish(st);
   }
   function narrNext(s, id) {
-    const st = clone(s); if (!isNarr(st, id)) err('بس الراوي');
+    const st = clone(s); if (!isNarr(st, id)) err('للراوي فقط');
     if (st.phase === 'roles') startNight(st);
-    else if (st.phase === 'night') resolveNight(st);
+    else if (st.phase === 'night') { if (st.night.step === 'done') resolveNight(st); else advanceStep(st); }
     else if (st.phase === 'day') { st.phase = 'vote'; st.votes = {}; }
     else if (st.phase === 'vote') resolveVote(st);
     else if (st.phase === 'result') { if (!finish(st)) startNight(st); }
     return st;
   }
   function startVote(s, id, isHost) {
-    const st = clone(s); if (st.phase !== 'day') err('مش وقتها');
-    if (st.cfg.narrator ? !isNarr(st, id) : !isHost) err('صاحب الغرفة بيبلّش التصويت');
+    const st = clone(s); if (st.phase !== 'day') err('ليس الآن');
+    if (st.cfg.narrator ? !isNarr(st, id) : !isHost) err('صاحب الغرفة يبدأ التصويت');
     st.phase = 'vote'; st.votes = {}; return st;
   }
   function vote(s, id, target) {
-    const st = clone(s); if (st.phase !== 'vote') err('مش وقت التصويت');
-    const me = P(st, id); if (!me || !me.alive) err('ما فيك تصوّت');
-    if (target !== 'skip') { const t = P(st, target); if (!t || !t.alive) err('اختار لاعب عايش'); if (target === id) err('ما فيك تصوّت على حالك'); }
+    const st = clone(s); if (st.phase !== 'vote') err('ليس وقت التصويت');
+    const me = P(st, id); if (!me || !me.alive) err('لا يمكنك التصويت');
+    if (target !== 'skip') { const t = P(st, target); if (!t || !t.alive) err('اختر لاعباً حيّاً'); if (target === id) err('لا يمكنك التصويت على نفسك'); }
     st.votes[id] = target;
     if (!st.cfg.narrator && alive(st).every(p => st.votes[p.id])) resolveVote(st);
     return st;
@@ -111,14 +128,14 @@ const Mafia = (() => {
     const best = ks.length ? Math.max(...ks.map(k => c[k])) : 0;
     const top = ks.filter(k => c[k] === best);
     const ev = { kind: 'vote', day: st.day, out: null, counts: c, tie: top.length > 1 };
-    if (top.length === 1 && top[0] !== 'skip') { const p = P(st, top[0]); p.alive = false; ev.out = p.id; ev.role = p.role; st.log.push(p.name + ' طلع بالتصويت'); }
-    else st.log.push('ما حدا طلع بالتصويت');
+    if (top.length === 1 && top[0] !== 'skip') { const p = P(st, top[0]); p.alive = false; ev.out = p.id; ev.role = p.role; st.log.push(p.name + ' خرج بالتصويت'); }
+    else st.log.push('لم يخرج أحد بالتصويت');
     st.events.push(ev); st.phase = 'result';
     finish(st);
   }
   function nextFromResult(s, id, isHost) {
-    const st = clone(s); if (st.phase !== 'result') err('مش وقتها');
-    if (st.cfg.narrator ? !isNarr(st, id) : !isHost) err('صاحب الغرفة بيكمّل');
+    const st = clone(s); if (st.phase !== 'result') err('ليس الآن');
+    if (st.cfg.narrator ? !isNarr(st, id) : !isHost) err('صاحب الغرفة يُكمل');
     startNight(st); return st;
   }
   // what one viewer may know about another player's role
@@ -133,7 +150,7 @@ const Mafia = (() => {
     if (me.role === 'detective') { const c = (st.checks[me.id] || []).find(x => x.id === p.id); if (c) return c.mafia ? 'mafia' : 'notmafia'; }
     return null;
   }
-  return { ROLE, newGame, setReady, nightAct, narrNext, startVote, vote, tally, nextFromResult, seenRole, mafiaTarget, nightDone, alive, defMafia, maxMafia, winner, P,
+  return { ROLE, newGame, skipStep, stepEmpty, steps, setReady, nightAct, narrNext, startVote, vote, tally, nextFromResult, seenRole, mafiaTarget, nightDone, alive, defMafia, maxMafia, winner, P,
     actor: () => -1 };
 })();
 if (typeof module !== 'undefined') module.exports = Mafia;

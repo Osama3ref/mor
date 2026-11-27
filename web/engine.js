@@ -112,13 +112,13 @@ const Mor = (() => {
   const clone = st => JSON.parse(JSON.stringify(st));
   function err(msg) { const e = new Error(msg); e.game = true; throw e; }
   function need(st, seat, step) {
-    if (st.phase !== 'play') err('الجولة خلصت');
-    if (st.turn !== seat) err('مش دورك');
-    if (step && st.step !== step) err(step === 'draw' ? 'لازم تسحب أول' : 'سحبت خلص، نزّل أو ارمي');
+    if (st.phase !== 'play') err('انتهت الجولة');
+    if (st.turn !== seat) err('ليس دورك');
+    if (step && st.step !== step) err(step === 'draw' ? 'يجب أن تسحب أولاً' : 'سحبتَ بالفعل، نزّل أو ارمِ');
   }
   function takeFromHand(st, seat, ids) {
     const h = st.hands[seat];
-    for (const id of ids) { const i = h.indexOf(id); if (i < 0) err('الورقة مش معك'); h.splice(i, 1); }
+    for (const id of ids) { const i = h.indexOf(id); if (i < 0) err('الورقة ليست معك'); h.splice(i, 1); }
   }
   const morLeft = st => st.mor.findIndex(p => p);
   const canMor = (st, seat) => morLeft(st) >= 0 && ground(st, teamOf(seat)) >= MOR_MIN;
@@ -130,62 +130,62 @@ const Mor = (() => {
   const okMor = (st, seat) => decl(st, seat, 'mor') && canMor(st, seat);
   const okClose = (st, seat) => decl(st, seat, 'close') && canClose(st, seat);
   function emptyErr(st, seat) {
-    if (!st.declared || st.declared.seat !== seat) return 'لازم تعلن قبل ما تنزّل: «بدي المور» أو «بدي ضمّن»';
-    return st.declared.kind === 'mor' ? 'لازم 40 على الأرض لتاخد المور' : 'لازم 100 على الأرض لتضمّن';
+    if (!st.declared || st.declared.seat !== seat) return 'يجب أن تعلن قبل التنزيل: «أريد المور» أو «أريد الضمان»';
+    return st.declared.kind === 'mor' ? 'يلزم 40 على الأرض لتأخذ المور' : 'يلزم 100 على الأرض لتضمن';
   }
   function afterEmpty(st, seat) {
     const h = st.hands[seat];
     if (h.length > 1) return;
-    if (!okMor(st, seat) && !okClose(st, seat)) err((h.length ? 'لازم يضل معك ورقتين لترمي وحدة: ' : 'ما فيك تخلّص ورقك: ') + emptyErr(st, seat));
-    if (h.length === 1 && st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === h[0]) err('آخر ورقة رح تضل هي اللي أخدتها من الأرض، وما فيك ترجّعها');
+    if (!okMor(st, seat) && !okClose(st, seat)) err((h.length ? 'يجب أن تبقى معك ورقتان لترمي إحداهما: ' : 'لا يمكنك إنهاء أوراقك: ') + emptyErr(st, seat));
+    if (h.length === 1 && st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === h[0]) err('ستبقى آخر ورقة هي التي أخذتها من الأرض، ولا يمكنك إعادتها');
   }
   function declare(s, seat, kind) {
     const st = clone(s); need(st, seat, 'play');
-    if (kind !== 'mor' && kind !== 'close') err('إعلان غلط');
-    if (st.melded) err('الإعلان لازم يكون قبل ما تنزّل ورق بهالدور');
-    if (kind === 'mor' && morLeft(st) < 0) err('ما ضل مور');
+    if (kind !== 'mor' && kind !== 'close') err('إعلان خاطئ');
+    if (st.melded) err('يجب أن يكون الإعلان قبل تنزيل أوراق في هذا الدور');
+    if (kind === 'mor' && morLeft(st) < 0) err('لم يبقَ مور');
     st.declared = { seat, kind };
-    log(st, nm(st, seat) + (kind === 'mor' ? ' أعلن إنه بدّه ياخد المور' : ' أعلن إنه بدّه يضمّن'));
+    log(st, nm(st, seat) + (kind === 'mor' ? ' أعلن أنه يريد أخذ المور' : ' أعلن أنه يريد الضمان'));
     return st;
   }
   function undeclare(s, seat) {
     const st = clone(s); need(st, seat, 'play');
-    if (st.melded) err('ما فيك تلغي الإعلان بعد ما نزّلت');
+    if (st.melded) err('لا يمكنك إلغاء الإعلان بعد التنزيل');
     st.declared = null; return st;
   }
 
   function draw(s, seat) {
     const st = clone(s); need(st, seat, 'draw');
-    if (!st.stock.length) err('السحبة خلصت، خذ من الأرض');
+    if (!st.stock.length) err('انتهت السحبة، خذ من الأرض');
     const c = st.stock.pop(); st.hands[seat].push(c); st.step = 'play'; st.got = { seat, ids: [c] }; st.noDiscard = null; st.sinceDraw = 0;
     log(st, nm(st, seat) + ' سحب من السحبة');
     return st;
   }
   function takeDiscard(s, seat, index) {
     const st = clone(s); need(st, seat, 'draw');
-    if (index < 0 || index >= st.discard.length) err('ورقة غلط');
+    if (index < 0 || index >= st.discard.length) err('ورقة خاطئة');
     const got = st.discard.splice(index); st.sinceDraw = (st.sinceDraw || 0) + 1;
     st.hands[seat].push(...got); st.step = 'play'; st.got = { seat, ids: got };
     st.noDiscard = got.length === 1 ? { seat, id: got[0] } : null;
     (st.taken = st.taken || []).push({ seat, ids: got.slice(0, 6) }); if (st.taken.length > 24) st.taken.shift();
-    log(st, nm(st, seat) + ' أخد ' + got.length + ' من الأرض');
+    log(st, nm(st, seat) + ' أخذ ' + got.length + ' من الأرض');
     return st;
   }
   function meldNew(s, seat, ids) {
     const st = clone(s); need(st, seat, 'play');
-    if (ids.length < 3) err('التنزيلة لازم 3 ورقات أو أكتر');
-    const a = analyze(ids); if (!a) err('هالورق ما بيركب سيري ولا متل بعض');
+    if (ids.length < 3) err('التنزيلة يجب أن تكون 3 أوراق أو أكثر');
+    const a = analyze(ids); if (!a) err('هذه الأوراق لا تشكّل سيري ولا مجموعة متشابهة');
     takeFromHand(st, seat, ids);
     st.melds.push({ id: 'm' + (st.mid++), team: teamOf(seat), cards: a.order }); st.melded = true;
     afterEmpty(st, seat);
-    log(st, nm(st, seat) + ' نزّل ' + ids.length + ' ورقات');
+    log(st, nm(st, seat) + ' نزّل ' + ids.length + ' أوراق');
     return st;
   }
   function addToMeld(s, seat, meldId, ids) {
     const st = clone(s); need(st, seat, 'play');
-    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة مش موجودة');
-    if (m.team !== teamOf(seat)) err('ما فيك تزيد على تنزيلات الخصم');
-    const a = analyze([...m.cards, ...ids]); if (!a) err('ما بتركب على هالتنزيلة');
+    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة غير موجودة');
+    if (m.team !== teamOf(seat)) err('لا يمكنك الإضافة إلى تنزيلات الخصم');
+    const a = analyze([...m.cards, ...ids]); if (!a) err('لا تصلح لهذه التنزيلة');
     takeFromHand(st, seat, ids); m.cards = a.order; st.melded = true;
     afterEmpty(st, seat);
     log(st, nm(st, seat) + ' زاد ' + ids.length + ' على تنزيلة');
@@ -208,57 +208,57 @@ const Mor = (() => {
   }
   function swapWild(s, seat, meldId, id) {
     const st = clone(s); need(st, seat, 'play');
-    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة مش موجودة');
-    if (m.team !== teamOf(seat)) err('ما فيك تبدّل بتنزيلات الخصم');
+    const m = st.melds.find(x => x.id === meldId); if (!m) err('التنزيلة غير موجودة');
+    if (m.team !== teamOf(seat)) err('لا يمكنك التبديل في تنزيلات الخصم');
     const opts = swapOptions(m, id);
-    if (!opts.length) err('هالورقة ما بتنفع مكان الجوكر أو الـ2 هون');
+    if (!opts.length) err('هذه الورقة لا تصلح مكان الجوكر أو الـ2 هنا');
     const o = opts.find(x => isJ(x.w)) || opts[0];
     takeFromHand(st, seat, [id]); st.hands[seat].push(o.w); m.cards = o.order; st.melded = true;
-    log(st, nm(st, seat) + (isJ(o.w) ? ' فكّ جوكر' : ' بدّل 2'));
+    log(st, nm(st, seat) + (isJ(o.w) ? ' تحرير جوكر' : ' بدّل 2'));
     return st;
   }
   function takeMorNow(s, seat) {
     const st = clone(s); need(st, seat, 'play');
-    if (st.hands[seat].length) err('لازم تخلّص ورقك أول');
-    if (!okMor(st, seat)) err('ما فيك تاخد المور: ' + emptyErr(st, seat));
+    if (st.hands[seat].length) err('يجب أن تنهي أوراقك أولاً');
+    if (!okMor(st, seat)) err('لا يمكنك أخذ المور: ' + emptyErr(st, seat));
     const k = morLeft(st); st.hands[seat] = st.mor[k]; st.mor[k] = null; st.morBy[k] = teamOf(seat);
     st.got = { seat, ids: st.hands[seat].slice() }; st.declared = null; st.melded = false;
-    log(st, nm(st, seat) + ' أخد المور (مستمر)');
+    log(st, nm(st, seat) + ' أخذ المور (مستمر)');
     return st;
   }
   function discard(s, seat, id) {
     const st = clone(s); need(st, seat, 'play');
     if (st.noDiscard && st.noDiscard.seat === seat && st.noDiscard.id === id) {
       const twin = st.hands[seat].find(x => x !== id && x.slice(0, -1) === id.slice(0, -1));
-      if (!twin) err('ما فيك ترجّع الورقة اللي أخدتها من الأرض لحالها');
+      if (!twin) err('لا يمكنك إعادة الورقة التي أخذتها وحدها من الأرض');
       id = twin;
     }
     takeFromHand(st, seat, [id]); st.discard.push(id);
     if (!st.hands[seat].length) {
-      if (!okMor(st, seat) && !okClose(st, seat)) err('ما فيك ترمي آخر ورقة: ' + emptyErr(st, seat));
+      if (!okMor(st, seat) && !okClose(st, seat)) err('لا يمكنك رمي آخر ورقة: ' + emptyErr(st, seat));
       st.step = 'choice'; log(st, nm(st, seat) + ' رمى آخر ورقة');
       return st;
     }
     log(st, nm(st, seat) + ' رمى ورقة');
     if (st.declared && st.declared.seat === seat) {
-      st.pen[teamOf(seat)] += 20; st.mistakes = st.mistakes || [0, 0, 0, 0]; st.mistakes[seat]++; st.penNotes.push(nm(st, seat) + ' أعلن ' + (st.declared.kind === 'mor' ? 'المور' : 'الضمان') + ' وما قدر: −20');
+      st.pen[teamOf(seat)] += 20; st.mistakes = st.mistakes || [0, 0, 0, 0]; st.mistakes[seat]++; st.penNotes.push(nm(st, seat) + ' أعلن ' + (st.declared.kind === 'mor' ? 'المور' : 'الضمان') + ' ولم يستطع: −20');
       log(st, nm(st, seat) + ' انكسر: −20');
     }
     return nextTurn(st);
   }
   function chooseMor(s, seat) {
     const st = clone(s); need(st, seat, 'choice');
-    if (!okMor(st, seat)) err('ما فيك تاخد المور');
+    if (!okMor(st, seat)) err('لا يمكنك أخذ المور');
     const k = morLeft(st); st.hands[seat] = st.mor[k]; st.pending[seat] = true; st.mor[k] = null; st.morBy[k] = teamOf(seat);
-    log(st, nm(st, seat) + ' أخد المور (منقطع)');
+    log(st, nm(st, seat) + ' أخذ المور (منقطع)');
     return nextTurn(st);
   }
   function close(s, seat) {
     const st = clone(s);
-    if (st.phase !== 'play' || st.turn !== seat) err('مش دورك');
-    if (st.hands[seat].length) err('لازم تخلّص ورقك لتضمّن');
-    if (!okClose(st, seat)) err('ما فيك تضمّن: ' + emptyErr(st, seat));
-    log(st, nm(st, seat) + ' ضمّن');
+    if (st.phase !== 'play' || st.turn !== seat) err('ليس دورك');
+    if (st.hands[seat].length) err('يجب أن تنهي أوراقك لتضمن');
+    if (!okClose(st, seat)) err('لا يمكنك الضمان: ' + emptyErr(st, seat));
+    log(st, nm(st, seat) + ' اضمن');
     return endRound(st, 'close', seat);
   }
   function nextTurn(st) {
@@ -276,16 +276,16 @@ const Mor = (() => {
     const taken = [0, 1].map(t => st.morBy.filter(x => x === t).length);
     const sum = { how, closer, ground: g, taken, bonus: [0, 0], notes: [], void: false };
     if (taken[0] + taken[1] === 0) {
-      sum.void = true; sum.notes.push('ما حدا أخد المور، الجولة بتنعاد');
+      sum.void = true; sum.notes.push('لم يأخذ أحد المور، تُعاد الجولة');
     } else {
       if (how === 'close') {
         const C = teamOf(closer), O = 1 - C;
         if (taken[C] === 2) { sum.bonus[C] += 40; sum.bonus[O] -= 40; sum.notes.push('ضمان مع المورين: +40 و −40 للخصم'); }
         else if (taken[C] === 1) { sum.bonus[C] += 20; sum.notes.push('ضمان مع مور واحد: +20'); }
-        for (const seat of Object.keys(st.pending)) if (st.pending[seat]) { sum.bonus[teamOf(+seat)] -= 20; sum.notes.push(nm(st, +seat) + ' أخد مور منقطع وما لعب فيه: −20'); }
+        for (const seat of Object.keys(st.pending)) if (st.pending[seat]) { sum.bonus[teamOf(+seat)] -= 20; sum.notes.push(nm(st, +seat) + ' أخذ موراً منقطعاً ولم يلعب به: −20'); }
       } else {
-        sum.notes.push('خلصت السحبة بدون ضمان');
-        for (const t of [0, 1]) if (taken[t] === 2) { sum.bonus[t] += 20; sum.notes.push('أخدوا المورين بدون ضمان: +20'); }
+        sum.notes.push('انتهت السحبة دون ضمان');
+        for (const t of [0, 1]) if (taken[t] === 2) { sum.bonus[t] += 20; sum.notes.push('أخذوا الموريْن دون ضمان: +20'); }
       }
       for (const t of [0, 1]) sum.bonus[t] -= st.pen[t];
       sum.notes.push(...st.penNotes);
@@ -301,7 +301,7 @@ const Mor = (() => {
   }
   function nextRound(s) {
     const st = clone(s);
-    if (st.phase !== 'roundEnd') err('الجولة لسا ما خلصت');
+    if (st.phase !== 'roundEnd') err('الجولة لم تنتهِ بعد');
     const starter = st.summary && st.summary.void ? st.starter : (st.starter + 1) % 4;
     Object.assign(st, dealRound(starter)); st.starter = starter; st.phase = 'play'; st.log = [];
     return st;

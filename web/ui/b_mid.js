@@ -21,7 +21,7 @@ async function commit(next, quiet) {
   ui.busy = true; const prev = ui.st; ui.st = next; render();
   let res = 'ok';
   try { await B().writeState(next, prev && prev.v || 0); }
-  catch (e) { if (e.live) { ui.st = e.live; res = 'conflict'; if (!quiet) toast('صار تغيير، جرّب كمان مرة'); } else { ui.st = prev; res = 'fail'; toast('ما انحفظت الحركة، تأكد من الاتصال'); } }
+  catch (e) { if (e.live) { ui.st = e.live; res = 'conflict'; if (!quiet) toast('حدث تغيير، حاول مرة أخرى'); } else { ui.st = prev; res = 'fail'; toast('لم تُحفظ الحركة، تأكد من الاتصال'); } }
   ui.busy = false; afterState(); render(); return res;
 }
 // several players act at once (votes, night picks): re-apply the action to the latest state on conflict
@@ -34,13 +34,17 @@ async function actR(fn, ...args) {
     if (r !== 'conflict') return;
     await sleep(60 + Math.random() * 240);
   }
-  toast('في ضغط، جرّب كمان مرة');
+  toast('هناك ضغط، حاول مرة أخرى');
 }
 let prevSt = null;
 function afterState() {
   const st = ui.st; if (!st) return;
+  const pv = prevSt;
   try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
   prevSt = st;
+  requestAnimationFrame(() => { try { flyFor(pv, st); } catch (e) {} });
+  try { mafiaAuto(st); } catch (e) {}
+  try { turnClock(st); } catch (e) {}
   if (ui.mode === 'fb' && !['mafia', 'coup'].includes(st.game) && st.phase === 'over' && isHost() && ui.room && ui.room.recorded !== st.deal) recordMatch(st);
   const a = gameOf(st).actor(st);
   if (ui.mode === 'local' && a >= 0) {
@@ -50,6 +54,36 @@ function afterState() {
   }
   runBots();
 }
+// ---------- turn timer (set by the room host) ----------
+const clock = { key: null, seat: -1, at: 0, forced: null, timer: null };
+function clockKey(st) {
+  const a = gameOf(st).actor(st);
+  return a < 0 ? null : st.deal + ':' + a + ':' + (st.game === 'mor' || !st.game ? 'r' + (st.round || 0) + ':' + st.turn : st.v);
+}
+function turnClock(st) {
+  const lim = +st.timer || 0, a = gameOf(st).actor(st), key = clockKey(st);
+  if (!lim || a < 0 || (st.bots && st.bots[a]) || ui.mode === 'local') { clock.key = null; clock.seat = -1; clearTimeout(clock.timer); return; }
+  if (key !== clock.key) { clock.key = key; clock.seat = a; clock.at = Date.now(); clearTimeout(clock.timer); if (clock.forced && clock.forced !== key) clock.forced = null; }
+  if (!isHost()) return;
+  const left = clock.forced === key ? 700 : clock.at + lim * 1000 - Date.now();
+  clearTimeout(clock.timer);
+  clock.timer = setTimeout(async () => {
+    const live = ui.st; if (!live || clockKey(live) !== key || ui.busy) return;
+    clock.forced = key;
+    const G = gameOf(live); let n; try { n = G.bot(live, a, true); } catch (e) { console.error(e); return; }
+    if (n && n !== live) { if (live.game === 'mor' || !live.game) (n.log = n.log || []).push(live.names[a] + ': انتهى الوقت، لعب الكمبيوتر عنه'); await commit(n); }
+  }, Math.max(0, left));
+}
+function tmrBadge(s) {
+  const st = ui.st; if (!st || !+st.timer || clock.seat !== s || s < 0) return '';
+  const left = Math.max(0, Math.ceil((clock.at + st.timer * 1000 - Date.now()) / 1000));
+  return `<span class="tmr ${left <= 5 ? 'low' : ''}" data-tmr="${s}">${left}</span>`;
+}
+setInterval(() => {
+  const st = ui.st; if (!st || !+st.timer || clock.seat < 0) return;
+  const left = Math.max(0, Math.ceil((clock.at + st.timer * 1000 - Date.now()) / 1000));
+  document.querySelectorAll('[data-tmr]').forEach(el => { el.textContent = left; el.classList.toggle('low', left <= 5); });
+}, 500);
 let botJob = null;
 function cancelBot() {
   if (botJob) clearTimeout(botJob.timer);
@@ -72,7 +106,7 @@ function runBots() {
         !live.bots?.[a] || G.actor(live) !== a || keyFor(live) !== key) return;
     let n; try { n = G.bot(live, a, ui.mode === 'local' && prof.botLevel === 'expert' ? 'expert' : ui.mode !== 'local' || prof.botLevel !== 'normal'); } catch (e) { console.error(e); return; }
     if (n !== live) await commit(n);
-  }, G.id === 'mor' ? 1100 : (st.trickDone ? 1500 : 700)) };
+  }, G.id === 'mor' ? 1600 : (st.trickDone ? 2900 : 1000)) };
   botJob = job;
 }
 
@@ -104,9 +138,9 @@ const lanB = {
   async open(host, name) {
     lanB.base = host === location.hostname ? location.origin : 'http://' + host + ':' + PORT;
     const j = await lanB.req('/api/poll?rev=-1').catch(() => null);
-    if (!j || !j.room || !j.room.host) throw new Error('ما لقيت غرفة على هالعنوان. تأكد إنكم على نفس الواي فاي');
+    if (!j || !j.room || !j.room.host) throw new Error('لم أجد غرفة على هذا العنوان. تأكد أنكم على شبكة الواي فاي نفسها');
     (j.chat || []).forEach(m => seenChat.add(m.mid));
-    await lanB.req('/api/player', { id: uid, name, av: prof.av, seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
+    await lanB.req('/api/player', { id: uid, name, av: prof.av, ph: prof.photo || '', seat: (j.players.find(p => p.id === uid) || { seat: -1 }).seat });
     lanB.alive = true; lanB.rev = -1; lanB.loop();
     unsub.push(() => { lanB.alive = false; });
   },
@@ -117,10 +151,10 @@ const lanB = {
         const j = await lanB.req('/api/poll?rev=' + lanB.rev);
         if (!lanB.alive) return;
         fails = 0; lanB.rev = j.rev; ui.players = j.players; gotChat(j.chat || []); voiceSync(j); applyRoom(j.room);
-      } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، عم جرّب أرجع'); await sleep(1500); }
+      } catch (e) { if (++fails === 3) toast('انقطع الاتصال بالمضيف، جارٍ إعادة المحاولة'); await sleep(1500); }
     }
   },
-  setSeat(seat) { return lanB.req('/api/player', { id: uid, name: myName(), av: prof.av, seat }); },
+  setSeat(seat) { return lanB.req('/api/player', { id: uid, name: myName(), av: prof.av, ph: prof.photo || '', seat }); },
   meta(m) { return lanB.req('/api/meta', m); },
   leave() { return lanB.req('/api/leave', { id: uid }).catch(() => {}); },
   async writeState(next, prevV) { await lanB.req('/api/room', { s: JSON.stringify(next), phase: 'game', sv: next.v, expect: prevV }); },
@@ -159,9 +193,9 @@ const fbB = {
   },
   async open(code, name) {
     const snap = await FB.getDoc(fbB.ref('rooms', code));
-    if (!snap.exists()) throw new Error('ما لقيت هالغرفة');
+    if (!snap.exists()) throw new Error('لم أجد هذه الغرفة');
     const pr = fbB.ref('rooms', code, 'players', uid), me = await FB.getDoc(pr);
-    await FB.setDoc(pr, { name, av: prof.av, seat: me.exists() ? me.data().seat : -1, voice: false, t: Date.now() });
+    await FB.setDoc(pr, { name, av: prof.av, ph: prof.photo || '', seat: me.exists() ? me.data().seat : -1, voice: false, t: Date.now() });
     const errH = () => toast('انقطع الاتصال بالغرفة');
     unsub.push(FB.onSnapshot(fbB.ref('rooms', code), s => { if (s.exists()) applyRoom(s.data()); }, errH));
     unsub.push(FB.onSnapshot(fbB.col('rooms', code, 'players'), s => {
@@ -238,7 +272,7 @@ async function recordMatch(st) {
         tx.set(ref, { t: Date.now(), stats: all }, { merge: true });
       });
     }
-    toast('انحفظت النتيجة بالترتيب');
+    toast('حُفظت النتيجة في الترتيب');
   } catch (e) { console.error(e); recording = null; }
 }
 async function loadMyStats(gid) {
@@ -250,7 +284,7 @@ async function openBoard(gid) {
     const q = FB.query(fbB.col('users'), FB.orderBy('stats.' + gid + '.rating', 'desc'), FB.limit(30));
     const r = await FB.getDocs(q);
     ui.board.rows = r.docs.map(d => ({ id: d.id, name: d.data().name, ...(d.data().stats || {})[gid] }));
-  } catch (e) { ui.board.err = 'ما قدرت أجيب الترتيب'; }
+  } catch (e) { ui.board.err = 'تعذّر جلب الترتيب'; }
   ui.board.loading = false; render();
 }
 async function openHistory(gid) {
@@ -270,7 +304,7 @@ async function openHistory(gid) {
       }
     }
     ui.hist.list = list.slice(0, 30); ui.hist.h2h = Object.values(h).sort((a, b) => (b.vsW + b.vsL + b.withW + b.withL) - (a.vsW + a.vsL + a.withW + a.withL));
-  } catch (e) { ui.hist.err = 'ما قدرت أجيب السجل'; }
+  } catch (e) { ui.hist.err = 'تعذّر جلب السجل'; }
   ui.hist.loading = false; render();
 }
 function rankPanel(G) {
@@ -278,26 +312,26 @@ function rankPanel(G) {
   if (ui.myStatsFor !== G.id) { ui.myStatsFor = G.id; ui.myStats = null; loadMyStats(G.id); }
   const m = ui.myStats, r = m ? m.rating : START;
   return `<div class="card"><h2>ترتيبك · ${esc(G.name)}</h2>
-    <div class="rank"><div class="lvl"><b>${levelOf(r)}</b><span>مستوى</span></div><div><b style="font-size:18px">${titleOf(r)}</b><div class="muted">${r} نقطة · ربح ${m ? m.wins : 0} · خسارة ${m ? m.losses : 0} · أخطاء ${m ? m.mistakes : 0}</div></div></div>
+    <div class="rank"><div class="lvl"><b>${levelOf(r)}</b><span>مستوى</span></div><div><b style="font-size:18px">${titleOf(r)}</b><div class="muted">${r} نقطة · فاز ${m ? m.wins : 0} · خسارة ${m ? m.losses : 0} · أخطاء ${m ? m.mistakes : 0}</div></div></div>
     <div class="acts"><button class="btn alt sm" data-a="board" data-g="${G.id}">${ICON.trophy} لوحة الترتيب</button><button class="btn alt sm" data-a="hist" data-g="${G.id}">سجلّي والمواجهات</button></div>
-    <div class="muted" style="margin-top:6px">الترتيب بيتحسب بالألعاب الأونلاين اللي فيها لاعبين حقيقيين أو أكتر: الربح +25، الخسارة −20، وكل غلطة −3 (انكسار بالطلب أو بالإعلان).</div></div>`;
+    <div class="muted" style="margin-top:6px">يُحتسب الترتيب في الألعاب عبر الإنترنت التي فيها لاعبان حقيقيان أو أكثر: الفوز +25، الخسارة −20، وكل خطأ −3 (انكسار بالطلب أو بالإعلان).</div></div>`;
 }
 function rankOverlays() {
   let h = '';
   if (ui.board) {
     const b = ui.board;
     h += `<div class="ov" data-a="closeBoard"><div class="box" data-stop="1"><div class="grab"></div><div class="row" style="justify-content:space-between"><h2>لوحة الترتيب · ${esc(GG(b.gid).name)}</h2><button class="ic" data-a="closeBoard">${ICON.x}</button></div>
-      ${b.loading ? '<p class="muted">عم يحمّل…</p>' : b.err ? `<p class="muted">${b.err}</p>` : b.rows.length ? `<table><tr><th>#</th><th>اللاعب</th><th>المستوى</th><th>نقاط</th><th>ربح/خسارة</th></tr>${b.rows.map((x, i) => `<tr ${x.id === uid ? 'style="background:color-mix(in srgb,var(--gold) 16%,transparent)"' : ''}><td>${i + 1}</td><td>${esc(x.name)}</td><td>${levelOf(x.rating)} · ${titleOf(x.rating)}</td><td>${x.rating}</td><td>${x.wins}/${x.losses}</td></tr>`).join('')}</table>` : '<p class="muted">لسا ما حدا لعب أونلاين بهاللعبة.</p>'}
+      ${b.loading ? '<p class="muted">جارٍ التحميل…</p>' : b.err ? `<p class="muted">${b.err}</p>` : b.rows.length ? `<table><tr><th>#</th><th>اللاعب</th><th>المستوى</th><th>نقاط</th><th>فوز/خسارة</th></tr>${b.rows.map((x, i) => `<tr ${x.id === uid ? 'style="background:color-mix(in srgb,var(--gold) 16%,transparent)"' : ''}><td>${i + 1}</td><td>${esc(x.name)}</td><td>${levelOf(x.rating)} · ${titleOf(x.rating)}</td><td>${x.rating}</td><td>${x.wins}/${x.losses}</td></tr>`).join('')}</table>` : '<p class="muted">لم يلعب أحد هذه اللعبة عبر الإنترنت بعد.</p>'}
     </div></div>`;
   }
   if (ui.hist) {
     const H = ui.hist, G = GG(H.gid);
     h += `<div class="ov" data-a="closeHist"><div class="box" data-stop="1"><div class="grab"></div><div class="row" style="justify-content:space-between"><h2>سجلّي · ${esc(G.name)}</h2><button class="ic" data-a="closeHist">${ICON.x}</button></div>
-      ${H.loading ? '<p class="muted">عم يحمّل…</p>' : H.err ? `<p class="muted">${H.err}</p>` : `
+      ${H.loading ? '<p class="muted">جارٍ التحميل…</p>' : H.err ? `<p class="muted">${H.err}</p>` : `
       <h3 style="margin:8px 0 4px">المواجهات المباشرة</h3>
-      ${H.h2h.length ? `<table><tr><th>اللاعب</th><th>ضده</th><th>معه</th></tr>${H.h2h.map(x => `<tr><td>${esc(x.name)}</td><td>${x.vsW} ربح · ${x.vsL} خسارة</td><td>${x.withW + x.withL ? x.withW + ' ربح · ' + x.withL + ' خسارة' : '–'}</td></tr>`).join('')}</table>` : '<p class="muted">لسا ما في مواجهات.</p>'}
-      <h3 style="margin:12px 0 4px">آخر اللعبات</h3>
-      ${H.list.length ? H.list.map(m => { const me = m.players.find(p => p.uid === uid); return `<div class="mrow"><b style="color:${me && me.won ? 'var(--a)' : '#ff6b74'}">${me && me.won ? 'ربح' : 'خسارة'}</b> <span class="muted">${new Date(m.t).toLocaleDateString('ar')}</span><div class="muted">${m.players.map(p => esc(p.name) + (p.won ? ' ✓' : '')).join(' · ')}</div></div>`; }).join('') : '<p class="muted">لسا ما لعبت أونلاين بهاللعبة.</p>'}`}
+      ${H.h2h.length ? `<table><tr><th>اللاعب</th><th>ضده</th><th>معه</th></tr>${H.h2h.map(x => `<tr><td>${esc(x.name)}</td><td>${x.vsW} فاز · ${x.vsL} خسارة</td><td>${x.withW + x.withL ? x.withW + ' فاز · ' + x.withL + ' خسارة' : '–'}</td></tr>`).join('')}</table>` : '<p class="muted">لا توجد مواجهات بعد.</p>'}
+      <h3 style="margin:12px 0 4px">آخر الألعاب</h3>
+      ${H.list.length ? H.list.map(m => { const me = m.players.find(p => p.uid === uid); return `<div class="mrow"><b style="color:${me && me.won ? 'var(--a)' : '#ff6b74'}">${me && me.won ? 'فاز' : 'خسارة'}</b> <span class="muted">${new Date(m.t).toLocaleDateString('ar')}</span><div class="muted">${m.players.map(p => esc(p.name) + (p.won ? ' ✓' : '')).join(' · ')}</div></div>`; }).join('') : '<p class="muted">لم تلعب هذه اللعبة عبر الإنترنت بعد.</p>'}`}
     </div></div>`;
   }
   return h;
@@ -322,12 +356,12 @@ async function playVoice(mid) {
 }
 async function sendChat() {
   const el = document.getElementById('chatin'); const t = (el && el.value || '').trim(); if (!t) return;
-  el.value = ''; try { await B().chat.send(t.slice(0, 200)); } catch (e) { toast('ما انبعتت الرسالة'); }
+  el.value = ''; try { await B().chat.send(t.slice(0, 200)); } catch (e) { toast('لم تُرسل الرسالة'); }
 }
 const rec = { mr: null, chunks: [], t0: 0, timer: null };
 async function recStart() {
   if (rec.mr) return;
-  if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي بيشتغل بالتطبيق بس');
+  if (!navigator.mediaDevices || !window.MediaRecorder) return toast('التسجيل الصوتي يعمل في التطبيق فقط');
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     rec.mr = new MediaRecorder(stream); rec.chunks = []; rec.t0 = Date.now();
@@ -337,22 +371,22 @@ async function recStart() {
       const dur = Date.now() - rec.t0; const blob = new Blob(rec.chunks, { type: rec.mr.mimeType || 'audio/webm' }); const mime = blob.type; rec.mr = null; render();
       if (dur < 500) return toast('اضغط مطوّل لتسجّل');
       const b64 = await new Promise(r => { const f = new FileReader(); f.onload = () => r(String(f.result).split(',')[1]); f.readAsDataURL(blob); });
-      try { await B().chat.voice(b64, mime); } catch (e) { toast('ما انبعتت الرسالة الصوتية'); }
+      try { await B().chat.voice(b64, mime); } catch (e) { toast('لم تُرسل الرسالة الصوتية'); }
     };
     rec.mr.start(); rec.timer = setTimeout(recStop, 15000); render();
-  } catch (e) { toast('اسمح للتطبيق يستعمل المايك'); }
+  } catch (e) { toast('اسمح للتطبيق باستخدام الميكروفون'); }
 }
 function recStop() { clearTimeout(rec.timer); if (rec.mr && rec.mr.state === 'recording') rec.mr.stop(); }
 
 // ---------- live voice (WebRTC; signalled through the host on LAN, through Firebase online) ----------
-const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, members: [], fetching: false };
+const vc = { on: false, muted: false, stream: null, pcs: {}, els: {}, seq: 0, members: [], fetching: false, silenced: new Set() };
 async function voiceJoin() {
-  if (!window.RTCPeerConnection) return toast('الصوت المباشر مش مدعوم على هالجهاز');
+  if (!window.RTCPeerConnection) return toast('الصوت المباشر غير مدعوم على هذا الجهاز');
   try {
     vc.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-  } catch (e) { vc.stream = null; toast('المايك مش متاح: رح تسمع بس'); }
+  } catch (e) { vc.stream = null; toast('الميكروفون غير متاح: ستستمع فقط'); }
   vc.on = true; vc.muted = false; vc.seq = 0;
-  try { await B().voiceState(true); } catch (e) { toast('ما قدرت أدخل المكالمة'); }
+  try { await B().voiceState(true); } catch (e) { toast('تعذّر الانضمام إلى المكالمة'); }
   render(); voicePeers();
 }
 function voiceLeave(silent) {
@@ -361,6 +395,18 @@ function voiceLeave(silent) {
   vc.stream = null; vc.on = false;
   if (!silent) B().voiceState(false).catch(() => {});
   render();
+}
+function voiceBtns() {
+  if (!vc.on) return `<button class="ic" data-a="voice" aria-label="انضم إلى المكالمة">${ICON.phone}${vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>`;
+  return `<button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="${vc.muted ? 'شغّل الميكروفون' : 'اكتم الميكروفون'}">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button><button class="ic" data-a="callPop" aria-label="المكالمة والمشاركين">${ICON.users}${vc.silenced.size ? `<span class="badge">${vc.silenced.size}</span>` : ''}</button>`;
+}
+function silence(id) { vc.silenced.has(id) ? vc.silenced.delete(id) : vc.silenced.add(id); if (vc.els[id]) vc.els[id].muted = vc.silenced.has(id); render(); }
+function callSheet() {
+  const others = vc.members.filter(id => id !== uid), P = id => ui.players.find(p => p.id === id) || { name: '…' };
+  return sheet(`${sheetHead('🎙️ المكالمة')}
+    <div class="li"><div class="t"><b>ميكروفوني</b><span>${!vc.stream ? 'الميكروفون غير متاح، تسمع فقط' : vc.muted ? 'مكتوم' : 'يعمل'}</span></div><button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="الميكروفون">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button></div>
+    ${others.map(id => { const p = P(id), off = vc.silenced.has(id); return `<div class="li">${avatarHTML(pav(p), p.name, 'sm')}<div class="t"><b>${esc(p.name)}</b><span>${off ? 'كتمتَ صوته عندك' : vc.pcs[id] ? 'متصل' : 'جارٍ الاتصال…'}</span></div><button class="ic ${off ? 'vmute' : ''}" data-a="silence" data-p="${id}" aria-label="${off ? 'إلغاء الكتم' : 'كتم'}">${off ? ICON.spkoff : ICON.spk}</button></div>`; }).join('') || '<div class="empty">لا أحد غيرك في المكالمة حالياً.</div>'}
+    <div class="acts"><button class="btn red wide" data-a="voiceEnd">📞 إنهاء المكالمة</button></div>`);
 }
 function voiceMute() {
   vc.muted = !vc.muted;
@@ -378,7 +424,7 @@ function newPeer(peer) {
   pc.ontrack = e => {
     let a = vc.els[peer];
     if (!a) { a = document.createElement('audio'); a.autoplay = true; a.playsInline = true; document.body.appendChild(a); vc.els[peer] = a; }
-    a.srcObject = e.streams[0] || new MediaStream([e.track]); a.play().catch(() => {});
+    a.srcObject = e.streams[0] || new MediaStream([e.track]); a.muted = vc.silenced.has(peer); a.play().catch(() => {});
   };
   pc.onconnectionstatechange = () => {
     if (['failed', 'closed'].includes(pc.connectionState) && vc.pcs[peer] === pc) { dropPeer(peer); setTimeout(voicePeers, 2500); }

@@ -36,9 +36,9 @@ const Games = (() => {
   }
   function playCard(s, seat, id, G) {
     const st = clone(s);
-    if (st.phase !== 'play') err('مش وقت اللعب');
-    if (st.turn !== seat) err('مش دورك');
-    if (!legal(st, seat).includes(id)) err(st.hands[seat].includes(id) ? 'لازم تلعب من نفس الشكل' : 'الورقة مش معك');
+    if (st.phase !== 'play') err('ليس وقت اللعب');
+    if (st.turn !== seat) err('ليس دورك');
+    if (!legal(st, seat).includes(id)) err(st.hands[seat].includes(id) ? 'يجب أن تلعب من الشكل نفسه' : 'الورقة ليست معك');
     if (st.trickDone) { st.trick = []; st.trickDone = false; }
     if (!st.trick.length) (st.leads = st.leads || []).push({ seat, s: id[0] });
     if (st.trick.length && id[0] !== st.trick[0].card[0]) { st.voids = st.voids || [{}, {}, {}, {}]; st.voids[seat][st.trick[0].card[0]] = true; }
@@ -745,7 +745,7 @@ const Games = (() => {
 
   // ---------- Tarneeb 61 (team bidding) ----------
   const T61 = {
-    id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 لـ 13', target: 61, teams: true,
+    id: 'tarneeb61', name: 'طرنيب 61', sub: 'فريقين · مزايدة من 7 إلى 13', target: 61, teams: true,
     newGame(names, bots) { const st = base('tarneeb61', names, bots); st.tscores = [0, 0]; st.dealer = rnd(4); T61.startHand(st); return st; },
     startHand(st) {
       deal(st); st.phase = 'bid'; st.bid = null; st.passed = [false, false, false, false]; st.trump = null;
@@ -754,17 +754,17 @@ const Games = (() => {
     actor: st => (['bid', 'trump', 'play'].includes(st.phase) ? st.turn : -1),
     bid(s, seat, val) {
       const st = clone(s);
-      if (st.phase !== 'bid' || st.turn !== seat) err('مش دورك بالمزايدة');
+      if (st.phase !== 'bid' || st.turn !== seat) err('ليس دورك في المزايدة');
       if (val) {
         const min = st.bid ? st.bid.val + 1 : 7;
-        if (val < min || val > 13) err('لازم تطلب ' + min + ' أو أكتر');
+        if (val < min || val > 13) err('يجب أن تطلب ' + min + ' أو أكثر');
         st.bid = { seat, val }; log(st, st.names[seat] + ' طلب ' + val);
       } else {
-        if (!st.bid && st.passed.filter(Boolean).length === 3) err('التلاتة قالوا باس: لازم تطلب 7 على الأقل');
+        if (!st.bid && st.passed.filter(Boolean).length === 3) err('قال الثلاثة باس: يجب أن تطلب 7 على الأقل');
         st.passed[seat] = true; log(st, st.names[seat] + ' باس');
       }
       const active = [0, 1, 2, 3].filter(i => !st.passed[i]);
-      if (!st.bid && active.length === 0) { log(st, 'كلهم باس، توزيع جديد'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; }
+      if (!st.bid && active.length === 0) { log(st, 'الجميع قال باس، توزيع جديد'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; }
       if (st.bid && (active.length === 1 && active[0] === st.bid.seat || st.bid.val === 13)) {
         st.phase = 'trump'; st.turn = st.bid.seat; return st;
       }
@@ -773,8 +773,8 @@ const Games = (() => {
     },
     chooseTrump(s, seat, suit) {
       const st = clone(s);
-      if (st.phase !== 'trump' || st.turn !== seat) err('مش دورك');
-      if (!SUITS.includes(suit)) err('شكل غلط');
+      if (st.phase !== 'trump' || st.turn !== seat) err('ليس دورك');
+      if (!SUITS.includes(suit)) err('شكل خاطئ');
       st.trump = suit; st.phase = 'play'; st.turn = seat; log(st, 'الطرنيب ' + SN[suit]);
       return st;
     },
@@ -783,7 +783,7 @@ const Games = (() => {
       const B = teamOf(st.bid.seat), O = 1 - B;
       const tt = [st.tricks[0] + st.tricks[2], st.tricks[1] + st.tricks[3]];
       const d = [0, 0]; const notes = [];
-      if (tt[B] >= st.bid.val) { d[B] = st.bid.val === 13 ? 26 : tt[B]; notes.push('الفريق الطالب جاب طلبه'); }
+      if (tt[B] >= st.bid.val) { d[B] = st.bid.val === 13 ? 26 : tt[B]; notes.push('حقّق الفريق الطالب طلبه'); }
       else { d[B] = st.bid.val === 13 ? -16 : -st.bid.val; d[O] = tt[O] === 13 ? 16 : tt[O]; notes.push('الفريق الطالب انكسر'); st.mistakes[st.bid.seat]++; }
       st.tscores = [st.tscores[0] + d[0], st.tscores[1] + d[1]];
       st.summary = { kind: 'team', rows: [['اللمّات', tt[0], tt[1]], ['نقاط الجولة', d[0], d[1]], ['المجموع', st.tscores[0], st.tscores[1]]], notes: [`الطلب: ${st.bid.val} (${st.names[st.bid.seat]})`, ...notes] };
@@ -791,7 +791,7 @@ const Games = (() => {
       const [a, b] = st.tscores;
       if ((a >= T61.target || b >= T61.target) && a !== b) { st.phase = 'over'; st.winner = a > b ? 0 : 1; }
     },
-    next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; },
+    next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة لم تنتهِ'); st.dealer = (st.dealer + 1) % 4; T61.startHand(st); return st; },
     bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         let best = 0, bs = null;
@@ -814,12 +814,12 @@ const Games = (() => {
       }
       return st;
     },
-    rules: `<p><b>اللاعبين:</b> أربعة بفريقين، كل اتنين متقابلين شركاء. اللعب عكس عقارب الساعة، وكل لاعب معه 13 ورقة.</p>
-<p><b>المزايدة:</b> بتبلّش من يمين الموزّع. كل طلب لازم يكون أعلى من اللي قبله، من 7 لـ 13، واللي بيقول «باس» بيطلع من المزايدة. إذا قالوا التلاتة الأوائل باس، الأخير ما بيقدر يقول باس ولازم يطلب 7 على الأقل.</p>
-<p><b>الطرنيب:</b> اللي ربح المزايدة بيختار الطرنيب وبيلعب أول ورقة.</p>
-<p><b>اللعب:</b> لازم تلعب من نفس الشكل إذا معك، وإذا ما معك بتلعب أي ورقة. الأكلة لأعلى ورقة من الشكل اللي انلعب، إلا إذا انلعب طرنيب فبتكون لأعلى طرنيب.</p>
-<p><b>الحساب:</b> إذا جاب الفريق طلبه بياخد عدد اللمّات اللي جابها والخصم ما بياخد شي. إذا انكسر بينخصم منه قيمة طلبه، والخصم بياخد لمّاته. طلب 13 وجابها: +26، وانكسر: −16. إذا الفريق الخصم أكل كل الـ13: +16.</p>
-<p><b>الفوز:</b> أول فريق بيوصل 61.</p>`
+    rules: `<p><b>اللاعبين:</b> أربعة لاعبين في فريقين، وكل متقابلَين شريكان. يسير اللعب عكس عقارب الساعة، ومع كل لاعب 13 ورقة.</p>
+<p><b>المزايدة:</b> تبدأ من يمين الموزّع. يجب أن يكون كل طلب أعلى من سابقه، من 7 إلى 13، ومن يقول «باس» يخرج من المزايدة. إذا قال الثلاثة الأوائل باس، لا يستطيع الأخير قول باس ويجب أن يطلب 7 على الأقل.</p>
+<p><b>الطرنيب:</b> يختار الفائز بالمزايدة الطرنيب ويلعب أول ورقة.</p>
+<p><b>اللعب:</b> يجب أن تلعب من الشكل نفسه إن كان معك، وإلا فالعب أي ورقة. الأكلة لأعلى ورقة من الشكل الملعوب، إلا إذا لُعب طرنيب فتكون لأعلى طرنيب.</p>
+<p><b>الحساب:</b> إذا حقّق الفريق طلبه يأخذ عدد اللمّات التي جمعها ولا يأخذ الخصم شيئاً. وإذا انكسر تُخصم منه قيمة طلبه، ويأخذ الخصم لمّاته. طلب 13 وحقّقها: +26، وإذا انكسر: −16. إذا أخذ الفريق الخصم كل الـ13: +16.</p>
+<p><b>الفوز:</b> أول فريق يصل إلى 61.</p>`
   };
 
   // ---------- Tarneeb Syrian 41 (individual bids) ----------
@@ -828,7 +828,7 @@ const Games = (() => {
   const t41total = st => (st.scores.some(x => x >= 30) ? 12 : 11);
   const t41val = (st, s, b) => (b >= (st.scores[s] >= 30 ? 7 : 5) ? b * 2 : b);
   const T41 = {
-    id: 'tarneeb41', name: 'طرنيب 41', sub: 'سوري · كل لاعب بيطلب لحاله', target: 41, teams: true,
+    id: 'tarneeb41', name: 'طرنيب 41', sub: 'سوري · كل لاعب يطلب بمفرده', target: 41, teams: true,
     newGame(names, bots) { const st = base('tarneeb41', names, bots); st.dealer = rnd(4); T41.startHand(st); return st; },
     startHand(st) {
       deal(st); st.handNo++;
@@ -839,7 +839,7 @@ const Games = (() => {
     actor: st => (['bid', 'play'].includes(st.phase) ? st.turn : -1),
     bid(s, seat, val) {
       const st = clone(s);
-      if (st.phase !== 'bid' || st.turn !== seat) err('مش دورك بالطلب');
+      if (st.phase !== 'bid' || st.turn !== seat) err('ليس دورك في الطلب');
       const mn = t41min(st, seat);
       if (!(val >= mn && val <= 13)) err('طلبك من ' + mn + ' لـ 13');
       st.bids[seat] = val; log(st, st.names[seat] + ' طلب ' + val);
@@ -873,7 +873,7 @@ const Games = (() => {
         st.phase = 'over'; st.winner = w;
       }
     },
-    next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت'); st.dealer = (st.dealer + 1) % 4; T41.startHand(st); return st; },
+    next(s) { const st = clone(s); if (st.phase !== 'handEnd') err('الجولة لم تنتهِ'); st.dealer = (st.dealer + 1) % 4; T41.startHand(st); return st; },
     bot(st, seat, stronger = true) {
       if (st.phase === 'bid') {
         const mn = t41min(st, seat), p = (seat + 2) % 4;
@@ -890,13 +890,13 @@ const Games = (() => {
       }
       return st;
     },
-    rules: `<p><b>اللاعبين:</b> أربعة بفريقين متقابلين، بس الطلب والحساب لكل لاعب لحاله. اللعب عكس عقارب الساعة، و13 ورقة لكل لاعب.</p>
-<p><b>الطرنيب:</b> بتنقلب ورقة من ورق الموزّع، والطرنيب بيكون الشكل التاني من نفس اللون: الكبة بتعطي ديناري والعكس، والبستوني بيعطي سباتي والعكس.</p>
-<p><b>الطلب:</b> كل لاعب بيطلب مرة وحدة بس، من 2 لـ 13 لمّة. إذا مجموع الطلبات أقل من 11 بينعاد التوزيع. إذا في لاعب رصيده 30 أو أكتر، أقل مجموع بيصير 12، وأقل طلب إله بيصير 3.</p>
-<p><b>اللعب:</b> بيبلّش اللي على يمين الموزّع. لازم تلعب من نفس الشكل إذا معك، والطرنيب بيغلب كل الأشكال.</p>
-<p><b>الحساب:</b> إذا جبت طلبك أو أكتر بينضاف قيمة طلبك بس، وإذا ما جبته بينخصم قيمة طلبك. الطلب من 5 وفوق بينحسب دبل (5 = 10، 6 = 12…)، بس إذا رصيدك 30 أو أكتر الدبل بيبلّش من 7.</p>
-<p><b>انكسار الشريك:</b> إذا شريكك رصيده 30 أو أكتر، وإنت طلبت أكتر من أقل طلب إلك وانكسرت، بينكسر شريكك معك بقيمة طلبه حتى لو جاب طلبه.</p>
-<p><b>الفوز:</b> بيربح الفريق لما يوصل واحد منه لـ 41 وشريكه نقاطه فوق الصفر.</p>`
+    rules: `<p><b>اللاعبين:</b> أربعة لاعبين في فريقين متقابلين، لكن الطلب والحساب لكل لاعب بمفرده. يسير اللعب عكس عقارب الساعة، ولكل لاعب 13 ورقة.</p>
+<p><b>الطرنيب:</b> تُقلب ورقة من أوراق الموزّع، ويكون الطرنيب الشكلَ الآخر من اللون نفسه: الكبة تعطي الديناري والعكس، والبستوني يعطي السباتي والعكس.</p>
+<p><b>الطلب:</b> يطلب كل لاعب مرة واحدة فقط، من 2 إلى 13 لمّة. إذا كان مجموع الطلبات أقل من 11 يُعاد التوزيع. وإذا كان رصيد أحد اللاعبين 30 أو أكثر، يصبح أقل مجموع 12، وأقل طلب له 3.</p>
+<p><b>اللعب:</b> يبدأ من على يمين الموزّع. يجب أن تلعب من الشكل نفسه إن كان معك، والطرنيب يغلب كل الأشكال.</p>
+<p><b>الحساب:</b> إذا حقّقت طلبك أو أكثر تُضاف قيمة طلبك فقط، وإذا لم تحقّقه تُخصم قيمة طلبك. الطلب من 5 فما فوق يُحسب مضاعفاً (5 = 10، 6 = 12…)، لكن إذا كان رصيدك 30 أو أكثر يبدأ الدبل من 7.</p>
+<p><b>انكسار الشريك:</b> إذا كان رصيد شريكك 30 أو أكثر، وطلبتَ أكثر من الحد الأدنى لطلبك وانكسرت، ينكسر شريكك معك بقيمة طلبه حتى لو حقّقه.</p>
+<p><b>الفوز:</b> يفوز الفريق عندما يصل أحد لاعبيه إلى 41 وتكون نقاط شريكه فوق الصفر.</p>`
   };
 
   // ---------- Trix family ----------
@@ -935,14 +935,14 @@ const Games = (() => {
       actor: st => (['choose', 'double', 'play', 'trix'].includes(st.phase) ? st.turn : -1),
       choose(s, seat, idx) {
         const st = clone(s);
-        if (st.phase !== 'choose' || st.turn !== seat) err('صاحب المملكة هو اللي بيختار');
-        if (!(idx >= 0 && idx < contracts.length) || st.used.includes(idx)) err('هالطلب انلعب');
-        log(st, st.names[seat] + ' اختار ' + CN[contracts[idx]]);
+        if (st.phase !== 'choose' || st.turn !== seat) err('صاحب المملكة هو من يختار');
+        if (!(idx >= 0 && idx < contracts.length) || st.used.includes(idx)) err('هذا الطلب لُعب');
+        log(st, st.names[seat] + ' اختر ' + CN[contracts[idx]]);
         G._begin(st, idx); return st;
       },
       double(s, seat, ids) {
         const st = clone(s);
-        if (st.phase !== 'double' || st.turn !== seat) err('مش دورك');
+        if (st.phase !== 'double' || st.turn !== seat) err('ليس دورك');
         const el = G.dblCards(st, seat); ids = (ids || []).filter(x => el.includes(x));
         st.dblPending[seat] = ids;
         st.dblQueue.shift();
@@ -984,20 +984,20 @@ const Games = (() => {
       },
       trixPlay(s, seat, id) {
         const st = clone(s);
-        if (st.phase !== 'trix' || st.turn !== seat) err('مش دورك');
+        if (st.phase !== 'trix' || st.turn !== seat) err('ليس دورك');
         const L = G.trixLegal(st, seat);
         if (id == null) {
-          if (L.length) err('معك ورقة بتنلعب، لازم تلعبها');
+          if (L.length) err('معك ورقة صالحة، يجب أن تلعبها');
           const gates=SUITS.flatMap(s => st.ladder[s] ? [st.ladder[s][0]-1,st.ladder[s][1]+1].filter(r=>r>=2&&r<=14).map(r=>s+r) : [s+'11']);
           const seen=(st.ladderNo || (st.ladderNo=[[],[],[],[]]))[seat];
           for(const c of gates)if(!seen.includes(c))seen.push(c);
           log(st, st.names[seat] + ' باس');
         }
         else {
-          if (!L.includes(id)) err('هالورقة ما بتركب هلّق');
+          if (!L.includes(id)) err('هذه الورقة لا تصلح الآن');
           const { s: su, r } = cr(id); st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
           const Ld = st.ladder[su]; st.ladder[su] = !Ld ? [11, 11] : [Math.min(Ld[0], r), Math.max(Ld[1], r)];
-          if (!st.hands[seat].length) { st.finished.push(seat); st.hs[seat] += [200, 150, 100, 50][st.finished.length - 1]; log(st, st.names[seat] + ' خلّص ورقه'); }
+          if (!st.hands[seat].length) { st.finished.push(seat); st.hs[seat] += [200, 150, 100, 50][st.finished.length - 1]; log(st, st.names[seat] + ' أنهى أوراقه'); }
         }
         if (st.finished.length >= 3) {
           const lastP = [0, 1, 2, 3].find(x => !st.finished.includes(x));
@@ -1021,7 +1021,7 @@ const Games = (() => {
         }
       },
       next(s) {
-        const st = clone(s); if (st.phase !== 'handEnd') err('الجولة ما خلصت');
+        const st = clone(s); if (st.phase !== 'handEnd') err('الجولة لم تنتهِ');
         if (st.used.length === contracts.length) { st.kingdom++; st.used = []; st.owner = (st.owner + 1) % 4; }
         G.startHand(st); return st;
       },
@@ -1122,25 +1122,25 @@ const Games = (() => {
   function trixRules(contracts, partner) {
     const isCC = contracts.every(c => c === 'complex');
     const kinds = contracts.includes('king')
-      ? '<p><b>الطلبات بكل مملكة (5):</b> الشايب، البنات، الديناري، اللطوش، والتركس. صاحب المملكة بيختار الترتيب، وكل طلب بينلعب مرة وحدة بالمملكة.</p>'
-      : isCC ? '<p><b>الطلبات بكل مملكة:</b> كومبلكس مرتين. ما في تركس بهالنوع.</p>'
-        : '<p><b>الطلبات بكل مملكة (2):</b> كومبلكس وتركس، وصاحب المملكة بيختار أيّهم أول.</p>';
-    return `<p><b>اللاعبين:</b> أربعة${partner ? '، كل اتنين متقابلين شركاء ونقاطهم بتنجمع' : '، كل واحد لحاله'}. 13 ورقة لكل لاعب، واللعب عكس عقارب الساعة. في 4 ممالك، وأول مملكة لصاحب سبعة الكبة، وبعدها بتنتقل للي عاليمين.</p>
+      ? '<p><b>الطلبات بكل مملكة (5):</b> الشايب، والبنات، والديناري، واللطوش، والتركس. يختار صاحب المملكة الترتيب، ويُلعب كل طلب مرة واحدة في المملكة.</p>'
+      : isCC ? '<p><b>الطلبات بكل مملكة:</b> كومبلكس مرتين. لا يوجد تركس في هذا النوع.</p>'
+        : '<p><b>الطلبات بكل مملكة (2):</b> كومبلكس وتركس، ويختار صاحب المملكة أيّهما أولاً.</p>';
+    return `<p><b>اللاعبين:</b> أربعة${partner ? '، وكل متقابلَين شريكان وتُجمع نقاطهما' : '، كلٌّ بمفرده'}. 13 ورقة لكل لاعب، ويسير اللعب عكس عقارب الساعة. هناك 4 ممالك، أولها لصاحب سبعة الكبة، ثم تنتقل إلى من على اليمين.</p>
 ${kinds}
-<p><b>اللعب بالأكلات:</b> صاحب المملكة بيلعب أول ورقة، ولازم تلعب من نفس الشكل إذا معك. الأكلة لأعلى ورقة من الشكل اللي انلعب، وما في طرنيب.</p>
-<p><b>الحساب:</b> الشايب (شايب الكبة) −75. كل بنت −25. كل ديناري −10. كل لطشة (أكلة) −15. بالكومبلكس كلهم بينحسبوا بنفس اليد.${contracts.includes('king') ? ' بالشايب بتخلص اليد لما ينأكل الشايب، وبالبنات لما ينأكلوا الأربعة، وبالديناري لما ينأكلوا كلهم.' : ''}</p>
-<p><b>الدبل:</b> قبل اللعب، اللي معه شايب الكبة أو بنت فيه يدبّلها. المدبّل بيخسّر آكله الضعف (الشايب −150، البنت −50)، وصاحب الدبل بياخد +75 للشايب و+25 للبنت. إذا أكلها صاحبها بنفسه، بياخد المكافأة اللي بلّش الأكلة.</p>
-${isCC ? '' : '<p><b>التركس:</b> بتبلّش المجموعات من الشبّ (الولد)، وبتطلع لفوق للآص وبتنزل لتحت للـ2. لازم تلعب إذا معك ورقة بتركب، وإذا ما معك بتقول باس. الأول بيخلّص ورقه +200، التاني +150، التالت +100، الرابع +50.</p>'}
-<p><b>الفوز:</b> بعد الأربع ممالك، الأعلى نقاط بيربح${partner ? ' (مجموع الشريكين)' : ''}.</p>`;
+<p><b>اللعب بالأكلات:</b> يلعب صاحب المملكة أول ورقة، ويجب أن تلعب من الشكل نفسه إن كان معك. الأكلة لأعلى ورقة من الشكل الملعوب، ولا يوجد طرنيب.</p>
+<p><b>الحساب:</b> الشايب (شايب الكبة) −75. كل بنت −25. كل ديناري −10. كل لطشة (أكلة) −15. في الكومبلكس تُحسب كلها في اليد نفسها.${contracts.includes('king') ? ' في الشايب تنتهي اليد عند أكل الشايب، وفي البنات عند أكل الأربع، وفي الديناري عند أكلها كلها.' : ''}</p>
+<p><b>الدبل:</b> قبل اللعب، يمكن لمن معه شايب الكبة أو بنت أن يدبّلها، والمدبّلة تكلّف آكلها الضعف (الشايب −150، البنت −50)، ويأخذ صاحب الدبل +75 للشايب و+25 للبنت. وإذا أكلها صاحبها بنفسه، يأخذ المكافأة من بدأ الأكلة.</p>
+${isCC ? '' : '<p><b>التركس:</b> تبدأ المجموعات من الشبّ (الولد)، وتصعد إلى الآص وتنزل إلى الـ2. يجب أن تلعب إن كانت معك ورقة مناسبة، وإلا تقول باس. أول من ينهي أوراقه +200، والثاني +150، والثالث +100، والرابع +50.</p>'}
+<p><b>الفوز:</b> بعد الممالك الأربع، يفوز صاحب أعلى النقاط${partner ? ' (مجموع الشريكين)' : ''}.</p>`;
   }
 
   const LIST = [
     T41, T61,
-    makeTrix('trixKingdoms', 'تركس ممالك', 'كل واحد لحاله · 5 طلبات', ['king', 'queens', 'diamonds', 'ltoosh', 'trix'], false),
+    makeTrix('trixKingdoms', 'تركس ممالك', 'كلٌّ بمفرده · 5 طلبات', ['king', 'queens', 'diamonds', 'ltoosh', 'trix'], false),
     makeTrix('trixKingdomsP', 'تركس ممالك شراكة', 'فريقين · 5 طلبات', ['king', 'queens', 'diamonds', 'ltoosh', 'trix'], true),
-    makeTrix('trixComplex', 'تركس كومبلكس', 'كل واحد لحاله · كومبلكس وتركس', ['complex', 'trix'], false),
+    makeTrix('trixComplex', 'تركس كومبلكس', 'كلٌّ بمفرده · كومبلكس وتركس', ['complex', 'trix'], false),
     makeTrix('trixComplexP', 'تركس كومبلكس شراكة', 'فريقين · كومبلكس وتركس', ['complex', 'trix'], true),
-    makeTrix('complexCC', 'كومبلكس CC شراكة', 'فريقين · كومبلكس بس', ['complex', 'complex'], true)
+    makeTrix('complexCC', 'كومبلكس CC شراكة', 'فريقين · كومبلكس فقط', ['complex', 'complex'], true)
   ];
   const BY = Object.fromEntries(LIST.map(g => [g.id, g]));
   return { LIST, BY, legal, winnerOf, CN, SN, cr, teamOf, sortIds };

@@ -18,7 +18,7 @@ public class LanServer {
 
     // room state
     private long rev = 0;
-    private String host = "", phase = "lobby", s = "", game = "mor";
+    private String host = "", phase = "lobby", s = "", game = "mor"; private long timer = 0;
     private long sv = 0;
     private final LinkedHashMap<String, Object[]> players = new LinkedHashMap<>(); // id -> {name, seat}
     private final ArrayList<String> chat = new ArrayList<>();            // JSON objects, newest last
@@ -117,7 +117,7 @@ public class LanServer {
         synchronized (lock) {
             switch (path) {
                 case "/api/create":
-                    host = str(b.get("host")); game = str(b.get("game")); if (game.isEmpty()) game = "mor"; phase = "lobby"; s = ""; sv = 0; players.clear(); chat.clear(); voices.clear();
+                    host = str(b.get("host")); game = str(b.get("game")); if (game.isEmpty()) game = "mor"; phase = "lobby"; s = ""; sv = 0; timer = 0; players.clear(); chat.clear(); voices.clear();
                     inVoice.clear(); signals.clear(); sigSeq.clear();
                     break;
                 case "/api/player": {
@@ -130,7 +130,9 @@ public class LanServer {
                     if (name.length() > 20) name = name.substring(0, 20);
                     String av = str(b.get("av"));
                     if (av.length() > 40) av = av.substring(0, 40);
-                    players.put(id, new Object[]{name, seat, av});
+                    String ph = str(b.get("ph"));
+                    if (ph.length() > 30000 || !(ph.isEmpty() || ph.startsWith("data:image/"))) ph = "";
+                    players.put(id, new Object[]{name, seat, av, ph});
                     break;
                 }
                 case "/api/room": {
@@ -142,6 +144,7 @@ public class LanServer {
                 case "/api/meta": {
                     String g = str(b.get("game")); if (!g.isEmpty()) game = g;
                     String ph = str(b.get("phase")); if (!ph.isEmpty()) phase = ph;
+                    if (b.containsKey("timer")) timer = (long) num(b.get("timer"), timer);
                     break;
                 }
                 case "/api/leave": {
@@ -192,13 +195,13 @@ public class LanServer {
     }
 
     private String roomJson() {
-        return "{\"host\":" + Json.quote(host) + ",\"game\":" + Json.quote(game) + ",\"phase\":" + Json.quote(phase) + ",\"s\":" + Json.quote(s) + ",\"sv\":" + sv + "}";
+        return "{\"host\":" + Json.quote(host) + ",\"game\":" + Json.quote(game) + ",\"phase\":" + Json.quote(phase) + ",\"s\":" + Json.quote(s) + ",\"sv\":" + sv + ",\"timer\":" + timer + "}";
     }
     private String snapshot() {
         StringBuilder p = new StringBuilder("[");
         for (Map.Entry<String, Object[]> e : players.entrySet()) {
             if (p.length() > 1) p.append(',');
-            p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append(",\"av\":").append(Json.quote(e.getValue().length > 2 ? (String) e.getValue()[2] : "")).append('}');
+            p.append("{\"id\":").append(Json.quote(e.getKey())).append(",\"name\":").append(Json.quote((String) e.getValue()[0])).append(",\"seat\":").append(e.getValue()[1]).append(",\"av\":").append(Json.quote(e.getValue().length > 2 ? (String) e.getValue()[2] : "")).append(",\"ph\":").append(Json.quote(e.getValue().length > 3 ? (String) e.getValue()[3] : "")).append('}');
         }
         StringBuilder v = new StringBuilder("[");
         for (String id : inVoice) { if (v.length() > 1) v.append(','); v.append(Json.quote(id)); }
