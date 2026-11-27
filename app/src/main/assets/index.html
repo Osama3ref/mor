@@ -292,6 +292,7 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .ladders{display:flex;flex-direction:column;gap:6px;width:100%;padding:6px 2px}
 .lad{display:flex;align-items:center;gap:8px}.ls{font-size:22px;width:22px;text-align:center;color:#fff}.ls.red{color:#ff8a92}
 .lrow{display:flex;direction:ltr;overflow:hidden}.lrow .c{--w:26px;margin-right:-12px}.lrow .c:last-child{margin-right:0}
+.ladders .lad{justify-content:center}.ladders .lrow{min-width:150px;justify-content:center;overflow:visible;align-items:center;gap:6px}.ladders .lrow .c{--w:min(11vw,44px);margin:0}.ladders .lrow .c.lastp{box-shadow:0 0 0 3px var(--gold),0 0 14px var(--gold)}.lmid{font:700 13px Oswald,sans-serif;color:#fff;background:rgba(0,0,0,.35);border:1px solid var(--line2);border-radius:10px;padding:2px 8px}
 .dbl{display:flex;direction:ltr;gap:6px}.dbl .c{--w:36px;margin:0}.dbl .dsel .c{box-shadow:0 0 0 3px var(--red);transform:translateY(-6px)}
 .hint{text-align:center;font-size:11.5px;color:var(--dim);margin-top:2px}
 .bidb{min-width:44px}
@@ -3599,7 +3600,7 @@ const Games = (() => {
         else {
           if (!L.includes(id)) err('هذه الورقة لا تصلح الآن');
           const { s: su, r } = cr(id); st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
-          const Ld = st.ladder[su]; st.ladder[su] = !Ld ? [11, 11] : [Math.min(Ld[0], r), Math.max(Ld[1], r)];
+          st.lastTrix = id; const Ld = st.ladder[su]; st.ladder[su] = !Ld ? [11, 11] : [Math.min(Ld[0], r), Math.max(Ld[1], r)];
           if (!st.hands[seat].length) { st.finished.push(seat); st.hs[seat] += [200, 150, 100, 50][st.finished.length - 1]; log(st, st.names[seat] + ' أنهى أوراقه'); }
         }
         if (st.finished.length >= 3) {
@@ -5367,7 +5368,7 @@ function meTab() {
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.15</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.16</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -5668,8 +5669,10 @@ function trickTable() {
   let centre;
   if (st.phase === 'trix' || (G.trixFamily && st.contract === 'trix' && st.phase !== 'choose')) {
     centre = `<div class="ladders">${['S', 'H', 'C', 'D'].map(su => {
+      // only the two ends of each ladder matter: show the lowest and highest card in full, with a count of the cards between
       const Lr = st.ladder[su]; let cards = '';
-      if (Lr) for (let r = Lr[0]; r <= Lr[1]; r++) cards += cardHTML(su + r);
+      const one = r => cardHTML(su + r, st.lastTrix === su + r ? 'lastp' : '');
+      if (Lr) cards = Lr[0] === Lr[1] ? one(Lr[0]) : one(Lr[0]) + (Lr[1] - Lr[0] > 1 ? `<span class="lmid">+${Lr[1] - Lr[0] - 1}</span>` : '') + one(Lr[1]);
       return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">بانتظار الشبّ</span>'}</div></div>`;
     }).join('')}</div>`;
   } else {

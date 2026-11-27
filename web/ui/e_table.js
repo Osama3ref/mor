@@ -156,8 +156,10 @@ function trickTable() {
   let centre;
   if (st.phase === 'trix' || (G.trixFamily && st.contract === 'trix' && st.phase !== 'choose')) {
     centre = `<div class="ladders">${['S', 'H', 'C', 'D'].map(su => {
+      // only the two ends of each ladder matter: show the lowest and highest card in full, with a count of the cards between
       const Lr = st.ladder[su]; let cards = '';
-      if (Lr) for (let r = Lr[0]; r <= Lr[1]; r++) cards += cardHTML(su + r);
+      const one = r => cardHTML(su + r, st.lastTrix === su + r ? 'lastp' : '');
+      if (Lr) cards = Lr[0] === Lr[1] ? one(Lr[0]) : one(Lr[0]) + (Lr[1] - Lr[0] > 1 ? `<span class="lmid">+${Lr[1] - Lr[0] - 1}</span>` : '') + one(Lr[1]);
       return `<div class="lad"><span class="ls ${'HD'.includes(su) ? 'red' : ''}">${SUIT[su]}</span><div class="mini lrow">${cards || '<span class="empty">بانتظار الشبّ</span>'}</div></div>`;
     }).join('')}</div>`;
   } else {

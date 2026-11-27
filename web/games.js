@@ -1001,7 +1001,7 @@ const Games = (() => {
         else {
           if (!L.includes(id)) err('هذه الورقة لا تصلح الآن');
           const { s: su, r } = cr(id); st.hands[seat].splice(st.hands[seat].indexOf(id), 1);
-          const Ld = st.ladder[su]; st.ladder[su] = !Ld ? [11, 11] : [Math.min(Ld[0], r), Math.max(Ld[1], r)];
+          st.lastTrix = id; const Ld = st.ladder[su]; st.ladder[su] = !Ld ? [11, 11] : [Math.min(Ld[0], r), Math.max(Ld[1], r)];
           if (!st.hands[seat].length) { st.finished.push(seat); st.hs[seat] += [200, 150, 100, 50][st.finished.length - 1]; log(st, st.names[seat] + ' أنهى أوراقه'); }
         }
         if (st.finished.length >= 3) {
