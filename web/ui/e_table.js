@@ -16,6 +16,7 @@ function game() {
   const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
   const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
+  const canMeld = new Set(me >= 0 && !ui.hidden && st.phase === 'play' ? meldGroups(st.hands[me], Mor.teamOf(me)).flat() : []);
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لا يوجد بعد</span>'}</div></div>`; };
@@ -50,10 +51,13 @@ function game() {
   <div class="partner">${seatHTML(st, P, me)}</div>
   <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
   <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">انتهت السحبة: الدور الأخير من الأرض فقط</div>` : ''}<div class="status">${tmrBadge(me)}${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
-  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (canMeld.has(id) ? 'canmeld ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
   </div>${overlays(me)}`;
 }
 function endActs(st, can) {
+  return `<div class="acts" style="justify-content:center"><button class="btn ghost sm" data-a="stats">📊 الإحصائيات</button></div>` + endActs0(st, can);
+}
+function endActs0(st, can) {
   const room = ui.mode === 'lan' || ui.mode === 'fb';
   if (st.phase !== 'over') return can ? `<div class="acts"><button class="btn" data-a="nextRound">الجولة التالية</button><button class="btn alt" data-a="exit">خروج</button></div>` : '<p class="muted">بانتظار اللاعبين…</p>';
   if (!room) return `<div class="acts"><button class="btn" data-a="newMatch">لعبة جديدة</button><button class="btn alt" data-a="exit">خروج</button></div>`;

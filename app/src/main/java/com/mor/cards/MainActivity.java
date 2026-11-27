@@ -144,6 +144,26 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void notify(final String title, final String body) {
+            runOnUiThread(() -> {
+                try {
+                    android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                    if (android.os.Build.VERSION.SDK_INT >= 26) nm.createNotificationChannel(new android.app.NotificationChannel("invites", "الدعوات والرسائل", android.app.NotificationManager.IMPORTANCE_HIGH));
+                    android.content.Intent open = new android.content.Intent(MainActivity.this, MainActivity.class).addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                    android.app.PendingIntent pi = android.app.PendingIntent.getActivity(MainActivity.this, 0, open, android.app.PendingIntent.FLAG_IMMUTABLE | android.app.PendingIntent.FLAG_UPDATE_CURRENT);
+                    android.app.Notification.Builder b = android.os.Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(MainActivity.this, "invites") : new android.app.Notification.Builder(MainActivity.this);
+                    b.setSmallIcon(android.R.drawable.ic_dialog_email).setContentTitle(title).setContentText(body).setAutoCancel(true).setContentIntent(pi);
+                    nm.notify((int) (System.currentTimeMillis() % 100000), b.build());
+                } catch (Exception e) { }
+            });
+        }
+
+        @JavascriptInterface
+        public void askNotify() {
+            runOnUiThread(() -> { if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7); });
+        }
+
+        @JavascriptInterface
         public void share(final String text) {
             runOnUiThread(() -> {
                 android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_SEND);

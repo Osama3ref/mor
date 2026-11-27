@@ -11,6 +11,7 @@ function render() {
     : ui.st.game === 'mafia' ? mafiaView()
     : ui.st.game === 'coup' ? coupView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
+  if (ui.mode === 'replay') $app.insertAdjacentHTML('beforeend', replayBar());
   layoutHand(); fitBoard();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
   if (focus) { const el = document.getElementById(focus); if (el && el.tagName === 'INPUT' && el.type !== 'range') el.focus(); }
@@ -128,6 +129,11 @@ $app.addEventListener('click', e => {
       friendMenu: () => { ui.pop = { k: 'friend', f: t.dataset.f }; render(); },
       dm: () => { ui.pop = null; openDM(t.dataset.f); }, openChat: () => openChat(t.dataset.c), closeChat,
       sendDM: () => sendDM(),
+      stkTog: () => { ui.stkOpen = !ui.stkOpen; render(); }, sendStk: () => { ui.stkOpen = false; render(); sendDM('sticker', { stk: t.dataset.k }); },
+      notesPop: () => { const L = ui.notes || []; ui.pop = { k: 'notes' }; render(); L.forEach(n => delete n.new); ls.set('mor-notes', L); },
+      noteGo: () => { const n = t.dataset.l ? (ui.notes || [])[+t.dataset.i] : ui.banner; if (n) { delete n.new; ls.set('mor-notes', ui.notes || []); } noteGo(n); },
+      clearNotes: () => { ui.notes = []; ls.set('mor-notes', []); render(); },
+      togNotify: () => { prof.notify = prof.notify === false; saveProf && saveProf(); render(); },
       groupPop: () => { ui.pop = { k: 'group' }; render(); }, gmT: () => t.classList.toggle('on'), mkGroup: createGroup,
       invitePop: () => { ui.pop = { k: 'invite' }; render(); }, invite: () => inviteTo(t.dataset.to),
       acceptInv: () => { const r = t.dataset.r; closeChat(); if (ui.mode) { if (ui.code === r) { ui.view = ui.st ? 'game' : 'room'; return render(); } leave(); } joinRoom('fb', r); },
@@ -135,6 +141,15 @@ $app.addEventListener('click', e => {
       copyCode: () => copyText(ui.code, 'انسخ الرمز: ' + ui.code),
       shareRoom: () => shareRoom(),
       frontPlay: () => tapCard(t.dataset.c),
+      stats: () => showStats(),
+      rpFirst: () => replayGo(0), rpPrev: () => replayGo(ui.replay.i - 1), rpNext: () => replayGo(ui.replay.i + 1), rpLast: () => replayGo(ui.replay.frames.length - 1),
+      rpPlay: () => replayToggle(), rpExit: () => replayExit(),
+      replays: async () => { ui.pop = { k: 'replays', list: await listReplays() }; render(); },
+      openReplay: () => openReplay(t.dataset.id),
+      reactPop: () => { ui.pop = { k: 'react' }; render(); },
+      react: () => sendReact(t.dataset.r),
+      tutorial: () => { ui.pop = { k: 'tutorial', g: t.dataset.g || 'mor', i: 0 }; render(); },
+      tutNext: () => { ui.pop.i++; render(); }, tutPrev: () => { ui.pop.i = Math.max(0, ui.pop.i - 1); render(); },
       setRows: () => { prof.handRows = +t.dataset.v; saveProf(); render(); },
       togPre: () => { prof.prePlay = prof.prePlay === false; saveProf(); render(); },
       discSel: () => { ui.pop.sel = +t.dataset.i; SFX.tap(); render(); },
@@ -151,7 +166,7 @@ $app.addEventListener('click', e => {
       draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
       declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
       morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
-      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (الزائد على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
+      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (المكرّر على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
       reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
       noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
       // chat & voice
@@ -230,5 +245,8 @@ window.__back = () => {
   try { native && native.setOrientation(ui.orient); } catch (e) {}
   ready = true; render();
   if (window.FB) fbInit();
+  const last = ls.get('mor-room');
+  if (last && last.mode === 'lan') setTimeout(() => { if (!ui.mode) joinRoom('lan', last.key).then(() => ui.mode && toast('عدت إلى الغرفة')); }, 600);
+  if (last && last.mode === 'fb') { const t0 = Date.now(), iv = setInterval(() => { if (ui.mode || Date.now() - t0 > 20000) return clearInterval(iv); if (fb.ready) { clearInterval(iv); joinRoom('fb', last.key).then(() => ui.mode && toast('عدت إلى الغرفة')); } }, 500); }
   setInterval(() => { if (!fb.ready && !fb.tried && window.FB && !ui.mode) fbInit(); }, 20000);
 })();

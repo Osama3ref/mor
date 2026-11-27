@@ -32,7 +32,8 @@ const Mor = (() => {
     const jok = ids.filter(isJ);
     const twos = ids.filter(i => !isJ(i) && rankOf(i) === 2);
     const others = ids.filter(i => !isJ(i) && rankOf(i) !== 2);
-    if (jok.length > 1) return null;
+    // house rule: at most one joker and one 2 in a meld (a 2 and a joker together are fine)
+    if (jok.length > 1 || twos.length > 1) return null;
     let suits = [...new Set(others.map(i => i[0]))];
     if (suits.length > 1) return null;
     if (!suits.length) suits = [...new Set(twos.map(i => i[0]))];
@@ -59,7 +60,8 @@ const Mor = (() => {
           const wild = [...jok, ...wildTwos];
           let w = 0;
           for (let k = 0; k < N; k++) if (!slots[k]) slots[k] = wild[w++];
-          const clean = wild.length === 0;
+          // a 2 of the run's own suit does not break it; a joker or a 2 of another suit does
+          const clean = jok.length === 0 && wildTwos.every(t => t[0] === S);
           const res = { type: 'seq', ok: true, clean, suit: S, start: s, order: slots, wild };
           if (!best || (clean && !best.clean)) best = res;
           if (best.clean) return best;
@@ -428,9 +430,13 @@ const Mor = (() => {
     return plan.ground * 3 + (hand.length - left.length) * 2.2 + conn * 0.55 + wilds * 3 + prog * (P.prog ?? 0.8) - left.length * 1.6;
   }
   function danger(st, seat, c) {
-    if (isJ(c) || rankOf(c) === 2) return 50;
+    // never feed the opponents: wild cards, cards that extend their melds, or cards that free their jokers
+    if (isJ(c) || rankOf(c) === 2) return 80;
     const T = teamOf(seat); let d = 0;
-    for (const m of st.melds) if (m.team !== T && analyze([...m.cards, c])) d += 9;
+    for (const m of st.melds) if (m.team !== T) {
+      if (analyze([...m.cards, c])) d += 28;
+      else if (swapOptions(m, c).length) d += 20;
+    }
     const nextOpp = (seat + 1) % 4;
     for (const t of (st.taken || []).slice(-10)) {
       if (teamOf(t.seat) === T) continue;

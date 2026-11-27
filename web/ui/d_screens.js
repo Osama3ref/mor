@@ -1,6 +1,20 @@
 // ---------- rendering: screens ----------
 function fan(ids, w = 34) { return `<div class="fanlogo" style="width:${w * 2.1}px;height:${w * 1.75}px">${ids.map((id, i) => cardHTML(id, '', `style="--w:${w}px;left:${i * w * 0.5}px;transform:rotate(${(i - 1) * 13}deg)"`)).join('')}</div>`; }
-const toastHTML = () => (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '');
+const toastHTML = () => (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '') + (ui.banner ? `<button class="nbanner" data-a="noteGo" data-i="0" role="alert"><span class="nic">${ui.banner.ic}</span><span class="ntx"><b>${esc(ui.banner.title)}</b><span>${esc(ui.banner.body || '')}</span></span><span class="ngo">افتح</span></button>` : '');
+// card-themed stickers for private chats (original designs: a playing card with a big emoji and a caption)
+const STK = [
+  { id: 'mor', e: '🎴', t: 'مور!', s: '♠', c: '#1b5e3b' }, { id: 'yalla', e: '🃏', t: 'هيّا نلعب', s: '♥', c: '#8e1b2b' },
+  { id: 'win', e: '🏆', t: 'فزنا!', s: '♦', c: '#9a6b12' }, { id: 'luck', e: '🍀', t: 'حظّاً أوفر', s: '♣', c: '#245a2c' },
+  { id: 'pro', e: '😎', t: 'ضربة معلّم', s: '♠', c: '#22314f' }, { id: 'trix', e: '👑', t: 'تركس!', s: '♥', c: '#6a1f5e' },
+  { id: 'kabot', e: '💥', t: 'كبّوت!', s: '♦', c: '#a33a12' }, { id: 'lol', e: '😂', t: 'هههه', s: '♣', c: '#2b4a7a' },
+  { id: 'wait', e: '⏳', t: 'انتظرني', s: '♠', c: '#44464f' }, { id: 'fast', e: '⚡', t: 'أسرع!', s: '♥', c: '#b2611a' },
+  { id: 'joker', e: '🤡', t: 'جوكر!', s: '★', c: '#5b2a86' }, { id: 'night', e: '🌙', t: 'تصبحون على خير', s: '♦', c: '#1f2a44' },
+  { id: 'angry', e: '😤', t: 'لماذا رميتها؟!', s: '♣', c: '#7a1f1f' }, { id: 'shy', e: '🙈', t: 'أخطأتُ', s: '♥', c: '#7a4a6a' },
+  { id: 'clap', e: '👏', t: 'أحسنت', s: '♠', c: '#1d5a5a' }, { id: 'coffee', e: '☕', t: 'استراحة قهوة', s: '♦', c: '#5a3a22' },
+  { id: 'coup', e: '🗡️', t: 'انقلاب!', s: '♠', c: '#3a3a3a' }, { id: 'bluff', e: '🤥', t: 'أنت تخادع!', s: '♣', c: '#6b2f12' },
+  { id: 'mafia', e: '🕵️', t: 'أنت المافيا!', s: '♠', c: '#111827' }, { id: 'ok', e: '👌', t: 'حسناً', s: '♥', c: '#1f6f4a' }
+];
+const stkHTML = (id, sm) => { const k = STK.find(x => x.id === id) || STK[0]; const red = k.s === '♥' || k.s === '♦'; return `<span class="stk${sm ? ' sm' : ''}" style="--sc:${k.c}"><i class="cr ${red ? 'r' : ''}">${k.s}</i><i class="cr b ${red ? 'r' : ''}">${k.s}</i><span class="se">${k.e}</span><span class="st">${esc(k.t)}</span></span>`; };
 const sheet = (inner, close = 'closePop', mid = false) => `<div class="ov ${mid ? 'cen' : ''}" data-a="${close}"><div class="box" data-stop="1">${mid ? '' : '<div class="grab"></div>'}${inner}</div></div>`;
 const sheetHead = (title, close = 'closePop') => `<div class="row" style="justify-content:space-between;margin-bottom:6px"><h2>${title}</h2><button class="ic" data-a="${close}" aria-label="إغلاق">${ICON.x}</button></div>`;
 function nav() {
@@ -28,7 +42,8 @@ function homeTab() {
   const last = ls.get('mor-room');
   const saved = ALL.filter(g => savedGame(g.id));
   const canCreate = online() || native;
-  return `<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
+  const nn = newNotes();
+  return `${online() ? `<button class="ic bellbtn" data-a="notesPop" aria-label="الإشعارات">🔔${nn ? `<span class="badge">${nn}</span>` : ''}</button>` : ''}<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
   ${meBar()}
   ${saved.length ? `<section class="card saved-games"><h2>أكمل لعبك</h2><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></section>` : ''}
   <button class="big-act main" data-a="newRoom" ${canCreate ? '' : 'disabled'}><span class="bi">${ICON.plus}</span><div><b>إنشاء غرفة</b><span>${canCreate ? 'افتح طاولة وادعُ أصدقاءك' : 'تحتاج إلى الإنترنت أو التطبيق على الواي فاي'}</span></div></button>
@@ -53,6 +68,7 @@ function soloTab() {
   <div class="muted">اختر اللعبة. في ألعاب الشراكة يكون البوت شريكك.</div>
   <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}</div>
   ${gameGrid('soloPick')}
+  <div class="card"><h2>جديد على اللعب؟</h2><div class="muted">شرح سريع خطوة بخطوة.</div><div class="acts"><button class="btn sm" data-a="tutorial" data-g="mor">🎓 تعلّم مور</button><button class="btn alt sm" data-a="tutorial" data-g="trick">🎓 تعلّم الطرنيب والتركس</button></div></div>
   <div class="card"><h2>على جهاز واحد</h2><div class="muted">تمرّرون الجهاز بينكم، ويمكنك جعل بعض المقاعد بوتات.</div><div class="acts"><button class="btn alt sm" data-a="passPop">جهّز اللعبة</button></div></div>`;
 }
 function friendsTab() {
@@ -86,13 +102,14 @@ function meTab() {
       : `<div class="muted">ربطتَ البريد <b dir="ltr">${esc(prof.email)}</b>، لكنه <b class="red">غير مؤكَّد</b> بعد. افتح رابط التأكيد الذي وصلك، ثم اضغط الزر.</div><div class="acts"><button class="btn sm" data-a="checkVerify">أكّدت بريدي</button><button class="btn alt sm" data-a="resendVerify">أعد إرسال الرابط</button></div>`)
     : `<div class="muted">اربط حسابك ببريد إلكتروني (اختياري) لتستعيد أصدقاءك وترتيبك إذا غيّرت جهازك. سنرسل إليك رابطاً لتأكيد البريد.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط بريداً</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">لديّ حساب</button></div>`}</div>` : ''}
   <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">تنطبق على اللعب ضد الكمبيوتر وعلى جهاز واحد.</p></div>
+  <div class="card"><h2>🎬 سجلّ الألعاب</h2><div class="muted">شاهد أي لعبة لعبتها من جديد.</div><div class="acts"><button class="btn sm" data-a="replays">افتح السجلّ</button></div></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
   <div class="card"><h2>شكل الورق</h2><div class="tiles">${CSTY.map(tileCard).join('')}</div></div>
   <div class="card"><h2>ظهر الورق</h2><div class="tiles">${BACKS.map(tileBack).join('')}</div></div>
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.13</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.14</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -109,6 +126,14 @@ function pops() {
     ${native ? `<div class="muted" style="margin-top:6px">عنوانك على شبكة الواي فاي: <b dir="ltr">${esc(myIp() || 'غير متصل')}</b></div>` : ''}
     <div class="acts"><button class="btn wide" data-a="joinGo">ادخل</button></div>`);
   if (p.k === 'call') return vc.on ? callSheet() : '';
+  if (p.k === 'react') return reactSheet();
+  if (p.k === 'stats') return sheet(`${sheetHead('📊 إحصائيات اللعبة')}<div class="scroll"><table><tr><th></th>${p.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr>${p.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td><b>${x}</b></td>`).join('')}</tr>`).join('')}</table></div>`);
+  if (p.k === 'notes') { const L = ui.notes || []; return sheet(`${sheetHead('🔔 الإشعارات')}
+    <div class="row" style="justify-content:space-between"><label class="row" style="gap:6px"><input type="checkbox" data-a="togNotify" ${prof.notify !== false ? 'checked' : ''} style="width:auto;min-height:0"> نبّهني بالطلبات والرسائل والدعوات</label>${L.length ? '<button class="btn ghost sm" data-a="clearNotes">امسح الكل</button>' : ''}</div>
+    <div class="nlist">${L.map((n, i) => `<button class="nitem ${n.new ? 'new' : ''}" data-a="noteGo" data-i="${i}" data-l="1"><span class="nic">${n.ic}</span><span class="ntx"><b>${esc(n.title)}</b><span>${esc(n.body || '')}</span><small>${new Date(n.t).toLocaleString('ar', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}</small></span></button>`).join('') || '<div class="empty">لا توجد إشعارات بعد</div>'}</div>`); }
+  if (p.k === 'replays') return sheet(`${sheetHead('سجلّ الألعاب')}<div class="muted">كل لعبة لها رقم، ويمكنك إعادة مشاهدتها خطوة بخطوة. يُحفظ آخر 30 لعبة على هذا الجهاز.</div>
+    ${p.list.length ? p.list.map(r => `<button class="li" data-a="openReplay" data-id="${esc(r.id)}" style="width:100%;text-align:start"><span class="ic" style="font-size:20px">${GG(r.game).icon || '🎴'}</span><div class="t"><b>${esc(GG(r.game).name)} · #${esc(r.id)}</b><span>${new Date(r.t).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })} · ${esc((r.names || []).join('، '))} · ${r.n} خطوة${r.over ? ' · مكتملة' : ''}</span></div><span class="chip">▶ شاهد</span></button>`).join('') : '<div class="empty">لا توجد ألعاب مسجّلة بعد.</div>'}`);
+  if (p.k === 'tutorial') return tutorialSheet(p.g, p.i || 0);
   if (p.k === 'discPick' && ui.st && ui.st.discard) {
     const d = ui.st.discard, sel = p.sel, n = d.length - sel;
     const cnt = n === 1 ? 'ورقة واحدة' : n === 2 ? 'ورقتين' : n <= 10 ? n + ' أوراق' : n + ' ورقة';
@@ -164,10 +189,12 @@ function dmView() {
   return `<div class="chatv"><div class="hd"><button class="ic" data-a="closeChat" aria-label="رجوع">${ICON.back}</button>${chatAv(c)}<div style="flex:1"><b>${esc(chatTitle(c))}</b>${c.group ? `<div class="muted">${(c.members || []).map(m => esc((c.names || {})[m] || '')).join('، ')}</div>` : ''}</div>${ui.mode === 'fb' ? `<button class="btn sm" data-a="invite" data-to="${c.id}">ادعُ إلى الغرفة</button>` : ''}</div>
   <div class="msgs" id="dmmsgs">${ui.dmMsgs.map(m => {
     const mine = m.by === fb.uid;
+    if (m.kind === 'sticker') return `<div class="msg stkm ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${stkHTML(m.stk)}</div>`;
     if (m.kind === 'invite') return `<div class="msg inv ${mine ? 'me' : ''}"><small>${esc(m.name)}</small>🎴 دعوة لغرفة <b>${esc(GG(m.game).name)}</b> · <span dir="ltr">${esc(m.room)}</span>${mine ? '' : `<div style="margin-top:6px"><button class="btn sm" data-a="acceptInv" data-r="${esc(m.room)}">ادخل الغرفة</button></div>`}</div>`;
     return `<div class="msg ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${esc(m.text)}</div>`;
   }).join('') || '<div class="empty">قل مرحباً 👋</div>'}</div>
-  <div class="inp"><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div></div>${toastHTML()}`;
+  ${ui.stkOpen ? `<div class="stkgrid">${STK.map(k => `<button data-a="sendStk" data-k="${k.id}" aria-label="${esc(k.t)}">${stkHTML(k.id, 1)}</button>`).join('')}</div>` : ''}
+  <div class="inp"><button class="ic ${ui.stkOpen ? 'on' : ''}" data-a="stkTog" aria-label="الملصقات">🃏</button><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div></div>${toastHTML()}`;
 }
 function lobby() {
   const G = GG(ui.room && ui.room.game || 'mor'), host = isHost(), mine = ui.players.find(p => p.id === uid);
@@ -198,3 +225,28 @@ function lobby() {
   </div></div>${ui.chatOpen ? chatPanel() : ''}${pops()}${ui.confirmExit ? exitBox() : ''}${toastHTML()}`;
 }
 const exitBox = () => sheet(`<h2>هل تريد الخروج؟</h2><p class="muted">${ui.mode === 'local' ? 'تُحفظ اللعبة ويمكنك إكمالها لاحقاً.' : 'ستخرج من الغرفة، ويمكنك العودة بالرمز نفسه.'}</p><div class="acts"><button class="btn red" data-a="leave">نعم، اخرج</button><button class="btn alt" data-a="stay">لا، أكمل</button></div>`, 'stay', true);
+
+// ---------- beginner walkthroughs ----------
+const TUTS = {
+  mor: [
+    ['🎴', 'هدف مور: أن يُنهي فريقك أوراقه ويأخذ «المور» (11 ورقة إضافية) ثم يُنهيها أيضاً، ويجمع أكبر عدد من النقاط.'],
+    ['🃏', 'في دورك: اسحب ورقة من السحبة، أو خذ من الأرض. اضغط على الأرض لترى أوراقها مفرودة واختر من أين تبدأ.'],
+    ['✋', 'التنزيلة: ثلاث أوراق أو أكثر متتالية من الشكل نفسه (سيري)، أو من الرقم نفسه. النقطة الخضراء على أوراقك تعني أنها تصلح لتنزيلة.'],
+    ['⭐', 'البدائل: في كل تنزيلة جوكر واحد و2 واحدة على الأكثر. التنزيلة المتشابهة (مثل ثلاث سبعات) لا تقبل الـ2، تقبل الجوكر فقط.'],
+    ['💰', 'القيم: سيري من 7 أوراق = 40، من 10 = 60، 12 = 80، 13 = 100. الرقم الأسود الصغير فوق التنزيلة هو عدد أوراقها.'],
+    ['👆', 'اسحب ورقة من يدك وأفلتها فوق تنزيلة فريقك لتضيفها، أو فوق الأرض لترميها. وزر «رتّب» يرتّب يدك بثلاث طرق.'],
+    ['📣', 'قبل التنزيل أعلن «أريد المور» أو «أريد الضمان». إذا أعلنت ولم تستطع تُخصم منك 20.'],
+  ],
+  trick: [
+    ['🂡', 'في ألعاب اللمّات (الطرنيب والتركس) يلعب كل لاعب ورقة، وأعلى ورقة من الشكل الملعوب تأخذ اللمّة.'],
+    ['♥️', 'يجب أن تلعب من الشكل نفسه إن كان معك. الأوراق الباهتة في يدك لا يُسمح بلعبها الآن.'],
+    ['👆', 'اضغط مرتين على الورقة أو اسحبها للأعلى لتلعبها. وإذا اخترت ورقة قبل دورك تُلعب تلقائياً عندما يأتي دورك.'],
+    ['🎯', 'في الطرنيب تطلب عدد اللمّات التي ستأخذها، والطرنيب يغلب كل الأشكال. في التركس لكل مملكة طلبات مختلفة: تجنّب الشايب والبنات والديناري واللطوش، ثم سباق التركس.'],
+    ['🔁', 'المربع في الزاوية يعرض نقاط كل لاعب، وآخر لمّة تظهر في الزاوية الأخرى. اقرأ القوانين الكاملة من زر ⓘ.'],
+  ]
+};
+function tutorialSheet(g, i) {
+  const L = TUTS[g === 'mor' ? 'mor' : 'trick'], k = Math.min(i, L.length - 1), [ic, tx] = L[k];
+  return sheet(`${sheetHead(g === 'mor' ? 'تعلّم مور' : 'تعلّم ألعاب اللمّات')}<div class="tut"><div class="ti">${ic}</div><p>${tx}</p><div class="dots">${L.map((x, j) => `<i class="${j === k ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="acts" style="justify-content:center">${k ? '<button class="btn alt" data-a="tutPrev">السابق</button>' : ''}${k < L.length - 1 ? '<button class="btn" data-a="tutNext">التالي</button>' : '<button class="btn" data-a="closePop">فهمت، لنلعب!</button>'}</div></div>`);
+}

@@ -3,13 +3,14 @@ function humans(st) { return [0, 1, 2, 3].filter(s => !(st.bots && st.bots[s]));
 function mySeat() {
   const st = ui.st; if (!st) return -1;
   if (ui.mode === 'local') return ui.viewer;
+  if (ui.mode === 'replay') return ui.replay ? ui.replay.seat : 0;
   return st.seats ? st.seats.indexOf(uid) : -1;
 }
 function isHost() { return ui.mode === 'local' || (ui.room && ui.room.host === uid); }
 
 // ---------- actions ----------
 async function act(fn, ...args) {
-  if (ui.busy) return;
+  if (ui.busy || ui.mode === 'replay') return;
   let next;
   try { next = fn(ui.st, mySeat(), ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
   await commit(next);
@@ -26,6 +27,7 @@ async function commit(next, quiet) {
 }
 // several players act at once (votes, night picks): re-apply the action to the latest state on conflict
 async function actR(fn, ...args) {
+  if (ui.mode === 'replay') return;
   for (let i = 0; i < 6; i++) {
     while (ui.busy) await sleep(60);
     let next;
@@ -40,6 +42,7 @@ let prevSt = null;
 function afterState() {
   const st = ui.st; if (!st) return;
   const pv = prevSt;
+  try { recordFrame(st); } catch (e) {}
   try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
   prevSt = st;
   requestAnimationFrame(() => { try { flyFor(pv, st); } catch (e) {} });
@@ -398,9 +401,13 @@ function voiceLeave(silent) {
   if (!silent) B().voiceState(false).catch(() => {});
   render();
 }
+const REACTS = ['😂', '👏', '🔥', '😮', '😡', '🤝', 'يا سلام!', 'يلّا بسرعة', 'حظ أوفر', 'أحسنت'];
+async function sendReact(t) { ui.pop = null; render(); try { await B().chat.send(t); } catch (e) { toast('لم تُرسل'); } }
+function reactSheet() { return sheet(`${sheetHead('ردّ سريع')}<div class="reacts">${REACTS.map(r => `<button data-a="react" data-r="${esc(r)}">${esc(r)}</button>`).join('')}</div>`); }
 function voiceBtns() {
-  if (!vc.on) return `<button class="ic" data-a="voice" aria-label="انضم إلى المكالمة">${ICON.phone}${vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>`;
-  return `<button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="${vc.muted ? 'شغّل الميكروفون' : 'اكتم الميكروفون'}">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button><button class="ic" data-a="callPop" aria-label="المكالمة والمشاركين">${ICON.users}${vc.silenced.size ? `<span class="badge">${vc.silenced.size}</span>` : ''}</button>`;
+  const rb = social() ? `<button class="ic" data-a="reactPop" aria-label="ردّ سريع">😀</button>` : '';
+  if (!vc.on) return rb + `<button class="ic" data-a="voice" aria-label="انضم إلى المكالمة">${ICON.phone}${vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>`;
+  return rb + `<button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="${vc.muted ? 'شغّل الميكروفون' : 'اكتم الميكروفون'}">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button><button class="ic" data-a="callPop" aria-label="المكالمة والمشاركين">${ICON.users}${vc.silenced.size ? `<span class="badge">${vc.silenced.size}</span>` : ''}</button>`;
 }
 function silence(id) { vc.silenced.has(id) ? vc.silenced.delete(id) : vc.silenced.add(id); if (vc.els[id]) vc.els[id].muted = vc.silenced.has(id); render(); }
 function callSheet() {
@@ -477,3 +484,77 @@ async function voiceSync(j) {
   voicePeers();
 }
 
+
+// ---------- game recordings: every game gets an ID and its states are kept (IndexedDB) for replay ----------
+const RP = { db: null, last: null };
+function rpDB() {
+  return RP.db || (RP.db = new Promise((res, rej) => { const r = indexedDB.open('sahra-replays', 1); r.onupgradeneeded = () => r.result.createObjectStore('games', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+}
+async function rpTx(mode, fn) { const db = await rpDB(); return new Promise((res, rej) => { const tx = db.transaction('games', mode), s = tx.objectStore('games'); const out = fn(s); tx.oncomplete = () => res(out && out.result); tx.onerror = () => rej(tx.error); }); }
+const gameId = st => (st.deal || 0).toString(36).toUpperCase().slice(-6);
+function recordFrame(st) {
+  if (ui.mode === 'replay' || !st || !st.deal) return;
+  const id = gameId(st), js = JSON.stringify(st);
+  if (RP.last === js) return; RP.last = js;
+  const names = st.names || (st.players || []).map(p => p.name);
+  rpTx('readwrite', s => {
+    const g = s.get(id);
+    g.onsuccess = () => {
+      const rec = g.result || { id, game: st.game || 'mor', names, t: Date.now(), mode: ui.mode, seat: mySeat(), me: uid, frames: [] };
+      if (rec.frames.length < 2500) rec.frames.push(js);
+      rec.end = Date.now(); rec.over = st.phase === 'over';
+      s.put(rec);
+    };
+  }).catch(() => {});
+  if (!recordFrame.pruned) { recordFrame.pruned = 1; pruneReplays(); }
+}
+async function listReplays() {
+  try { return (await rpTx('readonly', s => s.getAll())).map(r => ({ id: r.id, game: r.game, names: r.names, t: r.t, n: r.frames.length, over: r.over })).sort((a, b) => b.t - a.t); } catch (e) { return []; }
+}
+async function pruneReplays() { const L = await listReplays(); for (const r of L.slice(30)) rpTx('readwrite', s => s.delete(r.id)).catch(() => {}); }
+async function openReplay(id) {
+  let rec; try { rec = await rpTx('readonly', s => s.get(id)); } catch (e) {}
+  if (!rec || !rec.frames.length) return toast('التسجيل غير موجود');
+  const frames = rec.frames.map(f => JSON.parse(f));
+  let seat = rec.seat; if (seat == null || seat < 0) seat = 0;
+  ui.replay = { id, frames, i: 0, seat, play: false, back: { view: ui.view, tab: ui.tab } };
+  ui.prevMode = ui.mode; ui.mode = 'replay'; ui.pop = null; ui.order = {}; ui.st = frames[0]; ui.view = 'game'; render();
+}
+function replayGo(i) {
+  const R = ui.replay; if (!R) return;
+  R.i = Math.max(0, Math.min(R.frames.length - 1, i)); const prev = ui.st; ui.st = R.frames[R.i];
+  try { soundsFor(prev, ui.st, R.seat); } catch (e) {}
+  render();
+}
+function replayToggle() {
+  const R = ui.replay; if (!R) return; R.play = !R.play; render();
+  const step = () => { if (!ui.replay || !ui.replay.play) return; if (ui.replay.i >= ui.replay.frames.length - 1) { ui.replay.play = false; return render(); } replayGo(ui.replay.i + 1); setTimeout(step, 900); };
+  if (R.play) setTimeout(step, 300);
+}
+function replayExit() { const b = ui.replay && ui.replay.back; ui.replay = null; ui.mode = null; ui.st = null; ui.view = 'home'; ui.tab = (b && b.tab) || 'me'; prevSt = null; render(); }
+function replayBar() {
+  const R = ui.replay; if (!R) return '';
+  return `<div class="rpbar"><span class="muted">تسجيل #${esc(R.id)}</span><button class="ic" data-a="rpFirst" aria-label="البداية">⏮</button><button class="ic" data-a="rpPrev" aria-label="السابق">◀</button><button class="ic on" data-a="rpPlay" aria-label="${R.play ? 'إيقاف' : 'تشغيل'}">${R.play ? '⏸' : '▶'}</button><button class="ic" data-a="rpNext" aria-label="التالي">▶</button><button class="ic" data-a="rpLast" aria-label="النهاية">⏭</button><b dir="ltr">${R.i + 1}/${R.frames.length}</b><button class="btn alt sm" data-a="rpExit">خروج</button></div>`;
+}
+
+// ---------- game statistics, computed from the recording of the current game ----------
+async function showStats() {
+  const st = ui.st; if (!st) return;
+  let rec; try { rec = await rpTx('readonly', s => s.get(gameId(st))); } catch (e) {}
+  const frames = rec ? rec.frames.map(f => JSON.parse(f)) : [st];
+  const names = st.names || [], N = names.length || 4;
+  const rows = [];
+  const ends = []; let lastKey = null;
+  for (const f of frames) if (['handEnd', 'roundEnd', 'over'].includes(f.phase)) { const k = (f.handNo || 0) + ':' + (f.round || 0) + ':' + (f.mid || 0); if (k !== lastKey) { ends.push(f); lastKey = k; } }
+  if ((st.game || 'mor') === 'mor') {
+    const mor = [0, 0], closes = [0, 0];
+    ends.forEach(f => { (f.morBy || []).forEach(t => { if (t != null) mor[t]++; }); if (f.summary && f.summary.how === 'close' && f.summary.closer != null) closes[f.summary.closer % 2]++; });
+    rows.push(['الجولات', ends.length, ends.length], ['الموريات المأخوذة', mor[0], mor[1]], ['مرات الضمان', closes[0], closes[1]]);
+    const mk = st.mistakes || [];
+    rows.push(['الأخطاء', (mk[0] || 0) + (mk[2] || 0), (mk[1] || 0) + (mk[3] || 0)]);
+    ui.pop = { k: 'stats', cols: [TEAM[0], TEAM[1]], rows }; return render();
+  }
+  const tr = Array(N).fill(0); ends.forEach(f => (f.tricks || []).forEach((x, i) => (tr[i] += x || 0)));
+  rows.push(['الأيدي', ...Array(N).fill(ends.length)], ['مجموع اللمّات', ...tr], ['الأخطاء', ...names.map((_, i) => (st.mistakes || [])[i] || 0)], ['النقاط', ...names.map((_, i) => (st.scores || [])[i] || 0)]);
+  ui.pop = { k: 'stats', cols: names, rows }; render();
+}

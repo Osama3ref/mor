@@ -105,7 +105,7 @@ const savedGame = id => {
   return st && st.phase !== 'over' && Array.isArray(st.hands) && st.hands.length === 4 ? st : null;
 };
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
-window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s) };
+window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s), pushNote: n => pushNote(n), render: () => render(), fb: () => fb };
 
 // ---------- cards ----------
 const PIPS = {
@@ -144,11 +144,19 @@ function sortDesc(h, byRank) {
   });
 }
 // by melds: cards that will not be melded (extras and duplicates) on the left, then each planned meld
+// duplicates (the second copy of a card you already hold) go to the far left; possible melds are grouped together on the right
+function dupes(h) {
+  const seen = new Set(), out = [];
+  for (const c of sortIds(h)) { if (Mor.isJ(c)) continue; const k = c.slice(0, -1); if (seen.has(k)) out.push(c); else seen.add(k); }
+  return out;
+}
+function meldGroups(h, team) {
+  try { return Mor.planMelds(h, [], team).acts.filter(a => a.t === 'new').map(a => a.ids); } catch (e) { return []; }
+}
 function sortByMelds(h, team) {
-  let plan; try { plan = Mor.planMelds(h, [], team); } catch (e) { return sortIds(h); }
-  const groups = plan.acts.filter(a => a.t === 'new').map(a => sortIds(a.ids));
-  const used = new Set(groups.flat());
-  return [...sortIds(h.filter(c => !used.has(c))), ...groups.flat()];
+  const d = dupes(h), rest = h.filter(c => !d.includes(c));
+  const groups = meldGroups(rest, team).map(g => sortIds(g)), used = new Set(groups.flat());
+  return [...d, ...sortIds(rest.filter(c => !used.has(c))), ...groups.flat()];
 }
 function handOrder(seat, hand) {
   let o = (ui.order[seat] || []).filter(id => hand.includes(id));

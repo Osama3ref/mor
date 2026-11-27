@@ -185,19 +185,54 @@ let socialUnsub = [];
 const readMap = ls.get('mor-read') || {};
 function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; }
 function socialStart() {
-  socialStop(); if (!fb.ready) return;
-  socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => { ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {}));
+  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || [];
+  try { native && native.askNotify && native.askNotify(); } catch (e) {}
+  socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => {
+    const before = ui.friends; ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    const seen = ls.get('mor-seenfr') || {};
+    for (const f of ui.friends) {
+      const o = before.find(x => x.id === f.id), key = f.id + ':' + f.st;
+      if (seen[key]) continue;
+      if (f.st === 'in') pushNote({ ic: '👋', title: 'طلب صداقة جديد', body: (f.name || 'لاعب') + ' يريد أن يضيفك صديقاً', a: 'tab', d: { t: 'friends' } });
+      else if (f.st === 'ok' && o && o.st === 'out') pushNote({ ic: '🤝', title: 'قُبل طلبك', body: (f.name || '') + ' أصبح صديقك', a: 'dm', d: { f: f.id } });
+      seen[key] = 1;
+    }
+    ls.set('mor-seenfr', seen); render();
+  }, () => {}));
   socialUnsub.push(FB.onSnapshot(FB.query(fbB.col('chats'), FB.where('members', 'array-contains', fb.uid)), s => {
     const before = ui.chats;
     ui.chats = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((b.last || {}).t || 0) - ((a.last || {}).t || 0));
     for (const c of ui.chats) {
       const o = before.find(x => x.id === c.id), l = c.last;
       if (l && l.by !== fb.uid && (!o || !o.last || o.last.t !== l.t) && before.length && (!ui.dm || ui.dm.id !== c.id)) {
-        toast((l.name || '') + ': ' + (l.kind === 'invite' ? 'دعاك إلى غرفة لعب' : l.text)); SFX.turn();
+        const where = c.group ? ' في «' + (c.title || 'مجموعة') + '»' : '';
+        if (l.kind === 'invite') pushNote({ ic: '🎴', title: 'دعوة إلى غرفة لعب', body: (l.name || '') + ' يدعوك إلى ' + (l.text || '').replace('دعوة لغرفة ', '') + where, a: 'acceptInv', d: { r: l.room || '' }, c: c.id });
+        else pushNote({ ic: l.kind === 'sticker' ? '🃏' : '💬', title: 'رسالة من ' + (l.name || '') + where, body: l.text, a: 'openChat', d: { c: c.id } });
       }
     }
     render();
   }, () => {}));
+}
+// in-app notification centre: banner + bell list + system notification while the app is in the background
+function pushNote(n) {
+  n.t = Date.now(); n.new = 1;
+  ui.notes = [n, ...(ui.notes || [])].slice(0, 40); ls.set('mor-notes', ui.notes);
+  if (prof.notify !== false) {
+    ui.banner = n; clearTimeout(pushNote.t); pushNote.t = setTimeout(() => { ui.banner = null; render(); }, 4500);
+    SFX.turn(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+    try { if (document.hidden && native && native.notify) native.notify(n.ic + ' ' + n.title, n.body || ''); } catch (e) {}
+  }
+  render();
+}
+const newNotes = () => (ui.notes || []).filter(n => n.new).length;
+function noteGo(n) {
+  ui.banner = null; ui.pop = null;
+  if (!n) return render();
+  if (n.a === 'tab') { if (ui.view === 'dm') closeChat(); ui.view = ui.mode ? ui.view : 'home'; ui.tab = n.d.t; return render(); }
+  if (n.a === 'dm') return openDM(n.d.f);
+  if (n.a === 'openChat') return openChat(n.d.c);
+  if (n.a === 'acceptInv') { const r = n.d.r; if (!r) return n.c ? openChat(n.c) : render(); if (ui.dm) closeChat(); if (ui.mode) { if (ui.code === r) { ui.view = ui.st ? 'game' : 'room'; return render(); } leave(); } return joinRoom('fb', r); }
+  render();
 }
 const unreadChats = () => ui.chats.filter(c => c.last && c.last.by !== fb.uid && c.last.t > (readMap[c.id] || 0)).length;
 const friendReqs = () => ui.friends.filter(f => f.st === 'in').length;
@@ -262,9 +297,10 @@ async function sendDM(kind = 'text', extra = {}, cid) {
   cid = cid || (ui.dm && ui.dm.id); if (!cid) return;
   let text = '';
   if (kind === 'text') { const el = document.getElementById('dmin'); text = (el && el.value || '').trim(); if (!text) return; el.value = ''; }
+  else if (kind === 'sticker') text = 'ملصق: ' + ((STK.find(x => x.id === extra.stk) || {}).t || '');
   else text = 'دعوة لغرفة ' + (extra.game ? GG(extra.game).name : '');
   const m = { by: fb.uid, name: prof.name, text: text.slice(0, 300), t: Date.now(), kind, ...extra };
-  try { await FB.addDoc(fbB.col('chats', cid, 'msgs'), m); await FB.updateDoc(fbB.ref('chats', cid), { last: { text: m.text, t: m.t, by: fb.uid, name: prof.name, kind } }); }
+  try { await FB.addDoc(fbB.col('chats', cid, 'msgs'), m); await FB.updateDoc(fbB.ref('chats', cid), { last: { text: m.text, t: m.t, by: fb.uid, name: prof.name, kind, ...(extra.room ? { room: extra.room } : {}) } }); }
   catch (e) { toast('لم تُرسل'); }
 }
 async function inviteTo(target) {

@@ -268,6 +268,8 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .hand{position:relative;margin:0 auto;touch-action:none}
 .hand .c{position:absolute;transition:left .3s cubic-bezier(.2,.8,.3,1),top .3s cubic-bezier(.2,.8,.3,1),transform .22s cubic-bezier(.2,.8,.3,1),box-shadow .2s;touch-action:none;cursor:grab}
 .hand .c.sel{transform:translateY(-24px);box-shadow:0 0 0 3px var(--gold),0 10px 18px rgba(0,0,0,.45)}
+.hand .c.canmeld{box-shadow:inset 0 -5px 0 var(--ok),0 3px 8px rgba(0,0,0,.35)}
+.hand .c.canmeld::after{content:'';position:absolute;left:4px;bottom:6px;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
 .hand .c.pre{transform:translateY(-14px);box-shadow:0 0 0 3px var(--b),0 0 16px var(--b)}
 .hand .c.drag{pointer-events:none}
 .hand .c.fresh:before{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 3px var(--b);z-index:1}
@@ -373,6 +375,14 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
 .sumbox td:first-child{font:700 13px Cairo,sans-serif;border-radius:0 10px 10px 0;color:var(--dim)}
 .sumbox td:last-child{border-radius:10px 0 0 10px}
 .sumbox tr:last-child td{background:color-mix(in srgb,var(--gold) 18%,transparent);color:#fff}
+/* reactions and tutorial */
+.reacts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.reacts button{min-height:52px;border-radius:14px;background:var(--panel2);border:1px solid var(--line2);font-size:20px;font-weight:800}
+.tut{text-align:center}.tut .ti{font-size:52px;line-height:1.2}.tut p{font-size:15.5px;line-height:1.8;margin:8px 0 14px}
+.tut .dots{display:flex;justify-content:center;gap:6px;margin:6px 0 10px}.tut .dots i{width:8px;height:8px;border-radius:50%;background:var(--line2)}.tut .dots i.on{background:var(--gold)}
+/* replay */
+.rpbar{position:fixed;left:50%;bottom:calc(8px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:85;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:18px;background:rgba(10,14,30,.94);border:1px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.6);white-space:nowrap}
+.rpbar b{font:600 13px Oswald,sans-serif;color:var(--gold)}.rpbar .ic{width:36px;height:36px}
 /* discard picker */
 .dpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:8px;margin:12px 0;direction:ltr}
 .dp{position:relative;display:flex;flex-direction:column;align-items:center;padding:4px;border-radius:12px;opacity:.45;transition:opacity .15s,transform .15s}
@@ -414,6 +424,22 @@ input[type=range]{min-height:0;padding:0;accent-color:var(--gold);background:non
   .bar{flex-direction:row;align-items:center;justify-content:center;padding:2px 10px}
   .mini .c{--w:28px}.trickbox{height:min(52vh,190px)}.slot .c{--w:46px}
 }
+.nbanner{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(94vw,440px);z-index:95;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:linear-gradient(135deg,#232b42,#1a2033);border:1px solid var(--gold);box-shadow:0 14px 34px rgba(0,0,0,.55);color:var(--ink);text-align:start;animation:nslide .35s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes nslide{from{transform:translate(-50%,-140%)}to{transform:translate(-50%,0)}}
+.nic{font-size:26px;width:42px;height:42px;display:grid;place-items:center;border-radius:12px;background:rgba(255,255,255,.07);flex:none}
+.ntx{flex:1;display:flex;flex-direction:column;min-width:0}.ntx b{font-size:14px}.ntx span{font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ntx small{font-size:11px;color:var(--mut);opacity:.7}
+.ngo{font-weight:800;color:var(--gold);font-size:13px}
+.bellbtn{position:absolute;top:calc(10px + env(safe-area-inset-top));inset-inline-end:14px;font-size:20px;z-index:5}
+.nlist{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:60vh;overflow:auto}
+.nitem{display:flex;gap:10px;align-items:center;padding:8px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--ink);text-align:start}.nitem.new{border-color:var(--gold);background:rgba(212,175,55,.08)}
+.stk{--sc:#1b5e3b;position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:112px;height:150px;border-radius:14px;background:radial-gradient(circle at 50% 38%,#fff 0,#f3efe4 70%);border:4px solid var(--sc);box-shadow:0 6px 16px rgba(0,0,0,.4),inset 0 0 0 2px #fff;transform:rotate(-4deg);color:var(--sc)}
+.msg.me .stk{transform:rotate(4deg)}
+.stk .se{font-size:52px;line-height:1;filter:drop-shadow(0 3px 2px rgba(0,0,0,.25))}
+.stk .st{margin-top:8px;font:900 14px Cairo,sans-serif;background:var(--sc);color:#fff;padding:2px 8px;border-radius:8px;max-width:96%;text-align:center;line-height:1.3}
+.stk .cr{position:absolute;top:4px;right:7px;font-style:normal;font:700 18px Playfair Display,serif;color:#111}.stk .cr.r{color:#c0182c}.stk .cr.b{top:auto;right:auto;bottom:4px;left:7px;transform:rotate(180deg)}
+.stk.sm{width:70px;height:94px;border-width:3px;border-radius:10px;transform:none}.stk.sm .se{font-size:30px}.stk.sm .st{font-size:9.5px;margin-top:4px;padding:1px 4px}.stk.sm .cr{font-size:12px}
+.msg.stkm{background:none!important;border:none!important;box-shadow:none!important;padding:4px}
+.stkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;max-height:38vh;overflow:auto;background:rgba(0,0,0,.25);border-top:1px solid var(--line)}.stkgrid button{background:none;border:none;padding:0;display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -531,7 +557,7 @@ const savedGame = id => {
   return st && st.phase !== 'over' && Array.isArray(st.hands) && st.hands.length === 4 ? st : null;
 };
 const GICON = { mor: ['H1a', 'S13a', 'J0a'], tarneeb41: ['D14', 'H13', 'S12'], tarneeb61: ['C14', 'S14', 'H11'], trixKingdoms: ['H13', 'S12', 'D11'], trixKingdomsP: ['H13', 'C12', 'H12'], trixComplex: ['H13', 'D12', 'D14'], trixComplexP: ['S12', 'H13', 'C11'], complexCC: ['H12', 'D12', 'H13'] };
-window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s) };
+window.__mor = { ui, mySeat: () => mySeat(), vc: () => vc, prof, commit: s => commit(s), pushNote: n => pushNote(n), render: () => render(), fb: () => fb };
 
 // ---------- cards ----------
 const PIPS = {
@@ -570,11 +596,19 @@ function sortDesc(h, byRank) {
   });
 }
 // by melds: cards that will not be melded (extras and duplicates) on the left, then each planned meld
+// duplicates (the second copy of a card you already hold) go to the far left; possible melds are grouped together on the right
+function dupes(h) {
+  const seen = new Set(), out = [];
+  for (const c of sortIds(h)) { if (Mor.isJ(c)) continue; const k = c.slice(0, -1); if (seen.has(k)) out.push(c); else seen.add(k); }
+  return out;
+}
+function meldGroups(h, team) {
+  try { return Mor.planMelds(h, [], team).acts.filter(a => a.t === 'new').map(a => a.ids); } catch (e) { return []; }
+}
 function sortByMelds(h, team) {
-  let plan; try { plan = Mor.planMelds(h, [], team); } catch (e) { return sortIds(h); }
-  const groups = plan.acts.filter(a => a.t === 'new').map(a => sortIds(a.ids));
-  const used = new Set(groups.flat());
-  return [...sortIds(h.filter(c => !used.has(c))), ...groups.flat()];
+  const d = dupes(h), rest = h.filter(c => !d.includes(c));
+  const groups = meldGroups(rest, team).map(g => sortIds(g)), used = new Set(groups.flat());
+  return [...d, ...sortIds(rest.filter(c => !used.has(c))), ...groups.flat()];
 }
 function handOrder(seat, hand) {
   let o = (ui.order[seat] || []).filter(id => hand.includes(id));
@@ -678,13 +712,14 @@ function humans(st) { return [0, 1, 2, 3].filter(s => !(st.bots && st.bots[s]));
 function mySeat() {
   const st = ui.st; if (!st) return -1;
   if (ui.mode === 'local') return ui.viewer;
+  if (ui.mode === 'replay') return ui.replay ? ui.replay.seat : 0;
   return st.seats ? st.seats.indexOf(uid) : -1;
 }
 function isHost() { return ui.mode === 'local' || (ui.room && ui.room.host === uid); }
 
 // ---------- actions ----------
 async function act(fn, ...args) {
-  if (ui.busy) return;
+  if (ui.busy || ui.mode === 'replay') return;
   let next;
   try { next = fn(ui.st, mySeat(), ...args); } catch (e) { if (e.game) return toast(e.message); throw e; }
   await commit(next);
@@ -701,6 +736,7 @@ async function commit(next, quiet) {
 }
 // several players act at once (votes, night picks): re-apply the action to the latest state on conflict
 async function actR(fn, ...args) {
+  if (ui.mode === 'replay') return;
   for (let i = 0; i < 6; i++) {
     while (ui.busy) await sleep(60);
     let next;
@@ -715,6 +751,7 @@ let prevSt = null;
 function afterState() {
   const st = ui.st; if (!st) return;
   const pv = prevSt;
+  try { recordFrame(st); } catch (e) {}
   try { soundsFor(prevSt, st, mySeat()); } catch (e) {}
   prevSt = st;
   requestAnimationFrame(() => { try { flyFor(pv, st); } catch (e) {} });
@@ -1073,9 +1110,13 @@ function voiceLeave(silent) {
   if (!silent) B().voiceState(false).catch(() => {});
   render();
 }
+const REACTS = ['😂', '👏', '🔥', '😮', '😡', '🤝', 'يا سلام!', 'يلّا بسرعة', 'حظ أوفر', 'أحسنت'];
+async function sendReact(t) { ui.pop = null; render(); try { await B().chat.send(t); } catch (e) { toast('لم تُرسل'); } }
+function reactSheet() { return sheet(`${sheetHead('ردّ سريع')}<div class="reacts">${REACTS.map(r => `<button data-a="react" data-r="${esc(r)}">${esc(r)}</button>`).join('')}</div>`); }
 function voiceBtns() {
-  if (!vc.on) return `<button class="ic" data-a="voice" aria-label="انضم إلى المكالمة">${ICON.phone}${vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>`;
-  return `<button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="${vc.muted ? 'شغّل الميكروفون' : 'اكتم الميكروفون'}">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button><button class="ic" data-a="callPop" aria-label="المكالمة والمشاركين">${ICON.users}${vc.silenced.size ? `<span class="badge">${vc.silenced.size}</span>` : ''}</button>`;
+  const rb = social() ? `<button class="ic" data-a="reactPop" aria-label="ردّ سريع">😀</button>` : '';
+  if (!vc.on) return rb + `<button class="ic" data-a="voice" aria-label="انضم إلى المكالمة">${ICON.phone}${vc.members.length ? `<span class="badge" style="background:var(--b);color:#03212d">${vc.members.length}</span>` : ''}</button>`;
+  return rb + `<button class="ic ${vc.muted || !vc.stream ? 'vmute' : 'von'}" data-a="voice" aria-label="${vc.muted ? 'شغّل الميكروفون' : 'اكتم الميكروفون'}">${vc.muted || !vc.stream ? ICON.micoff : ICON.mic}</button><button class="ic" data-a="callPop" aria-label="المكالمة والمشاركين">${ICON.users}${vc.silenced.size ? `<span class="badge">${vc.silenced.size}</span>` : ''}</button>`;
 }
 function silence(id) { vc.silenced.has(id) ? vc.silenced.delete(id) : vc.silenced.add(id); if (vc.els[id]) vc.els[id].muted = vc.silenced.has(id); render(); }
 function callSheet() {
@@ -1152,6 +1193,80 @@ async function voiceSync(j) {
   voicePeers();
 }
 
+
+// ---------- game recordings: every game gets an ID and its states are kept (IndexedDB) for replay ----------
+const RP = { db: null, last: null };
+function rpDB() {
+  return RP.db || (RP.db = new Promise((res, rej) => { const r = indexedDB.open('sahra-replays', 1); r.onupgradeneeded = () => r.result.createObjectStore('games', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+}
+async function rpTx(mode, fn) { const db = await rpDB(); return new Promise((res, rej) => { const tx = db.transaction('games', mode), s = tx.objectStore('games'); const out = fn(s); tx.oncomplete = () => res(out && out.result); tx.onerror = () => rej(tx.error); }); }
+const gameId = st => (st.deal || 0).toString(36).toUpperCase().slice(-6);
+function recordFrame(st) {
+  if (ui.mode === 'replay' || !st || !st.deal) return;
+  const id = gameId(st), js = JSON.stringify(st);
+  if (RP.last === js) return; RP.last = js;
+  const names = st.names || (st.players || []).map(p => p.name);
+  rpTx('readwrite', s => {
+    const g = s.get(id);
+    g.onsuccess = () => {
+      const rec = g.result || { id, game: st.game || 'mor', names, t: Date.now(), mode: ui.mode, seat: mySeat(), me: uid, frames: [] };
+      if (rec.frames.length < 2500) rec.frames.push(js);
+      rec.end = Date.now(); rec.over = st.phase === 'over';
+      s.put(rec);
+    };
+  }).catch(() => {});
+  if (!recordFrame.pruned) { recordFrame.pruned = 1; pruneReplays(); }
+}
+async function listReplays() {
+  try { return (await rpTx('readonly', s => s.getAll())).map(r => ({ id: r.id, game: r.game, names: r.names, t: r.t, n: r.frames.length, over: r.over })).sort((a, b) => b.t - a.t); } catch (e) { return []; }
+}
+async function pruneReplays() { const L = await listReplays(); for (const r of L.slice(30)) rpTx('readwrite', s => s.delete(r.id)).catch(() => {}); }
+async function openReplay(id) {
+  let rec; try { rec = await rpTx('readonly', s => s.get(id)); } catch (e) {}
+  if (!rec || !rec.frames.length) return toast('التسجيل غير موجود');
+  const frames = rec.frames.map(f => JSON.parse(f));
+  let seat = rec.seat; if (seat == null || seat < 0) seat = 0;
+  ui.replay = { id, frames, i: 0, seat, play: false, back: { view: ui.view, tab: ui.tab } };
+  ui.prevMode = ui.mode; ui.mode = 'replay'; ui.pop = null; ui.order = {}; ui.st = frames[0]; ui.view = 'game'; render();
+}
+function replayGo(i) {
+  const R = ui.replay; if (!R) return;
+  R.i = Math.max(0, Math.min(R.frames.length - 1, i)); const prev = ui.st; ui.st = R.frames[R.i];
+  try { soundsFor(prev, ui.st, R.seat); } catch (e) {}
+  render();
+}
+function replayToggle() {
+  const R = ui.replay; if (!R) return; R.play = !R.play; render();
+  const step = () => { if (!ui.replay || !ui.replay.play) return; if (ui.replay.i >= ui.replay.frames.length - 1) { ui.replay.play = false; return render(); } replayGo(ui.replay.i + 1); setTimeout(step, 900); };
+  if (R.play) setTimeout(step, 300);
+}
+function replayExit() { const b = ui.replay && ui.replay.back; ui.replay = null; ui.mode = null; ui.st = null; ui.view = 'home'; ui.tab = (b && b.tab) || 'me'; prevSt = null; render(); }
+function replayBar() {
+  const R = ui.replay; if (!R) return '';
+  return `<div class="rpbar"><span class="muted">تسجيل #${esc(R.id)}</span><button class="ic" data-a="rpFirst" aria-label="البداية">⏮</button><button class="ic" data-a="rpPrev" aria-label="السابق">◀</button><button class="ic on" data-a="rpPlay" aria-label="${R.play ? 'إيقاف' : 'تشغيل'}">${R.play ? '⏸' : '▶'}</button><button class="ic" data-a="rpNext" aria-label="التالي">▶</button><button class="ic" data-a="rpLast" aria-label="النهاية">⏭</button><b dir="ltr">${R.i + 1}/${R.frames.length}</b><button class="btn alt sm" data-a="rpExit">خروج</button></div>`;
+}
+
+// ---------- game statistics, computed from the recording of the current game ----------
+async function showStats() {
+  const st = ui.st; if (!st) return;
+  let rec; try { rec = await rpTx('readonly', s => s.get(gameId(st))); } catch (e) {}
+  const frames = rec ? rec.frames.map(f => JSON.parse(f)) : [st];
+  const names = st.names || [], N = names.length || 4;
+  const rows = [];
+  const ends = []; let lastKey = null;
+  for (const f of frames) if (['handEnd', 'roundEnd', 'over'].includes(f.phase)) { const k = (f.handNo || 0) + ':' + (f.round || 0) + ':' + (f.mid || 0); if (k !== lastKey) { ends.push(f); lastKey = k; } }
+  if ((st.game || 'mor') === 'mor') {
+    const mor = [0, 0], closes = [0, 0];
+    ends.forEach(f => { (f.morBy || []).forEach(t => { if (t != null) mor[t]++; }); if (f.summary && f.summary.how === 'close' && f.summary.closer != null) closes[f.summary.closer % 2]++; });
+    rows.push(['الجولات', ends.length, ends.length], ['الموريات المأخوذة', mor[0], mor[1]], ['مرات الضمان', closes[0], closes[1]]);
+    const mk = st.mistakes || [];
+    rows.push(['الأخطاء', (mk[0] || 0) + (mk[2] || 0), (mk[1] || 0) + (mk[3] || 0)]);
+    ui.pop = { k: 'stats', cols: [TEAM[0], TEAM[1]], rows }; return render();
+  }
+  const tr = Array(N).fill(0); ends.forEach(f => (f.tricks || []).forEach((x, i) => (tr[i] += x || 0)));
+  rows.push(['الأيدي', ...Array(N).fill(ends.length)], ['مجموع اللمّات', ...tr], ['الأخطاء', ...names.map((_, i) => (st.mistakes || [])[i] || 0)], ['النقاط', ...names.map((_, i) => (st.scores || [])[i] || 0)]);
+  ui.pop = { k: 'stats', cols: names, rows }; render();
+}
 
 // ---------- rooms ----------
 function genCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += a[Math.floor(Math.random() * a.length)]; return s; }
@@ -1340,19 +1455,54 @@ let socialUnsub = [];
 const readMap = ls.get('mor-read') || {};
 function socialStop() { socialUnsub.forEach(u => u()); socialUnsub = []; ui.friends = []; ui.chats = []; }
 function socialStart() {
-  socialStop(); if (!fb.ready) return;
-  socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => { ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, () => {}));
+  socialStop(); if (!fb.ready) return; ui.notes = ls.get('mor-notes') || [];
+  try { native && native.askNotify && native.askNotify(); } catch (e) {}
+  socialUnsub.push(FB.onSnapshot(fbB.col('users', fb.uid, 'friends'), s => {
+    const before = ui.friends; ui.friends = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    const seen = ls.get('mor-seenfr') || {};
+    for (const f of ui.friends) {
+      const o = before.find(x => x.id === f.id), key = f.id + ':' + f.st;
+      if (seen[key]) continue;
+      if (f.st === 'in') pushNote({ ic: '👋', title: 'طلب صداقة جديد', body: (f.name || 'لاعب') + ' يريد أن يضيفك صديقاً', a: 'tab', d: { t: 'friends' } });
+      else if (f.st === 'ok' && o && o.st === 'out') pushNote({ ic: '🤝', title: 'قُبل طلبك', body: (f.name || '') + ' أصبح صديقك', a: 'dm', d: { f: f.id } });
+      seen[key] = 1;
+    }
+    ls.set('mor-seenfr', seen); render();
+  }, () => {}));
   socialUnsub.push(FB.onSnapshot(FB.query(fbB.col('chats'), FB.where('members', 'array-contains', fb.uid)), s => {
     const before = ui.chats;
     ui.chats = s.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => ((b.last || {}).t || 0) - ((a.last || {}).t || 0));
     for (const c of ui.chats) {
       const o = before.find(x => x.id === c.id), l = c.last;
       if (l && l.by !== fb.uid && (!o || !o.last || o.last.t !== l.t) && before.length && (!ui.dm || ui.dm.id !== c.id)) {
-        toast((l.name || '') + ': ' + (l.kind === 'invite' ? 'دعاك إلى غرفة لعب' : l.text)); SFX.turn();
+        const where = c.group ? ' في «' + (c.title || 'مجموعة') + '»' : '';
+        if (l.kind === 'invite') pushNote({ ic: '🎴', title: 'دعوة إلى غرفة لعب', body: (l.name || '') + ' يدعوك إلى ' + (l.text || '').replace('دعوة لغرفة ', '') + where, a: 'acceptInv', d: { r: l.room || '' }, c: c.id });
+        else pushNote({ ic: l.kind === 'sticker' ? '🃏' : '💬', title: 'رسالة من ' + (l.name || '') + where, body: l.text, a: 'openChat', d: { c: c.id } });
       }
     }
     render();
   }, () => {}));
+}
+// in-app notification centre: banner + bell list + system notification while the app is in the background
+function pushNote(n) {
+  n.t = Date.now(); n.new = 1;
+  ui.notes = [n, ...(ui.notes || [])].slice(0, 40); ls.set('mor-notes', ui.notes);
+  if (prof.notify !== false) {
+    ui.banner = n; clearTimeout(pushNote.t); pushNote.t = setTimeout(() => { ui.banner = null; render(); }, 4500);
+    SFX.turn(); try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+    try { if (document.hidden && native && native.notify) native.notify(n.ic + ' ' + n.title, n.body || ''); } catch (e) {}
+  }
+  render();
+}
+const newNotes = () => (ui.notes || []).filter(n => n.new).length;
+function noteGo(n) {
+  ui.banner = null; ui.pop = null;
+  if (!n) return render();
+  if (n.a === 'tab') { if (ui.view === 'dm') closeChat(); ui.view = ui.mode ? ui.view : 'home'; ui.tab = n.d.t; return render(); }
+  if (n.a === 'dm') return openDM(n.d.f);
+  if (n.a === 'openChat') return openChat(n.d.c);
+  if (n.a === 'acceptInv') { const r = n.d.r; if (!r) return n.c ? openChat(n.c) : render(); if (ui.dm) closeChat(); if (ui.mode) { if (ui.code === r) { ui.view = ui.st ? 'game' : 'room'; return render(); } leave(); } return joinRoom('fb', r); }
+  render();
 }
 const unreadChats = () => ui.chats.filter(c => c.last && c.last.by !== fb.uid && c.last.t > (readMap[c.id] || 0)).length;
 const friendReqs = () => ui.friends.filter(f => f.st === 'in').length;
@@ -1417,9 +1567,10 @@ async function sendDM(kind = 'text', extra = {}, cid) {
   cid = cid || (ui.dm && ui.dm.id); if (!cid) return;
   let text = '';
   if (kind === 'text') { const el = document.getElementById('dmin'); text = (el && el.value || '').trim(); if (!text) return; el.value = ''; }
+  else if (kind === 'sticker') text = 'ملصق: ' + ((STK.find(x => x.id === extra.stk) || {}).t || '');
   else text = 'دعوة لغرفة ' + (extra.game ? GG(extra.game).name : '');
   const m = { by: fb.uid, name: prof.name, text: text.slice(0, 300), t: Date.now(), kind, ...extra };
-  try { await FB.addDoc(fbB.col('chats', cid, 'msgs'), m); await FB.updateDoc(fbB.ref('chats', cid), { last: { text: m.text, t: m.t, by: fb.uid, name: prof.name, kind } }); }
+  try { await FB.addDoc(fbB.col('chats', cid, 'msgs'), m); await FB.updateDoc(fbB.ref('chats', cid), { last: { text: m.text, t: m.t, by: fb.uid, name: prof.name, kind, ...(extra.room ? { room: extra.room } : {}) } }); }
   catch (e) { toast('لم تُرسل'); }
 }
 async function inviteTo(target) {
@@ -1444,7 +1595,21 @@ function chatAv(c) {
 
 // ---------- rendering: screens ----------
 function fan(ids, w = 34) { return `<div class="fanlogo" style="width:${w * 2.1}px;height:${w * 1.75}px">${ids.map((id, i) => cardHTML(id, '', `style="--w:${w}px;left:${i * w * 0.5}px;transform:rotate(${(i - 1) * 13}deg)"`)).join('')}</div>`; }
-const toastHTML = () => (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '');
+const toastHTML = () => (ui.toast ? `<div class="toast" role="status">${esc(ui.toast)}</div>` : '') + (ui.banner ? `<button class="nbanner" data-a="noteGo" data-i="0" role="alert"><span class="nic">${ui.banner.ic}</span><span class="ntx"><b>${esc(ui.banner.title)}</b><span>${esc(ui.banner.body || '')}</span></span><span class="ngo">افتح</span></button>` : '');
+// card-themed stickers for private chats (original designs: a playing card with a big emoji and a caption)
+const STK = [
+  { id: 'mor', e: '🎴', t: 'مور!', s: '♠', c: '#1b5e3b' }, { id: 'yalla', e: '🃏', t: 'هيّا نلعب', s: '♥', c: '#8e1b2b' },
+  { id: 'win', e: '🏆', t: 'فزنا!', s: '♦', c: '#9a6b12' }, { id: 'luck', e: '🍀', t: 'حظّاً أوفر', s: '♣', c: '#245a2c' },
+  { id: 'pro', e: '😎', t: 'ضربة معلّم', s: '♠', c: '#22314f' }, { id: 'trix', e: '👑', t: 'تركس!', s: '♥', c: '#6a1f5e' },
+  { id: 'kabot', e: '💥', t: 'كبّوت!', s: '♦', c: '#a33a12' }, { id: 'lol', e: '😂', t: 'هههه', s: '♣', c: '#2b4a7a' },
+  { id: 'wait', e: '⏳', t: 'انتظرني', s: '♠', c: '#44464f' }, { id: 'fast', e: '⚡', t: 'أسرع!', s: '♥', c: '#b2611a' },
+  { id: 'joker', e: '🤡', t: 'جوكر!', s: '★', c: '#5b2a86' }, { id: 'night', e: '🌙', t: 'تصبحون على خير', s: '♦', c: '#1f2a44' },
+  { id: 'angry', e: '😤', t: 'لماذا رميتها؟!', s: '♣', c: '#7a1f1f' }, { id: 'shy', e: '🙈', t: 'أخطأتُ', s: '♥', c: '#7a4a6a' },
+  { id: 'clap', e: '👏', t: 'أحسنت', s: '♠', c: '#1d5a5a' }, { id: 'coffee', e: '☕', t: 'استراحة قهوة', s: '♦', c: '#5a3a22' },
+  { id: 'coup', e: '🗡️', t: 'انقلاب!', s: '♠', c: '#3a3a3a' }, { id: 'bluff', e: '🤥', t: 'أنت تخادع!', s: '♣', c: '#6b2f12' },
+  { id: 'mafia', e: '🕵️', t: 'أنت المافيا!', s: '♠', c: '#111827' }, { id: 'ok', e: '👌', t: 'حسناً', s: '♥', c: '#1f6f4a' }
+];
+const stkHTML = (id, sm) => { const k = STK.find(x => x.id === id) || STK[0]; const red = k.s === '♥' || k.s === '♦'; return `<span class="stk${sm ? ' sm' : ''}" style="--sc:${k.c}"><i class="cr ${red ? 'r' : ''}">${k.s}</i><i class="cr b ${red ? 'r' : ''}">${k.s}</i><span class="se">${k.e}</span><span class="st">${esc(k.t)}</span></span>`; };
 const sheet = (inner, close = 'closePop', mid = false) => `<div class="ov ${mid ? 'cen' : ''}" data-a="${close}"><div class="box" data-stop="1">${mid ? '' : '<div class="grab"></div>'}${inner}</div></div>`;
 const sheetHead = (title, close = 'closePop') => `<div class="row" style="justify-content:space-between;margin-bottom:6px"><h2>${title}</h2><button class="ic" data-a="${close}" aria-label="إغلاق">${ICON.x}</button></div>`;
 function nav() {
@@ -1472,7 +1637,8 @@ function homeTab() {
   const last = ls.get('mor-room');
   const saved = ALL.filter(g => savedGame(g.id));
   const canCreate = online() || native;
-  return `<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
+  const nn = newNotes();
+  return `${online() ? `<button class="ic bellbtn" data-a="notesPop" aria-label="الإشعارات">🔔${nn ? `<span class="badge">${nn}</span>` : ''}</button>` : ''}<div class="brand" style="margin:4px 0 0">${fan(['H1a', 'S13a', 'J0a'], 30)}<h1 style="font-size:30px">سهرة ورق</h1></div>
   ${meBar()}
   ${saved.length ? `<section class="card saved-games"><h2>أكمل لعبك</h2><div class="resume">${saved.map(g => `<button class="chip" data-a="resume" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></section>` : ''}
   <button class="big-act main" data-a="newRoom" ${canCreate ? '' : 'disabled'}><span class="bi">${ICON.plus}</span><div><b>إنشاء غرفة</b><span>${canCreate ? 'افتح طاولة وادعُ أصدقاءك' : 'تحتاج إلى الإنترنت أو التطبيق على الواي فاي'}</span></div></button>
@@ -1497,6 +1663,7 @@ function soloTab() {
   <div class="muted">اختر اللعبة. في ألعاب الشراكة يكون البوت شريكك.</div>
   <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}</div>
   ${gameGrid('soloPick')}
+  <div class="card"><h2>جديد على اللعب؟</h2><div class="muted">شرح سريع خطوة بخطوة.</div><div class="acts"><button class="btn sm" data-a="tutorial" data-g="mor">🎓 تعلّم مور</button><button class="btn alt sm" data-a="tutorial" data-g="trick">🎓 تعلّم الطرنيب والتركس</button></div></div>
   <div class="card"><h2>على جهاز واحد</h2><div class="muted">تمرّرون الجهاز بينكم، ويمكنك جعل بعض المقاعد بوتات.</div><div class="acts"><button class="btn alt sm" data-a="passPop">جهّز اللعبة</button></div></div>`;
 }
 function friendsTab() {
@@ -1530,13 +1697,14 @@ function meTab() {
       : `<div class="muted">ربطتَ البريد <b dir="ltr">${esc(prof.email)}</b>، لكنه <b class="red">غير مؤكَّد</b> بعد. افتح رابط التأكيد الذي وصلك، ثم اضغط الزر.</div><div class="acts"><button class="btn sm" data-a="checkVerify">أكّدت بريدي</button><button class="btn alt sm" data-a="resendVerify">أعد إرسال الرابط</button></div>`)
     : `<div class="muted">اربط حسابك ببريد إلكتروني (اختياري) لتستعيد أصدقاءك وترتيبك إذا غيّرت جهازك. سنرسل إليك رابطاً لتأكيد البريد.</div><div class="acts"><button class="btn sm" data-a="emailPop" data-m="link">اربط بريداً</button><button class="btn ghost sm" data-a="emailPop" data-m="rec">لديّ حساب</button></div>`}</div>` : ''}
   <div class="card"><h2>قوّة البوتات</h2>${botLevelButtons()}<p class="muted" style="margin-bottom:0">تنطبق على اللعب ضد الكمبيوتر وعلى جهاز واحد.</p></div>
+  <div class="card"><h2>🎬 سجلّ الألعاب</h2><div class="muted">شاهد أي لعبة لعبتها من جديد.</div><div class="acts"><button class="btn sm" data-a="replays">افتح السجلّ</button></div></div>
   <div class="card"><h2>شكل الطاولة</h2><div class="tiles">${SKINS.map(tileSkin).join('')}</div></div>
   <div class="card"><h2>شكل الورق</h2><div class="tiles">${CSTY.map(tileCard).join('')}</div></div>
   <div class="card"><h2>ظهر الورق</h2><div class="tiles">${BACKS.map(tileBack).join('')}</div></div>
   <div class="card"><h2>الصوت</h2><div class="row"><button class="ic ${prof.mute ? '' : 'on'}" data-a="mute" aria-label="${prof.mute ? 'شغّل الصوت' : 'كتم الصوت'}">${prof.mute ? ICON.spkoff : ICON.spk}</button><input type="range" id="vol" min="0" max="1" step="0.05" value="${prof.vol}" class="grow" aria-label="مستوى الصوت" ${prof.mute ? 'disabled' : ''}><button class="btn alt sm" data-a="testSnd">جرّب</button></div></div>
   ${native ? `<div class="card"><h2>اتجاه الشاشة</h2><div class="seg"><button class="${ui.orient === 'portrait' ? 'on' : ''}" data-a="orient" data-v="portrait">عمودي</button><button class="${ui.orient === 'landscape' ? 'on' : ''}" data-a="orient" data-v="landscape">أفقي</button></div></div>` : ''}
   ${online() ? `<div class="card"><h2>ترتيبي</h2><div class="resume">${ALL.map(g => `<button class="chip ${(ui.statGame || prof.lastGame || 'mor') === g.id ? 'on' : ''}" data-a="statGame" data-g="${g.id}">${esc(g.name)}</button>`).join('')}</div></div>${stats}` : ''}
-  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.13</p>`;
+  <p class="muted" style="text-align:center">سهرة ورق · الإصدار 1.14</p>`;
 }
 function home() {
   if (!prof.name) return onboarding();
@@ -1553,6 +1721,14 @@ function pops() {
     ${native ? `<div class="muted" style="margin-top:6px">عنوانك على شبكة الواي فاي: <b dir="ltr">${esc(myIp() || 'غير متصل')}</b></div>` : ''}
     <div class="acts"><button class="btn wide" data-a="joinGo">ادخل</button></div>`);
   if (p.k === 'call') return vc.on ? callSheet() : '';
+  if (p.k === 'react') return reactSheet();
+  if (p.k === 'stats') return sheet(`${sheetHead('📊 إحصائيات اللعبة')}<div class="scroll"><table><tr><th></th>${p.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr>${p.rows.map(r => `<tr><td>${esc(r[0])}</td>${r.slice(1).map(x => `<td><b>${x}</b></td>`).join('')}</tr>`).join('')}</table></div>`);
+  if (p.k === 'notes') { const L = ui.notes || []; return sheet(`${sheetHead('🔔 الإشعارات')}
+    <div class="row" style="justify-content:space-between"><label class="row" style="gap:6px"><input type="checkbox" data-a="togNotify" ${prof.notify !== false ? 'checked' : ''} style="width:auto;min-height:0"> نبّهني بالطلبات والرسائل والدعوات</label>${L.length ? '<button class="btn ghost sm" data-a="clearNotes">امسح الكل</button>' : ''}</div>
+    <div class="nlist">${L.map((n, i) => `<button class="nitem ${n.new ? 'new' : ''}" data-a="noteGo" data-i="${i}" data-l="1"><span class="nic">${n.ic}</span><span class="ntx"><b>${esc(n.title)}</b><span>${esc(n.body || '')}</span><small>${new Date(n.t).toLocaleString('ar', { hour: 'numeric', minute: '2-digit', day: 'numeric', month: 'short' })}</small></span></button>`).join('') || '<div class="empty">لا توجد إشعارات بعد</div>'}</div>`); }
+  if (p.k === 'replays') return sheet(`${sheetHead('سجلّ الألعاب')}<div class="muted">كل لعبة لها رقم، ويمكنك إعادة مشاهدتها خطوة بخطوة. يُحفظ آخر 30 لعبة على هذا الجهاز.</div>
+    ${p.list.length ? p.list.map(r => `<button class="li" data-a="openReplay" data-id="${esc(r.id)}" style="width:100%;text-align:start"><span class="ic" style="font-size:20px">${GG(r.game).icon || '🎴'}</span><div class="t"><b>${esc(GG(r.game).name)} · #${esc(r.id)}</b><span>${new Date(r.t).toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' })} · ${esc((r.names || []).join('، '))} · ${r.n} خطوة${r.over ? ' · مكتملة' : ''}</span></div><span class="chip">▶ شاهد</span></button>`).join('') : '<div class="empty">لا توجد ألعاب مسجّلة بعد.</div>'}`);
+  if (p.k === 'tutorial') return tutorialSheet(p.g, p.i || 0);
   if (p.k === 'discPick' && ui.st && ui.st.discard) {
     const d = ui.st.discard, sel = p.sel, n = d.length - sel;
     const cnt = n === 1 ? 'ورقة واحدة' : n === 2 ? 'ورقتين' : n <= 10 ? n + ' أوراق' : n + ' ورقة';
@@ -1608,10 +1784,12 @@ function dmView() {
   return `<div class="chatv"><div class="hd"><button class="ic" data-a="closeChat" aria-label="رجوع">${ICON.back}</button>${chatAv(c)}<div style="flex:1"><b>${esc(chatTitle(c))}</b>${c.group ? `<div class="muted">${(c.members || []).map(m => esc((c.names || {})[m] || '')).join('، ')}</div>` : ''}</div>${ui.mode === 'fb' ? `<button class="btn sm" data-a="invite" data-to="${c.id}">ادعُ إلى الغرفة</button>` : ''}</div>
   <div class="msgs" id="dmmsgs">${ui.dmMsgs.map(m => {
     const mine = m.by === fb.uid;
+    if (m.kind === 'sticker') return `<div class="msg stkm ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${stkHTML(m.stk)}</div>`;
     if (m.kind === 'invite') return `<div class="msg inv ${mine ? 'me' : ''}"><small>${esc(m.name)}</small>🎴 دعوة لغرفة <b>${esc(GG(m.game).name)}</b> · <span dir="ltr">${esc(m.room)}</span>${mine ? '' : `<div style="margin-top:6px"><button class="btn sm" data-a="acceptInv" data-r="${esc(m.room)}">ادخل الغرفة</button></div>`}</div>`;
     return `<div class="msg ${mine ? 'me' : ''}">${c.group && !mine ? `<small>${esc(m.name)}</small>` : ''}${esc(m.text)}</div>`;
   }).join('') || '<div class="empty">قل مرحباً 👋</div>'}</div>
-  <div class="inp"><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div></div>${toastHTML()}`;
+  ${ui.stkOpen ? `<div class="stkgrid">${STK.map(k => `<button data-a="sendStk" data-k="${k.id}" aria-label="${esc(k.t)}">${stkHTML(k.id, 1)}</button>`).join('')}</div>` : ''}
+  <div class="inp"><button class="ic ${ui.stkOpen ? 'on' : ''}" data-a="stkTog" aria-label="الملصقات">🃏</button><input id="dmin" class="grow" placeholder="اكتب رسالة" maxlength="300"><button class="ic on" data-a="sendDM" aria-label="أرسل">${ICON.send}</button></div></div>${toastHTML()}`;
 }
 function lobby() {
   const G = GG(ui.room && ui.room.game || 'mor'), host = isHost(), mine = ui.players.find(p => p.id === uid);
@@ -1643,6 +1821,31 @@ function lobby() {
 }
 const exitBox = () => sheet(`<h2>هل تريد الخروج؟</h2><p class="muted">${ui.mode === 'local' ? 'تُحفظ اللعبة ويمكنك إكمالها لاحقاً.' : 'ستخرج من الغرفة، ويمكنك العودة بالرمز نفسه.'}</p><div class="acts"><button class="btn red" data-a="leave">نعم، اخرج</button><button class="btn alt" data-a="stay">لا، أكمل</button></div>`, 'stay', true);
 
+// ---------- beginner walkthroughs ----------
+const TUTS = {
+  mor: [
+    ['🎴', 'هدف مور: أن يُنهي فريقك أوراقه ويأخذ «المور» (11 ورقة إضافية) ثم يُنهيها أيضاً، ويجمع أكبر عدد من النقاط.'],
+    ['🃏', 'في دورك: اسحب ورقة من السحبة، أو خذ من الأرض. اضغط على الأرض لترى أوراقها مفرودة واختر من أين تبدأ.'],
+    ['✋', 'التنزيلة: ثلاث أوراق أو أكثر متتالية من الشكل نفسه (سيري)، أو من الرقم نفسه. النقطة الخضراء على أوراقك تعني أنها تصلح لتنزيلة.'],
+    ['⭐', 'البدائل: في كل تنزيلة جوكر واحد و2 واحدة على الأكثر. التنزيلة المتشابهة (مثل ثلاث سبعات) لا تقبل الـ2، تقبل الجوكر فقط.'],
+    ['💰', 'القيم: سيري من 7 أوراق = 40، من 10 = 60، 12 = 80، 13 = 100. الرقم الأسود الصغير فوق التنزيلة هو عدد أوراقها.'],
+    ['👆', 'اسحب ورقة من يدك وأفلتها فوق تنزيلة فريقك لتضيفها، أو فوق الأرض لترميها. وزر «رتّب» يرتّب يدك بثلاث طرق.'],
+    ['📣', 'قبل التنزيل أعلن «أريد المور» أو «أريد الضمان». إذا أعلنت ولم تستطع تُخصم منك 20.'],
+  ],
+  trick: [
+    ['🂡', 'في ألعاب اللمّات (الطرنيب والتركس) يلعب كل لاعب ورقة، وأعلى ورقة من الشكل الملعوب تأخذ اللمّة.'],
+    ['♥️', 'يجب أن تلعب من الشكل نفسه إن كان معك. الأوراق الباهتة في يدك لا يُسمح بلعبها الآن.'],
+    ['👆', 'اضغط مرتين على الورقة أو اسحبها للأعلى لتلعبها. وإذا اخترت ورقة قبل دورك تُلعب تلقائياً عندما يأتي دورك.'],
+    ['🎯', 'في الطرنيب تطلب عدد اللمّات التي ستأخذها، والطرنيب يغلب كل الأشكال. في التركس لكل مملكة طلبات مختلفة: تجنّب الشايب والبنات والديناري واللطوش، ثم سباق التركس.'],
+    ['🔁', 'المربع في الزاوية يعرض نقاط كل لاعب، وآخر لمّة تظهر في الزاوية الأخرى. اقرأ القوانين الكاملة من زر ⓘ.'],
+  ]
+};
+function tutorialSheet(g, i) {
+  const L = TUTS[g === 'mor' ? 'mor' : 'trick'], k = Math.min(i, L.length - 1), [ic, tx] = L[k];
+  return sheet(`${sheetHead(g === 'mor' ? 'تعلّم مور' : 'تعلّم ألعاب اللمّات')}<div class="tut"><div class="ti">${ic}</div><p>${tx}</p><div class="dots">${L.map((x, j) => `<i class="${j === k ? 'on' : ''}"></i>`).join('')}</div>
+    <div class="acts" style="justify-content:center">${k ? '<button class="btn alt" data-a="tutPrev">السابق</button>' : ''}${k < L.length - 1 ? '<button class="btn" data-a="tutNext">التالي</button>' : '<button class="btn" data-a="closePop">فهمت، لنلعب!</button>'}</div></div>`);
+}
+
 // ---------- rendering: table ----------
 function seatHTML(st, s, me, cls = '') {
   const b = ui.bubbles[s] && Date.now() - ui.bubbles[s].t < 4000 ? ui.bubbles[s] : null;
@@ -1661,6 +1864,7 @@ function game() {
   const myTurn = st.phase === 'play' && st.turn === me && !ui.hidden;
   const g = [Mor.ground(st, 0), Mor.ground(st, 1)];
   const hand = me >= 0 && !ui.hidden ? handOrder(me, st.hands[me]) : [];
+  const canMeld = new Set(me >= 0 && !ui.hidden && st.phase === 'play' ? meldGroups(st.hands[me], Mor.teamOf(me)).flat() : []);
   for (const id of [...ui.sel]) if (!hand.includes(id)) ui.sel.delete(id);
   const nSel = ui.sel.size, R = (base + 1) % 4, P = (base + 2) % 4, L = (base + 3) % 4;
   const zone = t => { const ms = st.melds.filter(m => m.team === t); return `<div class="zone"><div class="zl"><span>${t === myT ? 'تنزيلاتنا' : 'تنزيلاتهم'}</span><b>${g[t]}</b></div><div class="melds">${ms.length ? ms.map(m => meldHTML(m, myTurn && st.step === 'play' && t === myT && nSel > 0, t !== myT)).join('') : '<span class="empty">لا يوجد بعد</span>'}</div></div>`; };
@@ -1695,10 +1899,13 @@ function game() {
   <div class="partner">${seatHTML(st, P, me)}</div>
   <div class="mid">${seatHTML(st, R, me)}<div class="board">${zone(1 - myT)}<div class="strip">${piles}${disc}</div>${zone(myT)}</div>${seatHTML(st, L, me)}</div>
   <div class="bar">${st.finalTurn && st.phase === 'play' ? `<div class="banner">انتهت السحبة: الدور الأخير من الأرض فقط</div>` : ''}<div class="status">${tmrBadge(me)}${status}</div><div class="acts2">${acts}${me >= 0 && hand.length ? `<button class="btn alt sm" data-a="sort">رتّب</button>` : ''}</div></div>
-  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
+  <div class="handwrap"><div class="hand" id="hand">${hand.map(id => cardHTML(id, (ui.sel.has(id) ? 'sel ' : '') + (fresh.includes(id) ? 'fresh ' : '') + (canMeld.has(id) ? 'canmeld ' : '') + (st.pending[me] && st.turn !== me ? 'lock' : ''))).join('')}</div></div>
   </div>${overlays(me)}`;
 }
 function endActs(st, can) {
+  return `<div class="acts" style="justify-content:center"><button class="btn ghost sm" data-a="stats">📊 الإحصائيات</button></div>` + endActs0(st, can);
+}
+function endActs0(st, can) {
   const room = ui.mode === 'lan' || ui.mode === 'fb';
   if (st.phase !== 'over') return can ? `<div class="acts"><button class="btn" data-a="nextRound">الجولة التالية</button><button class="btn alt" data-a="exit">خروج</button></div>` : '<p class="muted">بانتظار اللاعبين…</p>';
   if (!room) return `<div class="acts"><button class="btn" data-a="newMatch">لعبة جديدة</button><button class="btn alt" data-a="exit">خروج</button></div>`;
@@ -2380,6 +2587,7 @@ function render() {
     : ui.st.game === 'mafia' ? mafiaView()
     : ui.st.game === 'coup' ? coupView()
     : gameOf(ui.st).id === 'mor' ? game() : trickTable();
+  if (ui.mode === 'replay') $app.insertAdjacentHTML('beforeend', replayBar());
   layoutHand(); fitBoard();
   for (const [k, v] of Object.entries(keep)) { const el = document.getElementById(k); if (el && v) el.value = v; }
   if (focus) { const el = document.getElementById(focus); if (el && el.tagName === 'INPUT' && el.type !== 'range') el.focus(); }
@@ -2497,6 +2705,11 @@ $app.addEventListener('click', e => {
       friendMenu: () => { ui.pop = { k: 'friend', f: t.dataset.f }; render(); },
       dm: () => { ui.pop = null; openDM(t.dataset.f); }, openChat: () => openChat(t.dataset.c), closeChat,
       sendDM: () => sendDM(),
+      stkTog: () => { ui.stkOpen = !ui.stkOpen; render(); }, sendStk: () => { ui.stkOpen = false; render(); sendDM('sticker', { stk: t.dataset.k }); },
+      notesPop: () => { const L = ui.notes || []; ui.pop = { k: 'notes' }; render(); L.forEach(n => delete n.new); ls.set('mor-notes', L); },
+      noteGo: () => { const n = t.dataset.l ? (ui.notes || [])[+t.dataset.i] : ui.banner; if (n) { delete n.new; ls.set('mor-notes', ui.notes || []); } noteGo(n); },
+      clearNotes: () => { ui.notes = []; ls.set('mor-notes', []); render(); },
+      togNotify: () => { prof.notify = prof.notify === false; saveProf && saveProf(); render(); },
       groupPop: () => { ui.pop = { k: 'group' }; render(); }, gmT: () => t.classList.toggle('on'), mkGroup: createGroup,
       invitePop: () => { ui.pop = { k: 'invite' }; render(); }, invite: () => inviteTo(t.dataset.to),
       acceptInv: () => { const r = t.dataset.r; closeChat(); if (ui.mode) { if (ui.code === r) { ui.view = ui.st ? 'game' : 'room'; return render(); } leave(); } joinRoom('fb', r); },
@@ -2504,6 +2717,15 @@ $app.addEventListener('click', e => {
       copyCode: () => copyText(ui.code, 'انسخ الرمز: ' + ui.code),
       shareRoom: () => shareRoom(),
       frontPlay: () => tapCard(t.dataset.c),
+      stats: () => showStats(),
+      rpFirst: () => replayGo(0), rpPrev: () => replayGo(ui.replay.i - 1), rpNext: () => replayGo(ui.replay.i + 1), rpLast: () => replayGo(ui.replay.frames.length - 1),
+      rpPlay: () => replayToggle(), rpExit: () => replayExit(),
+      replays: async () => { ui.pop = { k: 'replays', list: await listReplays() }; render(); },
+      openReplay: () => openReplay(t.dataset.id),
+      reactPop: () => { ui.pop = { k: 'react' }; render(); },
+      react: () => sendReact(t.dataset.r),
+      tutorial: () => { ui.pop = { k: 'tutorial', g: t.dataset.g || 'mor', i: 0 }; render(); },
+      tutNext: () => { ui.pop.i++; render(); }, tutPrev: () => { ui.pop.i = Math.max(0, ui.pop.i - 1); render(); },
       setRows: () => { prof.handRows = +t.dataset.v; saveProf(); render(); },
       togPre: () => { prof.prePlay = prof.prePlay === false; saveProf(); render(); },
       discSel: () => { ui.pop.sel = +t.dataset.i; SFX.tap(); render(); },
@@ -2520,7 +2742,7 @@ $app.addEventListener('click', e => {
       draw: () => act(Mor.draw), meld: () => act(Mor.meldNew, [...ui.sel]), discard: () => act(Mor.discard, [...ui.sel][0]),
       declMor: () => act(Mor.declare, 'mor'), declClose: () => act(Mor.declare, 'close'), undecl: () => act(Mor.undeclare),
       morNow: () => act(Mor.takeMorNow), chooseMor: () => act(Mor.chooseMor), close: () => act(Mor.close),
-      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (الزائد على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
+      sort: () => { const me = mySeat(), h = ui.st.hands[me]; ui.sortMode = ((ui.sortMode || 0) + 1) % 3; ui.order[me] = ui.sortMode === 1 ? sortByMelds(h, Mor.teamOf(me)) : sortIds(h, ui.sortMode === 2); toast(['ترتيب حسب الشكل', 'ترتيب حسب التنزيلات (المكرّر على اليسار)', 'ترتيب حسب الرقم'][ui.sortMode]); render(); },
       reveal: () => { ui.hidden = false; render(); }, nextRound, newMatch,
       noSheet: () => { ui.sheet = null; render(); }, sheet: () => { const o = ui.sheet.opts[+t.dataset.i]; ui.sheet = null; o.run(); },
       // chat & voice
@@ -2599,6 +2821,9 @@ window.__back = () => {
   try { native && native.setOrientation(ui.orient); } catch (e) {}
   ready = true; render();
   if (window.FB) fbInit();
+  const last = ls.get('mor-room');
+  if (last && last.mode === 'lan') setTimeout(() => { if (!ui.mode) joinRoom('lan', last.key).then(() => ui.mode && toast('عدت إلى الغرفة')); }, 600);
+  if (last && last.mode === 'fb') { const t0 = Date.now(), iv = setInterval(() => { if (ui.mode || Date.now() - t0 > 20000) return clearInterval(iv); if (fb.ready) { clearInterval(iv); joinRoom('fb', last.key).then(() => ui.mode && toast('عدت إلى الغرفة')); } }, 500); }
   setInterval(() => { if (!fb.ready && !fb.tried && window.FB && !ui.mode) fbInit(); }, 20000);
 })();
 
